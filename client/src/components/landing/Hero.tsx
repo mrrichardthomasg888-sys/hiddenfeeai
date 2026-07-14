@@ -1,68 +1,63 @@
 import { motion } from "framer-motion";
+import { Check } from "lucide-react";
 import { Container } from "@/components/layout/Container";
 import { UploadCard } from "@/components/landing/UploadCard";
-import { ScanDemo } from "@/components/landing/ScanDemo";
-import { TrustBar } from "@/components/landing/TrustBar";
-import { Button } from "@/components/ui/button";
+
+const trustPoints = [
+  "No account required",
+  "Private analysis",
+  "Automatically deleted after processing",
+  "Results in minutes",
+];
 
 export function Hero() {
-  const scrollToExample = () => {
-    document.getElementById("example-report")?.scrollIntoView({ behavior: "smooth" });
-  };
-
   return (
-    <section className="relative overflow-hidden bg-ink-900 pb-6 pt-16 sm:pt-24">
-      {/* subtle depth glow */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.15),transparent_60%)]" />
+    <section className="relative overflow-hidden bg-ink-900 pb-16 pt-20 sm:pt-28">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.14),transparent_60%)]" />
 
-      <Container className="relative">
-        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-8">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <h1 className="text-balance text-4xl font-semibold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
-              Find Hidden Fees Before They Cost You Money.
-            </h1>
-            <p className="mt-5 max-w-lg text-lg text-mist-400">
-              Upload any invoice, bill, receipt, or contract. HiddenFeeAI
-              analyzes every charge to uncover hidden fees, billing errors,
-              and opportunities to save.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Button
-                variant="savings"
-                size="lg"
-                onClick={() => document.getElementById("upload")?.scrollIntoView({ behavior: "smooth" })}
-              >
-                Start AI Audit
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="border-white/15 bg-transparent text-white hover:bg-white/5"
-                onClick={scrollToExample}
-              >
-                View Sample Report
-              </Button>
+      <Container className="relative flex flex-col items-center text-center">
+        <motion.h1
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="max-w-4xl text-balance text-5xl font-semibold leading-[1.05] tracking-tight text-white sm:text-6xl lg:text-7xl"
+        >
+          Find Hidden Fees Before They Cost You Money.
+        </motion.h1>
+
+        <motion.p
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="mt-6 max-w-2xl text-lg leading-relaxed text-slate-200 sm:text-xl"
+        >
+          Upload any invoice, receipt, contract, or bill. HiddenFeeAI uses
+          advanced AI analysis to uncover hidden fees, billing mistakes,
+          duplicate charges, and opportunities to save money.
+        </motion.p>
+
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="mt-10 flex w-full justify-center"
+        >
+          <UploadCard />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="mt-8 flex max-w-2xl flex-wrap items-center justify-center gap-x-6 gap-y-3"
+        >
+          {trustPoints.map((point) => (
+            <div key={point} className="flex items-center gap-2 text-sm text-slate-300">
+              <Check className="h-4 w-4 shrink-0 text-savings-400" strokeWidth={2.5} />
+              {point}
             </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.15 }}
-            className="flex flex-col items-center gap-6 lg:items-end"
-          >
-            <UploadCard />
-            <ScanDemo />
-          </motion.div>
-        </div>
-      </Container>
-
-      <Container className="mt-12">
-        <TrustBar />
+          ))}
+        </motion.div>
       </Container>
     </section>
   );

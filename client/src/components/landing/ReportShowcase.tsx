@@ -1,33 +1,18 @@
 import { motion } from "framer-motion";
-import { TrendingDown, AlertTriangle, Gauge } from "lucide-react";
+import { Gauge, TrendingDown, AlertTriangle } from "lucide-react";
 import { Container } from "@/components/layout/Container";
 import { Badge } from "@/components/ui/badge";
 
-const sampleFindings = [
-  {
-    title: "Administrative Processing Fee",
-    note: "Possible unnecessary charge",
-    amount: "$125.00",
-    severity: "high" as const,
-  },
-  {
-    title: "Duplicate Line Item",
-    note: "Same service billed twice on page 2",
-    amount: "$89.00",
-    severity: "critical" as const,
-  },
-];
-
-export function ExampleReport() {
+export function ReportShowcase() {
   return (
-    <section id="example-report" className="bg-white py-20">
+    <section className="bg-mist-50 py-20">
       <Container>
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="text-sm font-medium uppercase tracking-wide text-mist-500">
-            See exactly what the AI finds
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="text-sm font-semibold uppercase tracking-wide text-mist-500">
+            What you receive
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl">
-            A real audit, in seconds
+            A professional audit report — not just AI text
           </h2>
         </div>
 
@@ -63,21 +48,34 @@ export function ExampleReport() {
           </div>
 
           <div className="space-y-3">
-            {sampleFindings.map((f) => (
-              <div
-                key={f.title}
-                className="flex items-center justify-between gap-4 rounded-xl border border-mist-200 p-4"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-ink-900">{f.title}</p>
-                  <p className="text-xs text-mist-500">{f.note}</p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Badge variant={f.severity}>{f.severity}</Badge>
-                  <span className="text-sm font-semibold text-ink-900">{f.amount}</span>
-                </div>
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-mist-200 p-4">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-ink-900">
+                  Administrative Processing Fee
+                </p>
+                <p className="text-xs text-mist-500">
+                  Evidence: line 14, page 2 · Confidence 96%
+                </p>
               </div>
-            ))}
+              <div className="flex shrink-0 items-center gap-2">
+                <Badge variant="high">high</Badge>
+                <span className="text-sm font-semibold text-ink-900">$125.00</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-mist-200 p-4">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-ink-900">
+                  Duplicate Line Item
+                </p>
+                <p className="text-xs text-mist-500">
+                  Same service billed twice · Confidence 99%
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Badge variant="critical">critical</Badge>
+                <span className="text-sm font-semibold text-ink-900">$89.00</span>
+              </div>
+            </div>
           </div>
           <p className="mt-4 text-center text-xs text-mist-400">
             Sample data shown for illustration.
