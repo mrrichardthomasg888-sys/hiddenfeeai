@@ -12,29 +12,31 @@ const trustPoints = [
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden bg-ink-900 pb-16 pt-20 sm:pt-28">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.14),transparent_60%)]" />
+    <section className="relative overflow-hidden bg-ink-900 py-24 sm:py-32">
+      <div className="pointer-events-none absolute left-1/2 top-0 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-indigo-500/20 blur-[120px]" />
 
       <Container className="relative flex flex-col items-center text-center">
-        <motion.h1
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="max-w-4xl text-balance text-5xl font-semibold leading-[1.05] tracking-tight text-white sm:text-6xl lg:text-7xl"
-        >
-          Find Hidden Fees Before They Cost You Money.
-        </motion.h1>
+        <div className="mx-auto max-w-3xl">
+          <motion.h1
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-balance bg-gradient-to-b from-white to-slate-400 bg-clip-text text-5xl font-bold leading-[1.05] tracking-tighter text-transparent sm:text-6xl"
+          >
+            Find Hidden Fees Before They Cost You Money.
+          </motion.h1>
 
-        <motion.p
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="mt-6 max-w-2xl text-lg leading-relaxed text-slate-200 sm:text-xl"
-        >
-          Upload any invoice, receipt, contract, or bill. HiddenFeeAI uses
-          advanced AI analysis to uncover hidden fees, billing mistakes,
-          duplicate charges, and opportunities to save money.
-        </motion.p>
+          <motion.p
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="mt-6 text-lg font-light leading-relaxed text-slate-200 sm:text-xl"
+          >
+            Upload any invoice, bill, or contract. Our AI finds the hidden
+            fees, billing errors, and savings you're missing.
+          </motion.p>
+        </div>
+
 
         <motion.div
           initial={{ opacity: 0, y: 24 }}

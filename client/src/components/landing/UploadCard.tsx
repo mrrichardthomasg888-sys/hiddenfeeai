@@ -6,11 +6,32 @@ import {
   Lock,
   X,
   CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-const ACCEPTED = ".pdf,.png,.jpg,.jpeg,.webp,.tiff,.docx,.xlsx,.csv";
+const ACCEPTED_EXTENSIONS = [
+  "pdf",
+  "png",
+  "jpg",
+  "jpeg",
+  "heic",
+  "webp",
+  "tiff",
+  "tif",
+  "docx",
+  "doc",
+  "xlsx",
+  "csv",
+  "txt",
+];
+const ACCEPTED = ACCEPTED_EXTENSIONS.map((ext) => `.${ext}`).join(",");
+
+function getExtension(filename: string): string {
+  const parts = filename.split(".");
+  return parts.length > 1 ? parts[parts.length - 1]!.toLowerCase() : "";
+}
 
 const SCAN_STEPS = [
   "Document received",
@@ -31,6 +52,7 @@ export function UploadCard({ onFileSelected }: UploadCardProps) {
   const [file, setFile] = useState<File | null>(null);
   const [state, setState] = useState<CardState>("idle");
   const [stepIndex, setStepIndex] = useState(0);
+  const [fileError, setFileError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const runDemoScan = useCallback(() => {
@@ -52,6 +74,15 @@ export function UploadCard({ onFileSelected }: UploadCardProps) {
     (files: FileList | null) => {
       const selected = files?.[0];
       if (!selected) return;
+      const ext = getExtension(selected.name);
+      if (!ACCEPTED_EXTENSIONS.includes(ext)) {
+        setFileError(
+          "Unsupported file type. Please upload a PDF, image, or document file."
+        );
+        setFile(null);
+        return;
+      }
+      setFileError(null);
       setFile(selected);
       onFileSelected?.(selected);
     },
@@ -62,6 +93,7 @@ export function UploadCard({ onFileSelected }: UploadCardProps) {
     setFile(null);
     setState("idle");
     setStepIndex(0);
+    setFileError(null);
   };
 
   return (
@@ -118,6 +150,13 @@ export function UploadCard({ onFileSelected }: UploadCardProps) {
                 )
               )}
             </div>
+
+            {fileError && (
+              <div className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-risk-critical/10 px-4 py-3 text-sm font-medium text-risk-critical">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {fileError}
+              </div>
+            )}
           </motion.div>
         )}
 
