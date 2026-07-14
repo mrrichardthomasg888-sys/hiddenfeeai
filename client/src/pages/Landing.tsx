@@ -12,7 +12,7 @@ import { PricingCard } from "@/components/landing/PricingCard";
 
 export function Landing() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-midnight-950">
       <Nav />
       <Hero />
       <TrustSection />

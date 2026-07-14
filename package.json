@@ -14,6 +14,16 @@
     "build": "npm run build --workspace client && npm run build --workspace server"
   },
   "devDependencies": {
+    "@types/pdfkit": "^0.17.6",
     "concurrently": "^9.1.2"
+  },
+  "dependencies": {
+    "devl": "^2.0.0",
+    "html2canvas": "^1.4.1",
+    "html2pdf.js": "^0.14.0",
+    "jspdf": "^4.2.1",
+    "pdfjs-dist": "^4.8.69",
+    "pdfkit": "^0.19.1",
+    "pdfmake": "^0.3.11"
   }
 }

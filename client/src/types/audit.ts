@@ -20,6 +20,13 @@ export interface FinancialImpact {
   corrected_total: number;
 }
 
+export interface NegotiationStrategy {
+  difficulty: "Easy" | "Medium" | "Hard";
+  steps: string[];
+  script: string;
+  key_points: string[];
+}
+
 export interface Finding {
   id: string;
   title: string;
@@ -35,6 +42,7 @@ export interface Finding {
   why_it_matters: string;
   recommended_action: string;
   negotiation_message?: string;
+  negotiation_strategy?: NegotiationStrategy;
 }
 
 export interface CleanDocumentSummary {
