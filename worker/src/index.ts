@@ -12,8 +12,17 @@ const app = new Hono<{ Bindings: Env }>();
 app.use("*", cors({
   origin: (origin, c) => {
     const frontendUrl = c.env.FRONTEND_URL || "http://localhost:5173";
-    // Allow the configured frontend URL and localhost dev servers
-    if (!origin || origin === frontendUrl || origin.startsWith("http://localhost")) {
+    // Allow no-origin requests (curl, etc.), configured frontend, localhost dev,
+    // Cloudflare Pages, and custom domains
+    if (
+      !origin ||
+      origin === frontendUrl ||
+      origin.startsWith("http://localhost") ||
+      origin === "https://hiddenfeeai.pages.dev" ||
+      origin.endsWith(".hiddenfeeai.pages.dev") ||
+      origin === "https://hiddenfeeai.com" ||
+      origin === "https://www.hiddenfeeai.com"
+    ) {
       return origin || frontendUrl;
     }
     return frontendUrl;
