@@ -16,8 +16,8 @@
     "uuid": "^11.0.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250124.0",
-    "wrangler": "^3.107.0",
-    "typescript": "^5.7.0"
+    "@cloudflare/workers-types": "^5.20260714.1",
+    "typescript": "^5.7.0",
+    "wrangler": "^4.110.0"
   }
 }

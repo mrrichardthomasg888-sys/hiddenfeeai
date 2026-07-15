@@ -27,7 +27,7 @@ export const env = {
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
   stripePriceCents: Number(process.env.STRIPE_PRICE_USD_CENTS ?? 1500),
-  testModeSkipPayment: (process.env.TEST_MODE_SKIP_PAYMENT ?? "true") === "true",
+  testModeSkipPayment: (process.env.TEST_MODE_SKIP_PAYMENT ?? "false") === "true",
 
   maxUploadSizeMb: Number(process.env.MAX_UPLOAD_SIZE_MB ?? 25),
   clientOrigin: process.env.CLIENT_ORIGIN ?? "http://localhost:5173",
