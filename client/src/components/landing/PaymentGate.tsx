@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Lock, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { apiUrl } from "@/config/api";
 
 interface PaymentGateProps {
   auditId: string;
@@ -17,7 +18,7 @@ export function PaymentGate({ auditId, onPaymentComplete }: PaymentGateProps) {
     setError(null);
 
     try {
-      const res = await fetch("/api/checkout/create-session", {
+      const res = await fetch(apiUrl("/checkout/create-session"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ auditId }),

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Download, Printer, Share2, Loader2, Check, AlertCircle } from "lucide-react";
+import { apiUrl } from "@/config/api";
 import { Button } from "@/components/ui/button";
 
 interface ReportActionsProps {
@@ -52,7 +53,7 @@ export function ReportActions({ auditId }: ReportActionsProps) {
     setIsDownloading(true);
     try {
       // Open the server PDF endpoint — triggers browser auto-download
-      window.location.href = `/api/analyze/${auditId}/pdf`;
+      window.location.href = apiUrl(`/analyze/${auditId}/pdf`);
       showFeedback("success", "PDF download started!");
     } catch {
       showFeedback("error", "Could not download PDF. Try again.");

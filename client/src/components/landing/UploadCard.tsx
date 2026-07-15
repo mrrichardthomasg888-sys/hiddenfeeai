@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import { apiUrl } from "@/config/api";
 import {
   UploadCloud,
   Lock,
@@ -97,7 +98,7 @@ export function UploadCard() {
           }
         });
         xhr.addEventListener("error", () => reject(new Error("Network error. Please check your connection.")));
-        xhr.open("POST", "/api/upload");
+        xhr.open("POST", apiUrl("/upload"));
         xhr.send(formData);
       });
 
@@ -108,7 +109,7 @@ export function UploadCard() {
       // Poll until extraction complete → payment gate
       const pollInterval = setInterval(async () => {
         try {
-          const res = await fetch(`/api/analyze/${data.auditId}`);
+          const res = await fetch(apiUrl(`/analyze/${data.auditId}`));
           if (res.ok) {
             const job = await res.json();
             if (job.status === "extracted") {
@@ -134,7 +135,7 @@ export function UploadCard() {
     setPayError(null);
 
     try {
-      const res = await fetch("/api/checkout/create-session", {
+      const res = await fetch(apiUrl("/checkout/create-session"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ auditId }),
@@ -165,7 +166,7 @@ export function UploadCard() {
     }, 2000);
 
     try {
-      const res = await fetch(`/api/analyze/${auditId}/start`, { method: "POST" });
+      const res = await fetch(apiUrl(`/analyze/${auditId}/start`), { method: "POST" });
       clearInterval(stepTimer);
 
       if (!res.ok) {

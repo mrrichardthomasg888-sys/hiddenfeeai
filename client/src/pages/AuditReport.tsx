@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
+import { apiUrl } from "@/config/api";
 import { motion } from "framer-motion";
 import { Loader2, AlertCircle, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { Container } from "@/components/layout/Container";
@@ -42,7 +43,7 @@ export function AuditReport() {
         setPageState("verifying_payment");
         try {
           const verifyRes = await fetch(
-            `/api/checkout/verify/${auditId}${sessionId ? `?session_id=${sessionId}` : ""}`
+            apiUrl(`/checkout/verify/${auditId}${sessionId ? `?session_id=${sessionId}` : ""}`)
           );
           if (!verifyRes.ok) {
             throw new Error("Payment verification failed");
@@ -56,7 +57,7 @@ export function AuditReport() {
         // Step 2: Trigger AI analysis
         setPageState("analyzing");
         try {
-          const startRes = await fetch(`/api/analyze/${auditId}/start`, { method: "POST" });
+          const startRes = await fetch(apiUrl(`/analyze/${auditId}/start`), { method: "POST" });
           if (!startRes.ok) {
             const data = await startRes.json().catch(() => ({}));
             // If job not found, try polling (might have started already)
@@ -76,7 +77,7 @@ export function AuditReport() {
     const pollForReport = async () => {
       const poll = async () => {
         try {
-          const res = await fetch(`/api/analyze/${auditId}`);
+          const res = await fetch(apiUrl(`/analyze/${auditId}`));
           if (res.status === 404) {
             setErrorMessage("We couldn't find your audit. It may have expired or the link is incorrect.");
             setPageState("error");
