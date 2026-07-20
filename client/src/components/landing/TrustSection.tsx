@@ -5,7 +5,7 @@ import { Container } from "@/components/layout/Container";
 const cards = [
   { icon: ShieldCheck, title: "Privacy First", desc: "Your documents are automatically deleted after processing." },
   { icon: BrainCircuit, title: "AI Analysis", desc: "Advanced AI reviews every line item like a forensic auditor." },
-  { icon: ListChecks, title: "Actionable Results", desc: "Receive a detailed financial audit with evidence and next steps." },
+  { icon: ListChecks, title: "Actionable Results", desc: "Receive a detailed financial audit with evidence, negotiation leverage, and clear next steps to help you challenge hidden fees with confidence." },
 ];
 
 export function TrustSection() {

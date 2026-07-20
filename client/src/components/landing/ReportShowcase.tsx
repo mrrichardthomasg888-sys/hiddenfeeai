@@ -14,6 +14,9 @@ export function ReportShowcase() {
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-violet-100 sm:text-3xl">
             A professional audit report — not just AI text
           </h2>
+          <p className="mt-4 text-sm leading-relaxed text-violet-300/70 sm:text-base">
+            Your report documents each questionable charge with supporting evidence and clear explanations — giving you negotiation leverage when speaking with billing departments, service providers, contractors, dealerships, or medical offices. Actionable next steps show you exactly how to challenge or question each finding with confidence.
+          </p>
         </div>
 
         <motion.div

@@ -1,3 +1,4 @@
+
 # HiddenFeeAI
 
 AI-powered forensic document audits. Upload any invoice, bill, receipt, or contract and uncover hidden fees, billing errors, and savings opportunities.

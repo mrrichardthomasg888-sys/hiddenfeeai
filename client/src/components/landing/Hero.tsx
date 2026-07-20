@@ -26,7 +26,7 @@ export function Hero() {
             transition={{ duration: 0.5, delay: 0.08 }}
             className="mx-auto mt-3 max-w-xl text-base font-semibold leading-snug text-violet-200/90 sm:text-lg"
           >
-            Upload any invoice, receipt, bill, or contract. HiddenFeeAI uses advanced AI analysis to uncover hidden fees, billing errors, duplicate charges, and money-saving opportunities you may have missed.
+            Upload any invoice, receipt, bill, or contract. HiddenFeeAI uses advanced AI analysis to uncover hidden fees, billing errors, duplicate charges, and gives you negotiation leverage to challenge questionable charges with confidence.
           </motion.p>
         </div>
 
