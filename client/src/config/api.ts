@@ -6,8 +6,10 @@
  *                     or falls back to same-origin /api for Pages Functions
  */
 
+// For Android/Capacitor builds, the VITE_API_URL must be baked in at build time.
+// Fallback to the production Worker URL when not set via env var.
 export const API_URL: string =
-  import.meta.env.VITE_API_URL || "";
+  import.meta.env.VITE_API_URL || "https://hiddenfeeai-worker.mr-richardthomasg888.workers.dev";
 
 export function apiUrl(path: string): string {
   const cleanPath = path.startsWith("/") ? path : `/${path}`;

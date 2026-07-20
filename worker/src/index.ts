@@ -8,16 +8,16 @@ import { checkoutRoute } from "./routes/checkout.js";
 
 const app = new Hono<{ Bindings: Env }>();
 
-// CORS for frontend
+// CORS for frontend — allow web, Capacitor, and all Cloudflare Pages origins
 app.use("*", cors({
   origin: (origin, c) => {
     const frontendUrl = c.env.FRONTEND_URL || "http://localhost:5173";
-    // Allow no-origin requests (curl, etc.), configured frontend, localhost dev,
-    // Cloudflare Pages, and custom domains
     if (
       !origin ||
       origin === frontendUrl ||
       origin.startsWith("http://localhost") ||
+      origin.startsWith("capacitor://") ||
+      origin.startsWith("file://") ||
       origin === "https://hiddenfeeai.pages.dev" ||
       origin.endsWith(".hiddenfeeai.pages.dev") ||
       origin === "https://hiddenfeeai.com" ||
