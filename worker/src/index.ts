@@ -8,16 +8,15 @@ import { checkoutRoute } from "./routes/checkout.js";
 
 const app = new Hono<{ Bindings: Env }>();
 
-// CORS for frontend — allow web, Capacitor, and all Cloudflare Pages origins
+// CORS: allow web (browsers) and Capacitor Android (null/file:// origins)
 app.use("*", cors({
   origin: (origin, c) => {
     const frontendUrl = c.env.FRONTEND_URL || "http://localhost:5173";
     if (
-      !origin ||
+      !origin || origin === "null" ||
       origin === frontendUrl ||
       origin.startsWith("http://localhost") ||
       origin.startsWith("capacitor://") ||
-      origin.startsWith("file://") ||
       origin === "https://hiddenfeeai.pages.dev" ||
       origin.endsWith(".hiddenfeeai.pages.dev") ||
       origin === "https://hiddenfeeai.com" ||
@@ -27,7 +26,6 @@ app.use("*", cors({
     }
     return frontendUrl;
   },
-  credentials: true,
 }));
 
 // Health check
