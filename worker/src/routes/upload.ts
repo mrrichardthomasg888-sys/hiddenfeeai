@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { v4 as uuid } from "uuid";
 import type { Env } from "../types.js";
 import { createJob, updateJob } from "../jobStore.js";
 import { extractText, isAcceptedExtension } from "../services/extractor.js";
@@ -28,7 +27,7 @@ uploadRoute.post("/", async (c) => {
     throw errors.tooLarge(maxMb);
   }
 
-  const auditId = uuid();
+  const auditId = crypto.randomUUID();
   const job = createJob(auditId, fileName);
 
   // Read file buffer
