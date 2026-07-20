@@ -14,13 +14,19 @@
     "dev:worker": "npm run dev --workspace worker",
     "deploy:worker": "npm run deploy --workspace worker",
     "build": "npm run build --workspace client && npm run build --workspace server",
-    "build:worker": "npm run build --workspace worker"
+    "build:worker": "npm run build --workspace worker",
+    "android:sync": "npm run build --workspace client && npx cap sync",
+    "android:open": "npx cap open android",
+    "android:run": "npx cap run android"
   },
   "devDependencies": {
     "@types/pdfkit": "^0.17.6",
     "concurrently": "^9.1.2"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
     "devl": "^2.0.0",
     "html2canvas": "^1.4.1",
     "html2pdf.js": "^0.14.0",

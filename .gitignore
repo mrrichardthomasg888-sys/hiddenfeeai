@@ -11,3 +11,14 @@ server/tmp/*
 server/data/*.json
 .DS_Store
 *.tsbuildinfo
+
+# Android / Capacitor
+android/.gradle/
+android/local.properties
+android/captures/
+android/.externalNativeBuild/
+*.apk
+*.aab
+*.ap_
+client/capacitor.config.ts
+capacitor.config.ts

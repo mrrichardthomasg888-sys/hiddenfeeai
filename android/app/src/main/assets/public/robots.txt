@@ -1,0 +1,76 @@
+# HiddenFeeAI robots.txt
+# https://hiddenfeeai.com
+
+User-agent: Googlebot
+Allow: /
+Disallow: /report/
+
+User-agent: GoogleOther
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /report/
+
+User-agent: Bingbot
+Allow: /
+Disallow: /report/
+
+User-agent: Applebot
+Allow: /
+Disallow: /report/
+
+User-agent: GPTBot
+Disallow: /report/
+
+User-agent: ChatGPT-User
+Disallow: /report/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /report/
+
+User-agent: Claude-Web
+Allow: /
+Disallow: /report/
+
+User-agent: CCBot
+Disallow: /report/
+
+User-agent: Amazonbot
+Allow: /
+Disallow: /report/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /report/
+
+User-agent: DuckDuckBot
+Allow: /
+Disallow: /report/
+
+User-agent: Bytespider
+Disallow: /report/
+
+User-agent: YandexBot
+Allow: /
+Disallow: /report/
+
+User-agent: FacebookBot
+Allow: /
+Disallow: /report/
+
+User-agent: LinkedInBot
+Allow: /
+Disallow: /report/
+
+User-agent: Twitterbot
+Allow: /
+Disallow: /report/
+
+User-agent: *
+Disallow: /report/
+Disallow: /api/
+Allow: /
+
+Sitemap: https://hiddenfeeai.com/sitemap.xml
