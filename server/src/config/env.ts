@@ -1,5 +1,4 @@
-n
-npx wrangler deployimport dotenv from "dotenv";
+import dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
