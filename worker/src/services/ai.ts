@@ -1,5 +1,4 @@
 import type { AuditReport, Env } from "../types.js";
-import { v4 as uuid } from "uuid";
 
 interface AuditInput {
   text: string;
@@ -172,13 +171,17 @@ function parseAuditResponse(raw: string): AuditReport {
 }
 
 function validateAuditReport(report: Partial<AuditReport>): AuditReport {
+  function newId(): string {
+    return crypto.randomUUID();
+  }
+
   const defaultReport: AuditReport = {
     document_meta: {
       document_type: "Other",
       analysis_date: new Date().toISOString(),
       pages_reviewed: 0,
       line_items_reviewed: 0,
-      report_id: uuid(),
+      report_id: newId(),
     },
     risk_score: 0,
     risk_level: "Low",
@@ -205,19 +208,19 @@ function validateAuditReport(report: Partial<AuditReport>): AuditReport {
   merged.contract_risks ??= [];
 
   for (const finding of merged.findings) {
-    if (!finding.id) finding.id = uuid();
+    if (!finding.id) finding.id = newId();
   }
   for (const finding of merged.math_errors) {
-    if (!finding.id) finding.id = uuid();
+    if (!finding.id) finding.id = newId();
   }
   for (const finding of merged.duplicate_charges) {
-    if (!finding.id) finding.id = uuid();
+    if (!finding.id) finding.id = newId();
   }
   for (const finding of merged.hidden_fees) {
-    if (!finding.id) finding.id = uuid();
+    if (!finding.id) finding.id = newId();
   }
   for (const finding of merged.contract_risks) {
-    if (!finding.id) finding.id = uuid();
+    if (!finding.id) finding.id = newId();
   }
 
   return merged;
