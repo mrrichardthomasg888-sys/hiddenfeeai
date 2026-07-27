@@ -1,0 +1,49 @@
+{
+  "document_type": "service_contract",
+  "document_name": "service-contract.txt",
+  "description": "Home service contract with hidden trip charges, diagnostic fees, and coverage exclusions",
+  "expected_findings": [
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Service Call Fee",
+      "amount": 75.00,
+      "page": 1,
+      "severity": "Medium",
+      "evidence_quote": "Service Call Fee: $75.00 per visit",
+      "negotiable": true,
+      "confidence_expected": 85
+    },
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Diagnostic Fee",
+      "amount": 95.00,
+      "page": 1,
+      "severity": "Medium",
+      "evidence_quote": "Diagnostic Assessment Fee: $95.00 (waived if repair is approved within 48 hours)",
+      "negotiable": false,
+      "confidence_expected": 80
+    },
+    {
+      "category": "Contract Risk",
+      "fee_name": "Coverage Exclusions",
+      "amount": null,
+      "page": 2,
+      "severity": "High",
+      "evidence_quote": "Pre-existing conditions are excluded. Systems over 10 years old are not covered.",
+      "negotiable": false,
+      "confidence_expected": 90
+    },
+    {
+      "category": "Contract Risk",
+      "fee_name": "Cancellation Penalty",
+      "amount": 150.00,
+      "page": 1,
+      "severity": "Medium",
+      "evidence_quote": "Cancellation fee of $150.00 applies if contract is terminated before the initial 12-month period",
+      "negotiable": false,
+      "confidence_expected": 85
+    }
+  ],
+  "expected_total_hidden_fees": 320.00,
+  "expected_risk_level": "Review Recommended"
+}

@@ -1,0 +1,86 @@
+import { motion } from "framer-motion";
+import { Shield, AlertTriangle, DollarSign, TrendingDown, ArrowRight } from "lucide-react";
+
+interface ValueSummaryProps {
+  totalIssues: number;
+  criticalIssues: number;
+  feesIdentified: number;
+  potentialSavings: number;
+  riskLevel: string;
+  trustScore?: number;
+  trustRating?: string;
+}
+
+function getRiskColors(level: string): { bg: string; text: string; border: string } {
+  switch (level) {
+    case "Low": return { bg: "bg-savings-500/10", text: "text-savings-400", border: "border-savings-500/20" };
+    case "Review Recommended": return { bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/20" };
+    case "Elevated": return { bg: "bg-risk-high/10", text: "text-risk-high", border: "border-risk-high/20" };
+    case "High": return { bg: "bg-risk-critical/10", text: "text-risk-critical", border: "border-risk-critical/20" };
+    default: return { bg: "bg-violet-500/10", text: "text-violet-400", border: "border-violet-500/20" };
+  }
+}
+
+export function ValueSummaryBanner(props: ValueSummaryProps) {
+  const riskColors = getRiskColors(props.riskLevel);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`rounded-2xl border ${riskColors.border} ${riskColors.bg} p-5 sm:p-6 glow-purple`}
+    >
+      <p className="text-sm font-semibold text-violet-100">
+        Your HiddenFeeAI Review
+      </p>
+      <p className="mt-1 text-xs text-violet-400/70">
+        {props.totalIssues === 0
+          ? "No significant issues found. Your document looks clean."
+          : `We found ${props.totalIssues} issue${props.totalIssues !== 1 ? 's' : ''} requiring your attention.`
+        }
+      </p>
+
+      {/* Trust score badge (if available) */}
+      {props.trustScore != null && (
+        <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 px-3 py-1 border border-violet-500/15">
+          <Shield className="h-3.5 w-3.5 text-violet-400" />
+          <span className="text-xs font-medium text-violet-300">
+            Trust Score: {props.trustScore}/100 — {props.trustRating || 'Good'}
+          </span>
+        </div>
+      )}
+
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl bg-midnight-950/50 p-3">
+          <p className="text-xs text-violet-400/60">Issues Found</p>
+          <p className="mt-0.5 text-xl font-bold text-violet-100">{props.totalIssues}</p>
+          {props.criticalIssues > 0 && (
+            <p className="mt-0.5 text-xs text-risk-critical">{props.criticalIssues} critical</p>
+          )}
+        </div>
+        <div className="rounded-xl bg-midnight-950/50 p-3">
+          <p className="text-xs text-violet-400/60">Fees Identified</p>
+          <p className="mt-0.5 text-xl font-bold text-violet-100">
+            ${props.feesIdentified.toLocaleString()}
+          </p>
+        </div>
+        <div className="rounded-xl bg-midnight-950/50 p-3">
+          <p className="text-xs text-violet-400/60">Risk Level</p>
+          <p className={`mt-0.5 text-xl font-bold ${riskColors.text}`}>{props.riskLevel}</p>
+        </div>
+        <div className="rounded-xl bg-midnight-950/50 p-3">
+          <p className="text-xs text-violet-400/60">Potential Savings</p>
+          <p className="mt-0.5 text-xl font-bold text-savings-400">
+            ${props.potentialSavings.toLocaleString()}
+          </p>
+        </div>
+      </div>
+
+      {props.totalIssues > 0 && (
+        <p className="mt-4 text-xs text-violet-400/50 italic">
+          Potential savings are estimates based on document analysis and are not guaranteed. Actual outcomes depend on negotiation.
+        </p>
+      )}
+    </motion.div>
+  );
+}

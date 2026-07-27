@@ -1,0 +1,42 @@
+SOFTWARE AS A SERVICE AGREEMENT
+CloudSync Pro — Enterprise Plan
+
+This Agreement ("Agreement") is between CloudSync Technologies Inc. ("Company") and the subscribing organization ("Customer").
+
+1. SERVICES
+Company agrees to provide Customer with access to CloudSync Pro, a cloud-based data synchronization platform.
+
+2. TERM
+Initial Term: 12 months from the Effective Date.
+This Agreement shall automatically renew for additional 12-month periods unless cancelled in writing 60 days before the end of the current term.
+
+3. FEES AND PAYMENT
+Monthly Subscription Fee: $299.00/month
+One-time Setup Fee: $199.00
+Additional User License: $29.00/user/month
+Premium Support (optional): $99.00/month
+Data Migration Service (optional): $499.00 one-time
+
+4. PRICE INCREASES
+Company reserves the right to increase fees by up to 15% annually upon 30 days written notice. Customer's continued use constitutes acceptance of the new pricing.
+
+5. CANCELLATION AND TERMINATION
+Early Termination Fee: $500.00 or 50% of remaining contract value, whichever is greater.
+Upon termination, Customer must cease all use and delete all copies of the software within 5 business days.
+Company may suspend access immediately for non-payment.
+
+6. LIMITATION OF LIABILITY
+Company's total liability shall not exceed the fees paid by Customer in the preceding 12 months. Company shall not be liable for any indirect, incidental, or consequential damages.
+
+7. DATA AND PRIVACY
+Customer data is stored on Company servers. Company may use aggregated, anonymized data for service improvement. Customer is responsible for maintaining backups of all data.
+
+8. GOVERNING LAW
+This Agreement is governed by the laws of the State of Delaware. Any disputes shall be resolved through binding arbitration in Wilmington, DE.
+
+9. MODIFICATIONS
+Company may modify these terms at any time by posting updated terms on its website. Continued use constitutes acceptance.
+
+ACCEPTANCE:
+Customer: ___________________________ Date: ___________
+Company Representative: ___________________________ Date: ___________

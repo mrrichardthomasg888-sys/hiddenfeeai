@@ -1,0 +1,49 @@
+{
+  "document_type": "loan_agreement",
+  "document_name": "auto-loan-agreement.txt",
+  "description": "Auto loan agreement from a dealership with origination fee markup, GAP insurance add-on, and prepayment penalty",
+  "expected_findings": [
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Loan Origination Fee",
+      "amount": 895.00,
+      "page": 1,
+      "severity": "High",
+      "evidence_quote": "Origination Fee: $895.00",
+      "negotiable": true,
+      "confidence_expected": 85
+    },
+    {
+      "category": "Hidden Fee",
+      "fee_name": "GAP Insurance Fee",
+      "amount": 650.00,
+      "page": 1,
+      "severity": "High",
+      "evidence_quote": "Guaranteed Asset Protection (GAP): $650.00",
+      "negotiable": true,
+      "confidence_expected": 80
+    },
+    {
+      "category": "Contract Risk",
+      "fee_name": "Prepayment Penalty",
+      "amount": null,
+      "page": 2,
+      "severity": "High",
+      "evidence_quote": "A prepayment penalty of 2% of the remaining balance applies if the loan is paid off within the first 24 months",
+      "negotiable": false,
+      "confidence_expected": 90
+    },
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Documentation Fee",
+      "amount": 399.00,
+      "page": 1,
+      "severity": "Medium",
+      "evidence_quote": "Documentation Fee: $399.00",
+      "negotiable": true,
+      "confidence_expected": 90
+    }
+  ],
+  "expected_total_hidden_fees": 1944.00,
+  "expected_risk_level": "Elevated"
+}

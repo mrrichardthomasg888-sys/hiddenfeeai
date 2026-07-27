@@ -22,3 +22,7 @@ android/.externalNativeBuild/
 *.ap_
 client/capacitor.config.ts
 capacitor.config.ts
+
+# Large binaries
+cmdline-tools.zip
+cmdline-tools/

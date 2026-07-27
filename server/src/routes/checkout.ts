@@ -12,7 +12,7 @@ export const checkoutRouter = Router();
  */
 checkoutRouter.post("/create-session", async (req, res, next) => {
   try {
-    const { auditId } = req.body;
+    const { auditId, origin } = req.body;
 
     if (!auditId || typeof auditId !== "string") {
       return next(new AppError(400, "Missing audit ID. Please upload a document first."));
@@ -22,6 +22,9 @@ checkoutRouter.post("/create-session", async (req, res, next) => {
     if (!job) {
       return next(Errors.jobNotFound());
     }
+
+    // Use provided origin (from mobile app) or fallback to env.clientOrigin
+    const redirectOrigin = origin || env.clientOrigin;
 
     if (!env.stripeSecretKey || env.stripeSecretKey === "sk_test_your_stripe_secret_key") {
       return next(
@@ -54,8 +57,8 @@ checkoutRouter.post("/create-session", async (req, res, next) => {
       metadata: {
         auditId,
       },
-      success_url: `${env.clientOrigin}/report/${auditId}?session_id={CHECKOUT_SESSION_ID}&paid=true`,
-      cancel_url: `${env.clientOrigin}/?canceled=true`,
+      success_url: `${redirectOrigin}/report/${auditId}?session_id={CHECKOUT_SESSION_ID}&paid=true`,
+      cancel_url: `${redirectOrigin}/?canceled=true`,
     });
 
     res.json({

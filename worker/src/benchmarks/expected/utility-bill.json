@@ -1,0 +1,41 @@
+{
+  "document_type": "utility_bill",
+  "document_name": "utility-bill.txt",
+  "description": "Cell phone bill with hidden equipment fees, administrative charges, and regulatory recovery fees",
+  "expected_findings": [
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Administrative Fee",
+      "amount": 3.49,
+      "page": 1,
+      "severity": "Low",
+      "evidence_quote": "Administrative Fee: $3.49"
+    },
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Regulatory Recovery Fee",
+      "amount": 2.50,
+      "page": 1,
+      "severity": "Low",
+      "evidence_quote": "Regulatory Recovery Fee: $2.50"
+    },
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Device Protection Plan",
+      "amount": 15.00,
+      "page": 1,
+      "severity": "Medium",
+      "evidence_quote": "Device Protection: $15.00/month"
+    },
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Paper Statement Fee",
+      "amount": 2.99,
+      "page": 1,
+      "severity": "Low",
+      "evidence_quote": "Paper Bill Fee: $2.99"
+    }
+  ],
+  "expected_total_hidden_fees": 23.98,
+  "expected_risk_level": "Low"
+}

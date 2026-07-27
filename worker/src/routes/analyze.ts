@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import type { Env } from "../types.js";
 import { getJob, updateJob } from "../jobStore.js";
-import { runAudit } from "../services/ai.js";
+import { runAudit as runAuditLegacy } from "../services/ai.legacy.js";
+import { AIAnalyzer } from "../services/aiAnalyzer.js";
 import { generatePdf } from "../services/report.js";
 import * as errors from "../utils/errors.js";
 
@@ -11,15 +12,26 @@ export const analyzeRoute = new Hono<{ Bindings: Env }>();
  * GET /api/analyze/:auditId
  * Returns the current job state and report if complete.
  */
-analyzeRoute.get("/:auditId", (c) => {
+analyzeRoute.get("/:auditId", async (c) => {
   const { auditId } = c.req.param();
-  const job = getJob(auditId);
+  const job = await getJob(auditId);
 
   if (!job) throw errors.jobNotFound();
 
-  // Don't expose extracted text to the client
-  const { extractedText, ...safeJob } = job;
-  return c.json(safeJob);
+  // ── KV consistency guard: never expose complete without report ──
+  // Cloudflare KV is eventually consistent. When a different Worker isolate
+  // reads the job, it might see status="complete" written before the report
+  // field has propagated. This guard prevents the frontend from receiving
+  // a broken "complete + no report" state that causes a blank page.
+  let safeStatus = job.status;
+  if (job.status === "complete" && !job.report) {
+    safeStatus = "analyzing";
+    console.log(`[Analyze] KV_GUARD: masking complete→analyzing for ${auditId} (report not yet propagated)`);
+  }
+
+  // Don't expose extracted text or full document structure to the client
+  const { extractedText, extractedDocument, ...safeJob } = job;
+  return c.json({ ...safeJob, status: safeStatus });
 });
 
 /**
@@ -28,7 +40,7 @@ analyzeRoute.get("/:auditId", (c) => {
  */
 analyzeRoute.post("/:auditId/start", async (c) => {
   const { auditId } = c.req.param();
-  const job = getJob(auditId);
+  const job = await getJob(auditId);
 
   if (!job) throw errors.jobNotFound();
 
@@ -36,7 +48,12 @@ analyzeRoute.post("/:auditId/start", async (c) => {
     throw errors.badFile("We couldn't start the analysis. Make sure your document is uploaded and payment is confirmed.");
   }
 
-  if (!job.paid) {
+  // ── Payment verification: trust status="paid" AND paid flag ──
+  // Cloudflare KV is eventually consistent across Worker isolates.
+  // A different isolate may see status="paid" (from updateJob) before
+  // the paid=true flag propagates. Accept either signal as payment proof.
+  const isPaid = job.paid || job.status === "paid";
+  if (!isPaid) {
     throw errors.notPaid();
   }
 
@@ -44,24 +61,65 @@ analyzeRoute.post("/:auditId/start", async (c) => {
     throw errors.badFile();
   }
 
-  // Update status to analyzing
-  updateJob(auditId, { status: "analyzing" });
+  // ── Race condition guard: prevent concurrent analyses ──
+  if (job.status === "analyzing") {
+    return c.json({
+      auditId,
+      status: "analyzing",
+      message: "Analysis already in progress. Please wait for it to complete.",
+    }, 202);
+  }
+
+  const useNew = c.env.USE_NEW_PIPELINE === "true";
+
+  // Update status to analyzing (atomic check in production KV store)
+  await updateJob(auditId, { status: "analyzing" });
+  console.log(`[JobLifecycle] ANALYSIS_STARTED auditId=${auditId} pipeline=${useNew ? "new" : "legacy"} pages=${job.documentContext?.pages ?? "unknown"}`);
 
   // Run audit asynchronously
   c.executionCtx.waitUntil(
     (async () => {
+      const startTime = Date.now();
       try {
-        const report = await runAudit({
-          text: job.extractedText!,
-          fileName: job.fileName ?? "document",
-          fileType: job.documentContext?.fileType ?? "unknown",
-          pages: job.documentContext?.pages ?? 1,
-          lineItems: job.documentContext?.lineItems ?? 0,
-        }, c.env);
-
-        updateJob(auditId, { status: "complete", report });
+        let report;
+        if (useNew && job.extractedDocument) {
+          // ── NEW PIPELINE ──
+          const analyzer = new AIAnalyzer(c.env);
+          report = await analyzer.runAudit(job.extractedDocument);
+        } else if (useNew && !job.extractedDocument) {
+          // New pipeline enabled but we only have legacy extractedText —
+          // fall back to legacy audit since we don't have structured data
+          console.log("[Analyze] New pipeline enabled but no structured document data — using legacy audit");
+          report = await runAuditLegacy(
+            {
+              text: job.extractedText!,
+              fileName: job.fileName ?? "document",
+              fileType: job.documentContext?.fileType ?? "unknown",
+              pages: job.documentContext?.pages ?? 1,
+              lineItems: job.documentContext?.lineItems ?? 0,
+            },
+            c.env
+          );
+        } else {
+          // ── LEGACY PIPELINE ──
+          report = await runAuditLegacy(
+            {
+              text: job.extractedText!,
+              fileName: job.fileName ?? "document",
+              fileType: job.documentContext?.fileType ?? "unknown",
+              pages: job.documentContext?.pages ?? 1,
+              lineItems: job.documentContext?.lineItems ?? 0,
+            },
+            c.env
+          );
+        }
+        const durationMs = Date.now() - startTime;
+        await updateJob(auditId, { status: "complete", report });
+        console.log(`[JobLifecycle] ANALYSIS_COMPLETED auditId=${auditId} durationMs=${durationMs} findings=${report.findings.length} riskScore=${report.risk_score} hasReport=${!!report}`);
       } catch (auditError) {
-        updateJob(auditId, {
+        const durationMs = Date.now() - startTime;
+        console.error(`[JobLifecycle] ANALYSIS_FAILED auditId=${auditId} durationMs=${durationMs} error="${auditError instanceof Error ? auditError.message : "unknown"}"`);
+        await updateJob(auditId, {
           status: "error",
           error: auditError instanceof Error ? auditError.message : "AI audit analysis failed",
         });
@@ -78,7 +136,7 @@ analyzeRoute.post("/:auditId/start", async (c) => {
  */
 analyzeRoute.get("/:auditId/pdf", async (c) => {
   const { auditId } = c.req.param();
-  const job = getJob(auditId);
+  const job = await getJob(auditId);
 
   if (!job) throw errors.jobNotFound();
 

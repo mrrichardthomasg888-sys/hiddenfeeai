@@ -1,0 +1,41 @@
+{
+  "document_type": "subscription",
+  "document_name": "subscription-agreement.txt",
+  "description": "SaaS subscription with auto-renewal, cancellation fees, and price escalation clause",
+  "expected_findings": [
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Setup Fee",
+      "amount": 199.00,
+      "page": 1,
+      "severity": "Medium",
+      "evidence_quote": "One-time Setup Fee: $199.00"
+    },
+    {
+      "category": "Contract Risk",
+      "fee_name": "Auto-Renewal Clause",
+      "amount": null,
+      "page": 1,
+      "severity": "High",
+      "evidence_quote": "This Agreement shall automatically renew for additional 12-month periods unless cancelled in writing 60 days before the end of the current term"
+    },
+    {
+      "category": "Contract Risk",
+      "fee_name": "Price Escalation",
+      "amount": null,
+      "page": 1,
+      "severity": "High",
+      "evidence_quote": "Company reserves the right to increase fees by up to 15% annually upon 30 days notice"
+    },
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Early Termination Fee",
+      "amount": 500.00,
+      "page": 1,
+      "severity": "High",
+      "evidence_quote": "Early Termination Fee: $500.00 or 50% of remaining contract value, whichever is greater"
+    }
+  ],
+  "expected_total_hidden_fees": 699.00,
+  "expected_risk_level": "Elevated"
+}

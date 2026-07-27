@@ -1,0 +1,51 @@
+VEHICLE PURCHASE AGREEMENT
+From: ABC Auto Group
+To: John Consumer
+Date: July 15, 2026
+VIN: 1HGBH41JXMN109186
+
+Vehicle: 2026 Toyota Camry XLE
+MSRP: $28,500.00
+Destination Charge: $1,095.00
+Market Value Selling Price: $29,595.00
+
+Additional Fees and Charges:
+Documentation Fee: $499.00
+Processing Fee: $299.00
+Dealer Prep Fee: $195.00
+Technology Fee: $149.95
+Registration Fee: $85.00
+Title Fee: $33.00
+License Fee: $145.00
+
+Subtotal: $30,000.95
+Sales Tax (6%): $1,800.06
+Total Amount Due: $32,801.01
+
+Finance Terms:
+Amount Financed: $25,000.00
+APR: 4.9%
+Term: 60 months
+Monthly Payment: $544.54
+Total of Payments: $32,672.40
+
+TERMS AND CONDITIONS
+
+1. All sales are final. No refunds after 3 business days.
+2. The Documentation Fee of $499.00 is not required by law and represents a profit to the dealer.
+3. Vehicle is sold "AS IS" unless covered by manufacturer warranty.
+4. Purchaser agrees to binding arbitration for any disputes arising from this transaction. Purchaser waives the right to participate in class action lawsuits and the right to a jury trial.
+5. Dealer reserves the right to substitute similar vehicles if the ordered vehicle is unavailable.
+6. Any trade-in value is final and not subject to renegotiation after signing.
+7. This agreement constitutes the entire agreement between the parties.
+
+SIGNATURES:
+
+Purchaser: ___________________________ Date: ___________
+
+Dealer Representative: ___________________________ Date: ___________
+
+ADDITIONAL PRODUCTS PURCHASED:
+Extended Warranty: $2,495.00 (60 months/75,000 miles)
+GAP Insurance: $895.00
+Paint Protection Package: $599.00

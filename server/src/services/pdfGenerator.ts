@@ -112,45 +112,109 @@ export async function generatePdf(report: AuditReport): Promise<Buffer> {
       doc.x = leftMargin; // reset cursor to left margin after absolute-positioned row
       doc.moveDown(1.2);
 
-      // --- Financial Impact Table ---
-      renderSectionHeader(doc, "Financial Impact");
-      const tableLeft = leftMargin;
+      // ── Determine if we have measurable financial amounts ──
+      const hasMeasurableAmounts = findings.some(f => f.amount != null && f.amount > 0);
+      const hasFindings = findings.length > 0;
+      const criticalCount = findings.filter(f => f.severity === "Critical").length;
 
-      // Table header bar
-      doc.rect(tableLeft, doc.y, pageWidth, 20).fill("#1e1b4b");
+      if (hasMeasurableAmounts) {
+        // ── SCENARIO A: Show financial impact table ──
+        renderSectionHeader(doc, "Financial Impact");
+        const tableLeft = leftMargin;
 
-      // Calculate column widths: Category 45%, Amount 30%, Status 25%
-      const col1W = Math.round(pageWidth * 0.45);
-      const col2W = Math.round(pageWidth * 0.30);
-      const col3W = pageWidth - col1W - col2W;
-      const col1X = tableLeft + 8;
-      const col2X = tableLeft + col1W;
-      const col3X = tableLeft + col1W + col2W;
+        const col1W = Math.round(pageWidth * 0.45);
+        const col2W = Math.round(pageWidth * 0.30);
+        const col3W = pageWidth - col1W - col2W;
+        const col1X = tableLeft + 8;
+        const col2X = tableLeft + col1W;
+        const col3X = tableLeft + col1W + col2W;
 
-      const headerY = doc.y + 5;
-      doc.fillColor("#e4e4e7").font("Helvetica-Bold").fontSize(10)
-        .text("Category", col1X, headerY)
-        .text("Amount", col2X, headerY, { width: col2W, align: "right" })
-        .text("Status", col3X, headerY, { width: col3W - 8, align: "right" });
+        doc.rect(tableLeft, doc.y, pageWidth, 20).fill("#1e1b4b");
+        const headerY = doc.y + 5;
+        doc.fillColor("#e4e4e7").font("Helvetica-Bold").fontSize(10)
+          .text("Category", col1X, headerY)
+          .text("Amount", col2X, headerY, { width: col2W, align: "right" })
+          .text("Status", col3X, headerY, { width: col3W - 8, align: "right" });
+        doc.moveDown(2);
 
-      doc.moveDown(2);
+        const drawRow = (label: string, amount: string, status: string, labelColor: string, amtColor: string, statusColor: string, boldLabel = false) => {
+          const y = doc.y;
+          doc.fillColor(labelColor).font(boldLabel ? "Helvetica-Bold" : "Helvetica").fontSize(10)
+            .text(label, col1X, y, { width: col1W - 4 });
+          doc.fillColor(amtColor).font("Helvetica").fontSize(10)
+            .text(amount, col2X, y, { width: col2W, align: "right" });
+          doc.fillColor(statusColor).font("Helvetica").fontSize(10)
+            .text(status, col3X, y, { width: col3W - 8, align: "right" });
+          doc.moveDown(1.0);
+        };
 
-      const drawRow = (label: string, amount: string, status: string, labelColor: string, amtColor: string, statusColor: string, boldLabel = false) => {
-        const y = doc.y;
-        doc.fillColor(labelColor).font(boldLabel ? "Helvetica-Bold" : "Helvetica").fontSize(10)
-          .text(label, col1X, y, { width: col1W - 4 });
-        doc.fillColor(amtColor).font("Helvetica").fontSize(10)
-          .text(amount, col2X, y, { width: col2W, align: "right" });
-        doc.fillColor(statusColor).font("Helvetica").fontSize(10)
-          .text(status, col3X, y, { width: col3W - 8, align: "right" });
-        doc.moveDown(1.0);
-      };
+        drawRow("Original Total", `$${financial_impact.original_total.toLocaleString()}`, "Billed", "#333333", "#333333", "#71717a");
+        drawRow("Questionable Charges", `$${financial_impact.questionable_charges_total.toLocaleString()}`, "Flagged", "#dc2626", "#dc2626", "#dc2626");
+        if (financial_impact.corrected_total > 0 && financial_impact.original_total > 0) {
+          drawRow("Corrected Total", `$${financial_impact.corrected_total.toLocaleString()}`, "Recommended", "#059669", "#059669", "#059669", true);
+        }
+        doc.x = leftMargin;
+        doc.moveDown(1);
+      } else if (hasFindings) {
+        // ── SCENARIO B: Findings exist but amounts are N/A ──
+        doc.x = leftMargin;
+        renderSectionHeader(doc, "Impact Summary");
 
-      drawRow("Original Total", `$${financial_impact.original_total.toLocaleString()}`, "Billed", "#333333", "#333333", "#71717a");
-      drawRow("Questionable Charges", `$${financial_impact.questionable_charges_total.toLocaleString()}`, "Flagged", "#dc2626", "#dc2626", "#dc2626");
-      drawRow("Corrected Total", `$${financial_impact.corrected_total.toLocaleString()}`, "Recommended", "#059669", "#059669", "#059669", true);
-      doc.x = leftMargin; // reset cursor to left margin after table
-      doc.moveDown(1);
+        doc.font("Helvetica").fontSize(10).fillColor("#333333")
+          .text(`Findings Identified: ${findings.length}`, { indent: 10 });
+        if (criticalCount > 0) {
+          doc.font("Helvetica").fontSize(10).fillColor("#dc2626")
+            .text(`Critical Findings: ${criticalCount}`, { indent: 10 });
+        }
+        doc.font("Helvetica").fontSize(10).fillColor("#333333")
+          .text(`Overall Risk Level: ${risk_level}`, { indent: 10 })
+          .text("Potential Financial Exposure: Not Quantifiable From the Document", { indent: 10 })
+          .text("Verified Questionable Charges: No dollar amount identified", { indent: 10 })
+          .text("Estimated Savings: Not calculated", { indent: 10 });
+
+        doc.moveDown(1);
+        doc.font("Helvetica-Oblique").fontSize(10).fillColor("#6366f1")
+          .text("Several findings involve contract terms, pricing flexibility, or potential future charges rather than currently billed amounts. These risks may create financial exposure, but the document does not provide enough information to calculate a reliable dollar value.", { indent: 10 });
+
+        doc.x = leftMargin;
+        doc.moveDown(1);
+      } else {
+        // ── SCENARIO C: No findings, no measurable impact ──
+        renderSectionHeader(doc, "Financial Impact");
+        const tableLeft = leftMargin;
+
+        const col1W = Math.round(pageWidth * 0.45);
+        const col2W = Math.round(pageWidth * 0.30);
+        const col3W = pageWidth - col1W - col2W;
+        const col1X = tableLeft + 8;
+        const col2X = tableLeft + col1W;
+        const col3X = tableLeft + col1W + col2W;
+
+        doc.rect(tableLeft, doc.y, pageWidth, 20).fill("#1e1b4b");
+        const headerY = doc.y + 5;
+        doc.fillColor("#e4e4e7").font("Helvetica-Bold").fontSize(10)
+          .text("Category", col1X, headerY)
+          .text("Amount", col2X, headerY, { width: col2W, align: "right" })
+          .text("Status", col3X, headerY, { width: col3W - 8, align: "right" });
+        doc.moveDown(2);
+
+        const drawRow = (label: string, amount: string, status: string, labelColor: string, amtColor: string, statusColor: string, boldLabel = false) => {
+          const y = doc.y;
+          doc.fillColor(labelColor).font(boldLabel ? "Helvetica-Bold" : "Helvetica").fontSize(10)
+            .text(label, col1X, y, { width: col1W - 4 });
+          doc.fillColor(amtColor).font("Helvetica").fontSize(10)
+            .text(amount, col2X, y, { width: col2W, align: "right" });
+          doc.fillColor(statusColor).font("Helvetica").fontSize(10)
+            .text(status, col3X, y, { width: col3W - 8, align: "right" });
+          doc.moveDown(1.0);
+        };
+
+        drawRow("Original Total", `$${financial_impact.original_total.toLocaleString()}`, "Billed", "#333333", "#333333", "#71717a");
+        drawRow("Questionable Charges", `$${financial_impact.questionable_charges_total.toLocaleString()}`, "Flagged", "#dc2626", "#dc2626", "#dc2626");
+        drawRow("Corrected Total", `$${financial_impact.corrected_total.toLocaleString()}`, "Recommended", "#059669", "#059669", "#059669", true);
+        doc.x = leftMargin;
+        doc.moveDown(1);
+      }
 
       // --- Findings ---
       renderSectionHeader(doc, `Findings (${findings.length})`);

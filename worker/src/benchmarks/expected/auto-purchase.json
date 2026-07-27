@@ -1,0 +1,49 @@
+{
+  "document_type": "auto_purchase",
+  "document_name": "auto-purchase-agreement.txt",
+  "description": "Vehicle purchase agreement from a dealership with hidden documentation and processing fees",
+  "expected_findings": [
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Documentation Fee",
+      "amount": 499.00,
+      "page": 1,
+      "severity": "High",
+      "evidence_quote": "Documentation Fee: $499.00"
+    },
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Processing Fee",
+      "amount": 299.00,
+      "page": 1,
+      "severity": "Medium",
+      "evidence_quote": "Processing Fee: $299.00"
+    },
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Dealer Prep Fee",
+      "amount": 195.00,
+      "page": 1,
+      "severity": "Medium",
+      "evidence_quote": "Dealer Prep Fee: $195.00"
+    },
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Technology Fee",
+      "amount": 149.95,
+      "page": 1,
+      "severity": "Medium",
+      "evidence_quote": "Technology Fee: $149.95"
+    },
+    {
+      "category": "Contract Risk",
+      "fee_name": "Mandatory Arbitration Clause",
+      "amount": null,
+      "page": 1,
+      "severity": "Critical",
+      "evidence_quote": "Any dispute shall be resolved through binding arbitration. Consumer waives right to class action."
+    }
+  ],
+  "expected_total_hidden_fees": 1142.95,
+  "expected_risk_level": "Elevated"
+}

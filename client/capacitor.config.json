@@ -3,7 +3,7 @@
   "appName": "HiddenFeeAI",
   "webDir": "dist",
   "android": {
-    "allowMixedContent": false
+    "allowMixedContent": true
   },
   "plugins": {
     "SplashScreen": {
@@ -13,6 +13,7 @@
     }
   },
   "server": {
-    "hostname": "hiddenfeeai.com"
+    "hostname": "app",
+    "cleartext": true
   }
 }

@@ -1,0 +1,45 @@
+GENERAL HOSPITAL — STATEMENT OF SERVICES
+123 Healthcare Blvd, Springfield, IL
+
+Patient: Jane Doe
+Account #: 2026-07842
+Date of Service: June 15, 2026
+Statement Date: July 10, 2026
+
+SERVICES RENDERED:
+
+Emergency Room Visit (Level 3) — CPT 99283
+$1,250.00
+
+Laboratory Services:
+- Complete Blood Count (CBC) — $85.00
+- Comprehensive Metabolic Panel — $120.00
+- Urinalysis — $45.00
+
+Radiology:
+- Chest X-Ray (2 views) — $350.00
+
+Professional Fees:
+- Attending Physician Fee — $450.00
+- Consulting Specialist Fee — $275.00
+
+Facility Charges:
+- Emergency Department Facility Fee — $450.00
+- Medical Supply Charge — $85.00
+- Administrative Processing — $125.00
+
+TOTAL CHARGES: $3,235.00
+
+INSURANCE ADJUSTMENTS:
+- Insurance Plan Discount: -$485.25
+- Insurance Payment: -$1,500.00
+
+PATIENT RESPONSIBILITY: $1,935.75
+
+Payment is due within 30 days. A 2.5% monthly late fee applies to unpaid balances.
+
+Please note: Facility fees and professional fees are billed separately from physician services. Administrative charges reflect the cost of billing and records management.
+
+For questions about your bill, contact Patient Financial Services at (555) 123-4567.
+
+Payment Plans Available — Contact Us for Details

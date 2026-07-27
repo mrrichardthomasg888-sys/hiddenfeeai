@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">HiddenFeeAI</string>
-    <string name="title_activity_main">HiddenFeeAI</string>
+    <string name="app_name">DetectHiddenFees.com</string>
+    <string name="title_activity_main">DetectHiddenFees.com</string>
     <string name="package_name">com.hiddenfeeai.app</string>
     <string name="custom_url_scheme">com.hiddenfeeai.app</string>
 </resources>

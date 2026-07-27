@@ -1,0 +1,5 @@
+- [ ] [MODIFY] `capacitor.config.json`: Add `allowNavigation` for Stripe.
+- [ ] [MODIFY] `server/src/routes/checkout.ts`: Accept `origin` in `/create-session`.
+- [ ] [MODIFY] `client/src/components/landing/UploadCard.tsx`: Pass `origin` to API.
+- [ ] [MODIFY] `client/src/components/landing/PaymentGate.tsx`: Pass `origin` to API.
+- [ ] Build and Sync Capacitor.

@@ -1,0 +1,41 @@
+{
+  "document_type": "apartment_lease",
+  "document_name": "apartment-lease.txt",
+  "description": "Apartment lease with hidden late fees, renewal charges, and restrictive terms",
+  "expected_findings": [
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Administrative Fee",
+      "amount": 150.00,
+      "page": 1,
+      "severity": "Medium",
+      "evidence_quote": "Administrative Fee: $150.00 (non-refundable)"
+    },
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Pet Rent",
+      "amount": 50.00,
+      "page": 1,
+      "severity": "Low",
+      "evidence_quote": "Monthly Pet Rent: $50.00 per pet"
+    },
+    {
+      "category": "Contract Risk",
+      "fee_name": "Automatic Renewal Clause",
+      "amount": null,
+      "page": 1,
+      "severity": "High",
+      "evidence_quote": "This lease shall automatically renew for successive one-year terms unless either party provides written notice 90 days prior to expiration"
+    },
+    {
+      "category": "Contract Risk",
+      "fee_name": "Late Fee Escalation",
+      "amount": 75.00,
+      "page": 1,
+      "severity": "Medium",
+      "evidence_quote": "Late Fee: $75.00 after the 3rd day, increasing by $10 per day thereafter"
+    }
+  ],
+  "expected_total_hidden_fees": 275.00,
+  "expected_risk_level": "Review Recommended"
+}

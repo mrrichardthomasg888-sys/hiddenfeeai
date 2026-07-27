@@ -1,0 +1,41 @@
+{
+  "document_type": "medical_bill",
+  "document_name": "medical-bill.txt",
+  "description": "Hospital bill with facility fees, unclear charges, and billing codes",
+  "expected_findings": [
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Facility Fee",
+      "amount": 450.00,
+      "page": 1,
+      "severity": "High",
+      "evidence_quote": "Facility Fee: $450.00"
+    },
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Supply Charge",
+      "amount": 85.00,
+      "page": 1,
+      "severity": "Medium",
+      "evidence_quote": "Medical Supply Charge: $85.00"
+    },
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Professional Fee",
+      "amount": 275.00,
+      "page": 1,
+      "severity": "Medium",
+      "evidence_quote": "Professional Service Fee: $275.00"
+    },
+    {
+      "category": "Hidden Fee",
+      "fee_name": "Unexplained Administrative Charge",
+      "amount": 125.00,
+      "page": 1,
+      "severity": "Medium",
+      "evidence_quote": "Administrative Processing: $125.00"
+    }
+  ],
+  "expected_total_hidden_fees": 935.00,
+  "expected_risk_level": "Review Recommended"
+}

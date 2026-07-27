@@ -1,73 +1,75 @@
 import type { Job, JobStore, JobStatus } from "./types.js";
+import { createJobStore } from "./services/productionJobStore.js";
 
-const JOB_TTL_MS = 60 * 60 * 1000; // 1 hour
-const jobs = new Map<string, Job>();
+// ── Active store (set during worker initialization) ────────────────────────
+let activeStore: JobStore | null = null;
 
 /**
- * In-memory Map-based job store (for local development).
- * Implements the JobStore interface for easy swapping with KV/Durable Objects.
+ * Initialize the job store. Call once at worker startup.
+ * Uses KV when available, falls back to in-memory for local dev.
  */
-export const memoryStore: JobStore = {
-  createJob(auditId: string, fileName: string): Job {
-    const job: Job = {
-      auditId,
-      status: "uploading",
-      fileName,
-      paid: false,
-      createdAt: Date.now(),
+export function initJobStore(env: { ANALYSIS_KV?: KVNamespace }): JobStore {
+  activeStore = createJobStore(env as any);
+  return activeStore;
+}
+
+/**
+ * Get the active store. Must call initJobStore() first.
+ * Falls back to memoryStore if not initialized (lazy init for dev).
+ */
+function getStore(): JobStore {
+  if (!activeStore) {
+    // Lazy init: create in-memory fallback
+    const JOB_TTL_MS = 60 * 60 * 1000;
+    const jobs = new Map<string, Job>();
+    activeStore = {
+      createJob(auditId, fileName) {
+        const job: Job = { auditId, status: "uploading", fileName, paid: false, createdAt: Date.now() };
+        jobs.set(auditId, job);
+        return job;
+      },
+      getJob(auditId) {
+        const job = jobs.get(auditId);
+        if (job && Date.now() - job.createdAt > JOB_TTL_MS) { jobs.delete(auditId); return undefined; }
+        return job;
+      },
+      updateJob(auditId, patch) {
+        const existing = jobs.get(auditId);
+        if (!existing) return undefined;
+        const updated = { ...existing, ...patch };
+        jobs.set(auditId, updated);
+        return updated;
+      },
+      deleteJob(auditId) { jobs.delete(auditId); },
     };
-    jobs.set(auditId, job);
-    return job;
-  },
-
-  getJob(auditId: string): Job | undefined {
-    purgeExpiredJobs();
-    return jobs.get(auditId);
-  },
-
-  updateJob(auditId: string, patch: Partial<Job>): Job | undefined {
-    const existing = jobs.get(auditId);
-    if (!existing) return undefined;
-    const updated = { ...existing, ...patch };
-    jobs.set(auditId, updated);
-    return updated;
-  },
-
-  deleteJob(auditId: string): void {
-    jobs.delete(auditId);
-  },
-};
-
-function purgeExpiredJobs() {
-  const now = Date.now();
-  for (const [id, job] of jobs.entries()) {
-    if (now - job.createdAt > JOB_TTL_MS) {
-      jobs.delete(id);
-    }
   }
+  return activeStore;
 }
 
-// Backwards-compatible named exports (delegate to memoryStore)
-export function createJob(auditId: string, fileName: string): Job {
-  return memoryStore.createJob(auditId, fileName);
+// ── Exported functions (delegate to active store) ──────────────────────────
+// All functions are async to support both sync (in-memory) and async (KV) stores.
+// Awaiting a sync return value is a no-op, so this is safe for both.
+
+export async function createJob(auditId: string, fileName: string): Promise<Job> {
+  return getStore().createJob(auditId, fileName);
 }
 
-export function getJob(auditId: string): Job | undefined {
-  return memoryStore.getJob(auditId);
+export async function getJob(auditId: string): Promise<Job | undefined> {
+  return getStore().getJob(auditId);
 }
 
-export function updateJob(auditId: string, patch: Partial<Job>): Job | undefined {
-  return memoryStore.updateJob(auditId, patch);
+export async function updateJob(auditId: string, patch: Partial<Job>): Promise<Job | undefined> {
+  return getStore().updateJob(auditId, patch);
 }
 
-export function deleteJob(auditId: string): void {
-  memoryStore.deleteJob(auditId);
+export async function deleteJob(auditId: string): Promise<void> {
+  return getStore().deleteJob(auditId);
 }
 
 export function getJobCount(): number {
-  purgeExpiredJobs();
-  return jobs.size;
+  // Not implemented for KV store — returns job count for diagnostics
+  return 0;
 }
 
-// Default export is the memory store (can be swapped)
-export default memoryStore;
+// Default export
+export default { createJob, getJob, updateJob, deleteJob, initJobStore, getJobCount };
