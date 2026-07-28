@@ -1,31 +1,25 @@
 /**
  * Extraction Router — central extraction orchestrator
  *
- * This is the SINGLE entry point for all document extraction.
- * No extraction logic lives in the upload route — it all flows
- * through here via routeExtraction().
+ * SMART ROUTING:
+ *   Digital PDFs (not scanned) → native extraction (INSTANT — no ML needed)
+ *   Scanned PDFs / images → Docling (OCR required)
+ *   DOCX/XLSX → native JSZip (fast) → Docling as enhancement
+ *   TXT/CSV → direct decode (instant)
  *
  * Flow:
- *   UPLOAD
+ *   UPLOAD → routeDocument (detect format + digital vs scanned)
  *     ↓
- *   Detect File Type (routeDocument from existing router)
+ *   SMART DECISION based on format + document characteristics:
+ *     ├── Digital PDF (good quality, not scanned) → pdfExtractor FIRST (instant native)
+ *     ├── Scanned PDF / low quality PDF → Docling FIRST (needs OCR)
+ *     ├── Images → Docling FIRST (needs OCR)
+ *     ├── DOCX/XLSX → officeExtractor FIRST (fast JSZip) → Docling enhancement
+ *     └── TXT/MD/CSV → fallbackExtractor FIRST (instant)
  *     ↓
- *   [ROUTER_SELECTED] — log format + provider selection
+ *   If primary fails → try opposite path
  *     ↓
- *   ── PRIMARY: IBM Docling ──
- *     ↓ Success? → Return structured extraction
- *     ↓ No
- *   ── Format-specific fallback ──
- *     ↓   PDF → pdfExtractor (native + OCR)
- *     ↓   Image → imageExtractor (OCR pipeline)
- *     ↓   DOCX/XLSX → officeExtractor (JSZip)
- *     ↓   TXT/CSV → fallbackExtractor (direct)
- *     ↓ Success? → Return extraction
- *     ↓ No
- *   ── General fallback (raw text decode) ──
- *     ↓ Success? → Return extraction
- *     ↓ No
- *   ── FAIL (sanitized customer message) ──
+ *   General fallback → Fail with customer message
  */
 
 import type { Env, DocumentRouteResult } from "../../types.js";
@@ -40,7 +34,7 @@ import {
   CUSTOMER_MESSAGES,
 } from "./extractionTypes.js";
 
-// ─── Image format check ───
+// ─── Format checks ───
 
 const IMAGE_FORMATS = [
   "jpg", "jpeg", "png", "webp", "heic", "heif", "tiff", "tif", "bmp", "gif",
@@ -50,15 +44,11 @@ function isImageFormat(format: string): boolean {
   return IMAGE_FORMATS.includes(format);
 }
 
-// ─── Office format check ───
-
 const OFFICE_FORMATS = ["docx", "doc", "xlsx", "xls", "xlsm", "pptx", "ppt", "ods"];
 
 function isOfficeFormat(format: string): boolean {
   return OFFICE_FORMATS.includes(format);
 }
-
-// ─── Text format check ───
 
 const TEXT_FORMATS = ["txt", "md", "csv", "tsv", "html", "xml", "json", "rtf"];
 
@@ -66,118 +56,205 @@ function isTextFormat(format: string): boolean {
   return TEXT_FORMATS.includes(format);
 }
 
-// ─── Main router function ───
+// ─── Smart routing decision ───
 
 /**
- * Extract text from a document using the unified pipeline.
- *
- * @param buffer - Raw file bytes
- * @param fileName - Original filename
- * @param env - Worker environment
- * @returns UnifiedExtractionResult on success, or a failed result with customerMessage
+ * Determine the BEST extraction strategy based on document characteristics.
+ * 
+ * KEY INSIGHT: Digital PDFs with embedded text don't need ML/OCR.
+ * Native extraction is INSTANT (<100ms) vs Docling (10-30s for ML model loading).
+ * 
+ * Docling is crucial for: scanned PDFs, images, handwritten docs.
+ * Docling is unnecessary for: digital PDFs, DOCX, XLSX, text files.
  */
+type ExtractionStrategy = "native-first" | "docling-first";
+
+function pickStrategy(route: DocumentRouteResult): ExtractionStrategy {
+  // ── Images always need OCR → Docling first ──
+  if (isImageFormat(route.fileFormat)) {
+    return "docling-first";
+  }
+
+  // ── PDF: smart decision based on document properties ──
+  if (route.fileFormat === "pdf") {
+    // Digital PDF with good quality and no OCR needed → native is instant
+    if (!route.needsOcr && route.isDigital && route.documentQuality !== "poor" && route.documentQuality !== "unusable") {
+      return "native-first";
+    }
+    // Scanned PDF or needs OCR → Docling is the right tool
+    return "docling-first";
+  }
+
+  // ── Office docs: native JSZip is fast (<500ms) → try native first, Docling as enhancement ──
+  if (isOfficeFormat(route.fileFormat)) {
+    return "native-first";
+  }
+
+  // ── Text formats: direct decode is instant ──
+  return "native-first";
+}
+
+// ─── Main router function ───
+
 export async function routeExtraction(
   buffer: ArrayBuffer,
   fileName: string,
   env: Env,
 ): Promise<UnifiedExtractionResult> {
-  // ── Step 1: Route the document (detect format, quality, etc.) ──
+  // ── Step 1: Route the document (detect format, quality, scanned vs digital, etc.) ──
   const route: DocumentRouteResult = routeDocument(buffer, fileName);
+  const strategy = pickStrategy(route);
 
   // ── [EXTRACTION_START] ──
   console.log(
     `[EXTRACTION_START]
 filename="${fileName}"
+format=${route.fileFormat}
 mime="${route.mimeType}"
 size=${buffer.byteLength}
-type=${route.fileFormat}`,
-  );
-
-  // ── [FORMAT_DETECTED] ──
-  const fallbackProvider = isImageFormat(route.fileFormat)
-    ? "image-ocr"
-    : route.fileFormat === "pdf"
-      ? "pdf-native"
-      : isOfficeFormat(route.fileFormat)
-        ? "office-native"
-        : "txt-direct";
-
-  console.log(
-    `[FORMAT_DETECTED]
-format=${route.fileFormat}
-provider_selected=docling
-fallback=${fallbackProvider}
-size=${buffer.byteLength}
+isDigital=${route.isDigital}
 isScanned=${route.isScanned}
 needsOcr=${route.needsOcr}
 pageCount=${route.pageCount}
-quality=${route.documentQuality}`,
+quality=${route.documentQuality}
+strategy=${strategy}`,
   );
 
-  // ── Step 2: PRIMARY — IBM Docling ──
-  const doclingResult = await extractWithDocling(buffer, fileName, route, env);
+  let result: UnifiedExtractionResult | null = null;
 
-  if (doclingResult && doclingResult.success) {
-    console.log(
-      `[EXTRACTION_COMPLETE]
+  // ══════════════════════════════════════════════════════════
+  // NATIVE-FIRST PATH: Fast native extraction (instant for digital PDFs, DOCX, text)
+  // Only try Docling if native fails or quality is low.
+  // ══════════════════════════════════════════════════════════
+  if (strategy === "native-first") {
+    console.log(`[ROUTER] strategy=native-first`);
+    
+    // Try native extraction first
+    if (route.fileFormat === "pdf") {
+      console.log("[EXTRACTION_START] provider=pdf-native (instant)");
+      result = await extractPdf(buffer, fileName, route, env);
+    } else if (isOfficeFormat(route.fileFormat)) {
+      console.log("[EXTRACTION_START] provider=office-native (fast)");
+      result = await extractOffice(buffer, fileName, route, env);
+    } else {
+      console.log("[EXTRACTION_START] provider=txt-direct (instant)");
+      result = await extractFallback(buffer, fileName, route, env);
+    }
+
+    // If native extraction succeeded with good quality, return immediately
+    if (result && result.success && result.text.length > 50 && result.context.confidenceScore >= 60) {
+      console.log(
+        `[EXTRACTION_COMPLETE]
+provider=${result.provider}
+strategy=native-first
+textLength=${result.text.length}
+confidence=${result.context.confidenceScore}`,
+      );
+      return result;
+    }
+
+    // Native failed or low quality — try Docling as enhancement
+    if (env.DOCLING_SERVICE_URL) {
+      console.log("[ROUTER] native_insufficient — trying Docling enhancement");
+      const doclingResult = await extractWithDocling(buffer, fileName, route, env);
+      if (doclingResult && doclingResult.success) {
+        console.log(
+          `[EXTRACTION_COMPLETE]
 provider=${doclingResult.provider}
+strategy=native-first→docling
 textLength=${doclingResult.text.length}
-method=${doclingResult.context.extractionMethod}
 confidence=${doclingResult.context.confidenceScore}`,
-    );
-    return doclingResult;
+        );
+        return doclingResult;
+      }
+    }
+
+    // If native succeeded but quality was low, use it anyway (better than nothing)
+    if (result && result.success && result.text.length > 0) {
+      console.log(
+        `[EXTRACTION_COMPLETE]
+provider=${result.provider}
+strategy=native-first-fallback
+textLength=${result.text.length}
+confidence=${result.context.confidenceScore}`,
+      );
+      return result;
+    }
+
+    // Both failed — fall through to failure handling
   }
 
-  // ── Step 3: Format-specific fallback ──
-  console.log("[DOCLING_FAILURE] reason=extraction_failed — selecting fallback");
+  // ══════════════════════════════════════════════════════════
+  // DOCLING-FIRST PATH: ML/OCR needed (images, scanned PDFs)
+  // Try Docling first, fall back to native if it fails.
+  // ══════════════════════════════════════════════════════════
+  else {
+    console.log("[ROUTER] strategy=docling-first");
 
-  let fallbackResult: UnifiedExtractionResult | null = null;
+    // Try Docling
+    console.log("[EXTRACTION_START] provider=docling (primary)");
+    const doclingResult = await extractWithDocling(buffer, fileName, route, env);
 
-  if (route.fileFormat === "pdf") {
-    console.log("[FALLBACK_STARTED] provider=pdf-extractor");
-    fallbackResult = await extractPdf(buffer, fileName, route, env);
-  } else if (isImageFormat(route.fileFormat)) {
-    console.log("[FALLBACK_STARTED] provider=image-ocr");
-    fallbackResult = await extractImage(buffer, fileName, route, env);
-  } else if (isOfficeFormat(route.fileFormat)) {
-    console.log("[FALLBACK_STARTED] provider=office-native");
-    fallbackResult = await extractOffice(buffer, fileName, route, env);
-  } else {
-    console.log("[FALLBACK_STARTED] provider=txt-direct");
-    fallbackResult = await extractFallback(buffer, fileName, route, env);
+    if (doclingResult && doclingResult.success) {
+      console.log(
+        `[EXTRACTION_COMPLETE]
+provider=${doclingResult.provider}
+strategy=docling-first
+textLength=${doclingResult.text.length}
+confidence=${doclingResult.context.confidenceScore}`,
+      );
+      return doclingResult;
+    }
+
+    // Docling failed — try format-specific fallback
+    console.log("[DOCLING_FAILURE] reason=extraction_failed — selecting fallback");
+
+    if (route.fileFormat === "pdf") {
+      console.log("[FALLBACK_STARTED] provider=pdf-extractor");
+      result = await extractPdf(buffer, fileName, route, env);
+    } else if (isImageFormat(route.fileFormat)) {
+      console.log("[FALLBACK_STARTED] provider=image-ocr");
+      result = await extractImage(buffer, fileName, route, env);
+    } else if (isOfficeFormat(route.fileFormat)) {
+      console.log("[FALLBACK_STARTED] provider=office-native");
+      result = await extractOffice(buffer, fileName, route, env);
+    } else {
+      console.log("[FALLBACK_STARTED] provider=txt-direct");
+      result = await extractFallback(buffer, fileName, route, env);
+    }
+
+    if (result && result.success) {
+      console.log(
+        `[FALLBACK_SUCCESS]
+provider=${result.provider}
+textLength=${result.text.length}
+confidence=${result.context.confidenceScore}`,
+      );
+      return result;
+    }
   }
 
-  if (fallbackResult && fallbackResult.success) {
-    console.log(
-      `[FALLBACK_SUCCESS]
-provider=${fallbackResult.provider}
-textLength=${fallbackResult.text.length}
-method=${fallbackResult.context.extractionMethod}
-confidence=${fallbackResult.context.confidenceScore}`,
-    );
-    return fallbackResult;
-  }
-
-  // ── Step 4: General fallback (last resort for any format) ──
+  // ══════════════════════════════════════════════════════════
+  // LAST RESORT: General fallback (raw text decode)
+  // ══════════════════════════════════════════════════════════
   if (!isTextFormat(route.fileFormat)) {
-    // For PDFs, images, and Office docs that failed their specific fallback,
-    // try the general fallback (raw text decode) as a last resort.
     console.log("[FALLBACK_STARTED] provider=general-fallback");
-    fallbackResult = await extractFallback(buffer, fileName, route, env);
+    const fallbackResult = await extractFallback(buffer, fileName, route, env);
 
     if (fallbackResult && fallbackResult.success) {
       console.log(
         `[EXTRACTION_COMPLETE]
 provider=${fallbackResult.provider}
-textLength=${fallbackResult.text.length}
-method=${fallbackResult.context.extractionMethod}
-confidence=${fallbackResult.context.confidenceScore}`,
+strategy=last-resort
+textLength=${fallbackResult.text.length}`,
       );
       return fallbackResult;
     }
   }
 
-  // ── Step 5: ALL EXTRACTION FAILED ──
+  // ══════════════════════════════════════════════════════════
+  // ALL EXTRACTION FAILED
+  // ══════════════════════════════════════════════════════════
   const customerMessage = isImageFormat(route.fileFormat)
     ? CUSTOMER_MESSAGES.image
     : route.fileFormat === "pdf"
@@ -205,7 +282,5 @@ customerMessage="${customerMessage}"`,
     customerMessage,
   };
 }
-
-// ─── Re-export routeDocument for convenience ───
 
 export { routeDocument } from "../../router/documentRouter.js";
