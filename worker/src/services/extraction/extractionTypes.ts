@@ -111,14 +111,15 @@ export interface ExtractionError {
 // ─── Customer-facing messages (never leak internals) ───
 
 export const CUSTOMER_MESSAGES = {
+  // ── Customer-facing failure messages — never leak internals ──
   generic:
     "We couldn't read this document. Please try uploading a clearer copy.",
   image:
-    "We couldn't read this image. Please try a clearer photo or a PDF copy.",
-  pdf: "We couldn't read this PDF. Please try uploading a clearer copy.",
+    "We couldn't read this document. Please try uploading a clearer copy.",
+  pdf: "We couldn't read this document. Please try uploading a clearer copy.",
   unsupported:
-    "This file type isn't supported. Please upload a PDF, image, DOCX, TXT, or spreadsheet.",
-  empty: "The uploaded file appears to be empty. Please select a valid document.",
+    "We couldn't read this document. Please try uploading a clearer copy.",
+  empty: "We couldn't read this document. Please try uploading a clearer copy.",
 } as const;
 
 // ─── Timeout configuration by document size ───

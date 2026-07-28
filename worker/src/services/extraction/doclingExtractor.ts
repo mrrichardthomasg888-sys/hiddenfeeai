@@ -13,7 +13,7 @@
 
 import type { Env, DocumentRouteResult, StructuredDocument } from "../../types.js";
 import { parseWithDocling, shouldUseDocling } from "../doclingClient.js";
-import type { DoclingError, DoclingResult } from "../doclingClient.js";
+import type { DoclingError } from "../doclingClient.js";
 import {
   type UnifiedExtractionResult,
   type ExtractionProvider,
@@ -77,7 +77,7 @@ export async function extractWithDocling(
           `url="${env.DOCLING_SERVICE_URL}/parse" bytes=${buffer.byteLength}`,
       );
 
-      const result = await callDoclingWithTimeout(
+      const result = await parseWithDocling(
         buffer,
         fileName,
         route,
@@ -191,43 +191,6 @@ reason=${code}`,
   );
 
   return null;
-}
-
-// ─── Internal: call Docling with explicit timeout ───
-
-async function callDoclingWithTimeout(
-  buffer: ArrayBuffer,
-  fileName: string,
-  route: DocumentRouteResult,
-  env: Env,
-  timeoutMs: number,
-): Promise<DoclingResult> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    // parseWithDocling has its own timeout, but we add an outer guard
-    // to ensure we never hang indefinitely even if the inner timeout fails.
-    const resultPromise = parseWithDocling(buffer, fileName, route, env);
-
-    // Race the promise against the abort
-    const result = await Promise.race([
-      resultPromise,
-      new Promise<never>((_, reject) => {
-        controller.signal.addEventListener("abort", () => {
-          reject({
-            error: `Docling request timed out after ${timeoutMs / 1000}s`,
-            code: "timeout",
-            retryable: true,
-          } as DoclingError);
-        });
-      }),
-    ]);
-
-    return result;
-  } finally {
-    clearTimeout(timeoutId);
-  }
 }
 
 // ─── Export for router use ───

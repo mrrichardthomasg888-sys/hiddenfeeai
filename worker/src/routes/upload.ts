@@ -7,6 +7,10 @@ import * as errors from "../utils/errors.js";
 
 export const uploadRoute = new Hono<{ Bindings: Env }>();
 
+// ── Safety timeout: extraction must complete within 5 minutes ──
+// This prevents jobs from being stuck in "extracting" forever.
+const EXTRACTION_SAFETY_TIMEOUT_MS = 5 * 60 * 1000;
+
 uploadRoute.post("/", async (c) => {
   const maxMb = Number(c.env.MAX_UPLOAD_SIZE_MB || 25);
 
@@ -41,14 +45,16 @@ uploadRoute.post("/", async (c) => {
   const buffer = await file.arrayBuffer();
 
   // ── File diagnostics logging ──
-  const fileMimeType = file.type || 'unknown';
-  console.log(`[Upload Diagnostics] fileName="${fileName}" mimeType="${fileMimeType}" fileSize=${file.size} bytes`);
+  const fileMimeType = file.type || "unknown";
 
   // Start extraction (async) — all extraction logic flows through routeExtraction
   c.executionCtx.waitUntil(
     (async () => {
+      const extractionStartTime = Date.now();
       try {
+        // ── State transition: uploading → extracting (processing) ──
         await updateJob(auditId, { status: "extracting" });
+        console.log(`[JobLifecycle] EXTRACTION_STARTED auditId=${auditId} status=extracting`);
 
         // ── [EXTRACTION_START] ──
         console.log(`[EXTRACTION_START]
@@ -58,36 +64,68 @@ size=${file.size}`);
 
         // ── UNIFIED EXTRACTION PIPELINE ──
         // routeExtraction handles: Docling (primary) → format-specific fallback → general fallback → fail
-        const result = await routeExtraction(buffer, fileName, c.env);
+        // Wrap in a safety timeout to prevent stuck jobs
+        const extractionPromise = routeExtraction(buffer, fileName, c.env);
+        const safetyTimeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            reject(new Error("EXTRACTION_SAFETY_TIMEOUT"));
+          }, EXTRACTION_SAFETY_TIMEOUT_MS);
+        });
+
+        const result = await Promise.race([extractionPromise, safetyTimeoutPromise]);
 
         if (result.success && result.text.length > 0) {
-          console.log(`[JOB_UPDATE] auditId=${auditId} status=extracted method=${result.context.extractionMethod}`);
+          // ── State transition: extracting → extracted (complete) ──
+          const durationMs = Date.now() - extractionStartTime;
+          console.log(`[EXTRACTION_COMPLETE]
+auditId=${auditId}
+provider=${result.provider}
+method=${result.context.extractionMethod}
+confidence=${result.context.confidenceScore}
+textLength=${result.text.length}
+durationMs=${durationMs}`);
+
           await updateJob(auditId, {
             status: "extracted",
             extractedText: result.text,
             extractedDocument: result.structured as any,
             documentContext: result.context,
           });
-          console.log(`[EXTRACTION_COMPLETE] auditId=${auditId} status=extracted method=${result.context.extractionMethod} provider=${result.provider} textLength=${result.text.length}`);
+          console.log(`[JobLifecycle] EXTRACTION_COMPLETE auditId=${auditId} status=extracted method=${result.context.extractionMethod} provider=${result.provider}`);
         } else {
+          // ── State transition: extracting → error (failed) ──
           // All extraction failed — use sanitized customer message
           const customerMessage = result.customerMessage || "We couldn't read this document. Please try uploading a clearer copy.";
-          console.error(`[EXTRACTION_FAILED] auditId=${auditId} provider=${result.provider} customerMessage="${customerMessage}"`);
+          console.error(`[EXTRACTION_FAILED]
+auditId=${auditId}
+provider=${result.provider}
+safeReason="${customerMessage}"`);
           await updateJob(auditId, {
             status: "error",
             error: customerMessage,
           });
+          console.log(`[JobLifecycle] EXTRACTION_FAILED auditId=${auditId} status=error`);
         }
       } catch (extractError) {
-        // Unexpected error — never expose internals to customer
-        const errMsg = extractError instanceof Error ? extractError.message : 'unknown';
-        console.error(`[EXTRACTION_FAILED] auditId=${auditId} unexpected error="${errMsg}"`);
+        // ── State transition: extracting → error (failed) ──
+        // Unexpected error or safety timeout — never expose internals to customer
+        const isTimeout = extractError instanceof Error && extractError.message === "EXTRACTION_SAFETY_TIMEOUT";
+        const safeReason = isTimeout
+          ? "We couldn't read this document. Please try uploading a clearer copy."
+          : "We couldn't read this document. Please try uploading a clearer copy.";
+
+        console.error(`[EXTRACTION_FAILED]
+auditId=${auditId}
+safeReason="${safeReason}"
+isTimeout=${isTimeout}`);
+
         await updateJob(auditId, {
           status: "error",
-          error: "We couldn't read this document. Please try uploading a clearer copy.",
+          error: safeReason,
         });
+        console.log(`[JobLifecycle] EXTRACTION_FAILED auditId=${auditId} status=error isTimeout=${isTimeout}`);
       }
-    })()
+    })(),
   );
 
   return c.json({

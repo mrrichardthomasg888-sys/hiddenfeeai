@@ -1,0 +1,29 @@
+# HiddenFeeAI Docling Engine — Cloudflare Named Tunnel Configuration
+#
+# This creates a PERMANENT tunnel URL for the Docling service.
+# Unlike trycloudflare.com (temporary, breaks on restart),
+# a Named Tunnel provides a stable URL that survives restarts.
+#
+# Setup steps:
+# 1. Install cloudflared: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/
+# 2. Login: cloudflared tunnel login
+# 3. Create tunnel: cloudflared tunnel create hiddenfee-doc-engine
+# 4. Copy the tunnel ID from the output
+# 5. Update the tunnel ID in this file
+# 6. Start: cloudflared tunnel run hiddenfee-doc-engine
+#
+# The permanent URL will be: https://hiddenfee-doc-engine.<your-domain>.com
+# Or use the default: https://<tunnel-id>-cfargotunnel.com
+
+tunnel: <TUNNEL_ID_HERE>
+credentials-file: /root/.cloudflared/<TUNNEL_ID_HERE>.json
+
+[env]
+PORT = "8000"
+
+[ingress]
+  # Route all traffic to the local Docling service
+  - hostname: hiddenfee-doc-engine.hiddenfeeai.com
+    service: http://localhost:8000
+  # Fallback for direct tunnel URL
+  - service: http://localhost:8000

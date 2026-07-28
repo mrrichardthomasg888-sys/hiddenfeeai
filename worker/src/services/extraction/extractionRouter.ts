@@ -93,7 +93,7 @@ size=${buffer.byteLength}
 type=${route.fileFormat}`,
   );
 
-  // ── [ROUTER_SELECTED] ──
+  // ── [FORMAT_DETECTED] ──
   const fallbackProvider = isImageFormat(route.fileFormat)
     ? "image-ocr"
     : route.fileFormat === "pdf"
@@ -103,7 +103,7 @@ type=${route.fileFormat}`,
         : "txt-direct";
 
   console.log(
-    `[ROUTER_SELECTED]
+    `[FORMAT_DETECTED]
 format=${route.fileFormat}
 provider_selected=docling
 fallback=${fallbackProvider}
@@ -115,7 +115,6 @@ quality=${route.documentQuality}`,
   );
 
   // ── Step 2: PRIMARY — IBM Docling ──
-  console.log("[EXTRACTION_START] provider=docling (primary)");
   const doclingResult = await extractWithDocling(buffer, fileName, route, env);
 
   if (doclingResult && doclingResult.success) {
@@ -130,31 +129,27 @@ confidence=${doclingResult.context.confidenceScore}`,
   }
 
   // ── Step 3: Format-specific fallback ──
-  console.log("[ROUTER] primary_failed — selecting format-specific fallback");
+  console.log("[DOCLING_FAILURE] reason=extraction_failed — selecting fallback");
 
   let fallbackResult: UnifiedExtractionResult | null = null;
 
   if (route.fileFormat === "pdf") {
-    // PDF: native text extraction → OCR
-    console.log("[ROUTER] fallback=pdf-extractor");
+    console.log("[FALLBACK_STARTED] provider=pdf-extractor");
     fallbackResult = await extractPdf(buffer, fileName, route, env);
   } else if (isImageFormat(route.fileFormat)) {
-    // Image: OCR pipeline
-    console.log("[ROUTER] fallback=image-extractor");
+    console.log("[FALLBACK_STARTED] provider=image-ocr");
     fallbackResult = await extractImage(buffer, fileName, route, env);
   } else if (isOfficeFormat(route.fileFormat)) {
-    // DOCX, XLSX, PPTX
-    console.log("[ROUTER] fallback=office-extractor");
+    console.log("[FALLBACK_STARTED] provider=office-native");
     fallbackResult = await extractOffice(buffer, fileName, route, env);
   } else {
-    // TXT, CSV, etc.
-    console.log("[ROUTER] fallback=txt-extractor");
+    console.log("[FALLBACK_STARTED] provider=txt-direct");
     fallbackResult = await extractFallback(buffer, fileName, route, env);
   }
 
   if (fallbackResult && fallbackResult.success) {
     console.log(
-      `[EXTRACTION_COMPLETE]
+      `[FALLBACK_SUCCESS]
 provider=${fallbackResult.provider}
 textLength=${fallbackResult.text.length}
 method=${fallbackResult.context.extractionMethod}
@@ -167,7 +162,7 @@ confidence=${fallbackResult.context.confidenceScore}`,
   if (!isTextFormat(route.fileFormat)) {
     // For PDFs, images, and Office docs that failed their specific fallback,
     // try the general fallback (raw text decode) as a last resort.
-    console.log("[ROUTER] fallback=general-fallback");
+    console.log("[FALLBACK_STARTED] provider=general-fallback");
     fallbackResult = await extractFallback(buffer, fileName, route, env);
 
     if (fallbackResult && fallbackResult.success) {

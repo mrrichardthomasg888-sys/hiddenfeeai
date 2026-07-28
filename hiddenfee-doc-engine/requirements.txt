@@ -1,5 +1,18 @@
+# HiddenFeeAI Docling Engine — Production Dependencies
+# IBM Docling 2.x with full format support
+
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 python-multipart==0.0.12
+
+# IBM Docling — document understanding engine
 docling==2.5.0
+
+# Image processing (required by Docling for OCR)
 Pillow==10.4.0
+
+# PDF processing (required by Docling for PDF parsing)
+pypdfium2==4.30.0
+
+# Table structure recognition (required by Docling for table extraction)
+# These are pulled in by docling but pinned for stability

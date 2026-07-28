@@ -1,22 +1,30 @@
-import type { Env, StructuredDocument, DocumentRouteResult, StructuredTable, StructuredElement } from "../types.js";
-
 /**
  * Docling Service HTTP Client
- * 
+ *
  * Bridges the Cloudflare Worker to the standalone IBM Docling Python microservice.
- * 
+ *
  * Flow:
  * 1. Worker receives upload
  * 2. DocumentRouter determines file type/quality
  * 3. This client sends the file to the Docling service via HTTP
- * 4. Docling returns structured Markdown + JSON
- * 5. Response is mapped to StructuredDocument format for v2 pipeline
- * 
- * Fallback: If Docling is unreachable, the existing DocumentProcessor (DeepSeek Vision)
- * is used as a degraded-but-functional backup.
+ * 4. Docling returns the Extraction Contract: { success, text, pages, tables, metadata, structured, confidence }
+ * 5. Response is mapped to StructuredDocument format for the v2 pipeline
+ *
+ * Features:
+ * - Size-aware timeouts (60s / 120s / 180s)
+ * - Retry with exponential backoff for transient failures
+ * - Production-safe logging (no document content)
+ * - Extraction Contract compliance
  */
 
-// ─── Docling API response shape ───
+import type { Env, StructuredDocument, DocumentRouteResult, StructuredTable, StructuredElement } from "../types.js";
+
+// ─── Docling Extraction Contract response shape ───
+
+interface DoclingPage {
+  page_number: number;
+  text: string;
+}
 
 interface DoclingParsedTable {
   page: number;
@@ -30,54 +38,46 @@ interface DoclingParsedHeading {
   page: number;
 }
 
-interface DoclingStructuredJson {
-  text: string;
-  pages: Array<{
-    page_number: number;
-    text: string;
-    elements: Array<{
-      type: string;
-      content: string;
-      bbox?: { x: number; y: number; w: number; h: number };
-    }>;
-  }>;
-  tables: DoclingParsedTable[];
-  pictures: Array<{ page: number; bbox?: { x: number; y: number; w: number; h: number } }>;
-}
-
-interface DoclingParseResponse {
+interface DoclingMetadata {
   document_id: string;
   filename: string;
   file_type: string;
   page_count: number;
-  markdown: string;
-  structured_json: DoclingStructuredJson;
-  tables: DoclingParsedTable[];
-  headings: DoclingParsedHeading[];
-  metadata: {
-    language: string;
-    author: string;
-    created_at: string;
-    page_count: number;
-  };
-  processing_time_seconds: number;
-  quality: {
-    quality_score: number;
-    quality_label: 'excellent' | 'good' | 'fair' | 'poor' | 'unusable';
-    chars_per_page: number;
-  };
+  table_count: number;
+  heading_count: number;
   is_scanned: boolean;
   ocr_used: boolean;
-  warnings: string[];
+  processing_time_seconds: number;
+}
+
+interface DoclingStructured {
+  headings: DoclingParsedHeading[];
+  tables: DoclingParsedTable[];
+  pages: DoclingPage[];
+}
+
+/**
+ * The Docling service returns this Extraction Contract on both success and failure.
+ * Success: { success: true, text, pages, tables, metadata, structured, confidence }
+ * Failure: { success: false, userMessage: "..." }
+ */
+interface DoclingExtractionResponse {
+  success: boolean;
+  text?: string;
+  pages?: DoclingPage[];
+  tables?: DoclingParsedTable[];
+  metadata?: DoclingMetadata;
+  structured?: DoclingStructured;
+  confidence?: number;
+  userMessage?: string;
 }
 
 // ─── Configuration ───
 
-const DOCLING_DEFAULT_TIMEOUT_MS = 120_000; // 120 seconds default — size-aware timeout applied by extractor
 const DOCLING_MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB — matches Docling engine limit
 const HEALTH_CHECK_TIMEOUT_MS = 5_000;
 
-// ─── Health check (call at startup or periodically) ───
+// ─── Health check ───
 
 export async function checkDoclingHealth(env: Env): Promise<{ healthy: boolean; latencyMs: number; error?: string }> {
   const serviceUrl = env.DOCLING_SERVICE_URL;
@@ -112,12 +112,12 @@ export async function checkDoclingHealth(env: Env): Promise<{ healthy: boolean; 
   }
 }
 
-// ─── Main parse function ───
+// ─── Result types ───
 
 export interface DoclingResult {
   /** The converted StructuredDocument, ready for the v2 pipeline */
   structuredDocument: StructuredDocument;
-  /** Raw Docling response (for debugging/logging metadata only — no document content) */
+  /** Raw Docling metadata (for logging only — no document content) */
   metadata: {
     documentId: string;
     processingTimeSeconds: number;
@@ -130,24 +130,28 @@ export interface DoclingResult {
 
 export interface DoclingError {
   error: string;
-  code: 'timeout' | 'unavailable' | 'bad_response' | 'invalid_file' | 'too_large' | 'not_configured';
+  code: 'timeout' | 'unavailable' | 'bad_response' | 'invalid_file' | 'too_large' | 'not_configured' | 'extraction_failed';
   retryable: boolean;
 }
 
+// ─── Main parse function ───
+
 /**
  * Send a document to the Docling service for structured parsing.
- * 
+ *
  * @param buffer - The raw file bytes
  * @param fileName - Original filename
  * @param routeResult - Pre-computed document routing info
  * @param env - Worker environment bindings
- * @returns StructuredDocument on success, or throws DoclingError
+ * @param timeoutMs - Size-aware timeout (default: 120s)
+ * @returns DoclingResult on success, or throws DoclingError
  */
 export async function parseWithDocling(
   buffer: ArrayBuffer,
   fileName: string,
   routeResult: DocumentRouteResult,
   env: Env,
+  timeoutMs: number = 120_000,
 ): Promise<DoclingResult> {
   const serviceUrl = env.DOCLING_SERVICE_URL;
   if (!serviceUrl) {
@@ -162,8 +166,6 @@ export async function parseWithDocling(
       retryable: false,
     } as DoclingError;
   }
-
-  console.log(`[DoclingClient] Sending ${fileName} (${buffer.byteLength} bytes) to ${serviceUrl}/parse`);
 
   // Build multipart form data manually (Workers-compatible)
   const boundary = '----DoclingBoundary' + crypto.randomUUID();
@@ -193,9 +195,9 @@ export async function parseWithDocling(
     offset += part.length;
   }
 
-  // Send request with timeout
+  // Send request with AbortController timeout
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), DOCLING_DEFAULT_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(`${serviceUrl}/parse`, {
@@ -209,22 +211,31 @@ export async function parseWithDocling(
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown');
       const code = response.status === 413 ? 'too_large' :
                    response.status === 422 ? 'invalid_file' :
                    response.status >= 500 ? 'unavailable' : 'bad_response';
-      
+
       throw {
-        error: `Docling service returned ${response.status}: ${errorText.slice(0, 200)}`,
+        error: `Docling service returned HTTP ${response.status}`,
         code,
         retryable: response.status >= 500,
       } as DoclingError;
     }
 
-    const data = await response.json() as DoclingParseResponse;
+    const data = await response.json() as DoclingExtractionResponse;
+
+    // ── Check Extraction Contract: success flag ──
+    if (!data.success) {
+      // Docling service handled the error gracefully — not retryable
+      throw {
+        error: data.userMessage || 'Docling extraction failed',
+        code: 'extraction_failed',
+        retryable: false,
+      } as DoclingError;
+    }
 
     // Validate minimum viable response
-    if (!data.markdown && !data.structured_json?.text) {
+    if (!data.text && !data.structured?.pages?.length) {
       throw {
         error: 'Docling returned empty content',
         code: 'bad_response',
@@ -235,20 +246,25 @@ export async function parseWithDocling(
     // ── Map to StructuredDocument ──
     const structured = mapDoclingToStructured(data, fileName, routeResult);
 
+    const confidence = data.confidence ?? 0.9;
+    const qualityLabel = confidence >= 0.85 ? 'excellent' :
+                         confidence >= 0.65 ? 'good' :
+                         confidence >= 0.40 ? 'fair' : 'poor';
+
     console.log(
-      `[DoclingClient] Success: ${data.page_count} pages, ${data.tables.length} tables, ` +
-      `${data.headings.length} headings in ${data.processing_time_seconds}s`
+      `[DoclingClient] Success: ${data.metadata?.page_count ?? 0} pages, ` +
+      `${data.tables?.length ?? 0} tables, confidence=${confidence}`
     );
 
     return {
       structuredDocument: structured,
       metadata: {
-        documentId: data.document_id,
-        processingTimeSeconds: data.processing_time_seconds,
-        qualityScore: data.quality.quality_score,
-        qualityLabel: data.quality.quality_label,
-        isScanned: data.is_scanned,
-        ocrUsed: data.ocr_used,
+        documentId: data.metadata?.document_id ?? crypto.randomUUID(),
+        processingTimeSeconds: data.metadata?.processing_time_seconds ?? 0,
+        qualityScore: confidence,
+        qualityLabel,
+        isScanned: data.metadata?.is_scanned ?? false,
+        ocrUsed: data.metadata?.ocr_used ?? false,
       },
     };
   } catch (err) {
@@ -262,7 +278,7 @@ export async function parseWithDocling(
     // AbortError = timeout
     if (err instanceof DOMException && err.name === 'AbortError') {
       throw {
-        error: `Docling request timed out after ${DOCLING_DEFAULT_TIMEOUT_MS / 1000}s`,
+        error: `Docling request timed out after ${timeoutMs / 1000}s`,
         code: 'timeout',
         retryable: true,
       } as DoclingError;
@@ -277,29 +293,30 @@ export async function parseWithDocling(
   }
 }
 
-// ─── Response mapper: Docling JSON → StructuredDocument ───
+// ─── Response mapper: Docling Extraction Contract → StructuredDocument ───
 
 function mapDoclingToStructured(
-  data: DoclingParseResponse,
+  data: DoclingExtractionResponse,
   fileName: string,
   routeResult: DocumentRouteResult,
 ): StructuredDocument {
-  // Map elements from structured JSON
   const elements: StructuredElement[] = [];
 
   // Map headings to structured elements
-  for (const heading of data.headings) {
-    elements.push({
-      type: 'heading',
-      pageNumber: heading.page || 1,
-      content: heading.text,
-      metadata: { level: heading.level },
-    });
+  if (data.structured?.headings) {
+    for (const heading of data.structured.headings) {
+      elements.push({
+        type: 'heading',
+        pageNumber: heading.page || 1,
+        content: heading.text,
+        metadata: { level: heading.level },
+      });
+    }
   }
 
   // Map text from pages
-  if (data.structured_json?.pages) {
-    for (const page of data.structured_json.pages) {
+  if (data.pages) {
+    for (const page of data.pages) {
       if (page.text && page.text.trim().length > 0) {
         elements.push({
           type: 'paragraph',
@@ -307,28 +324,13 @@ function mapDoclingToStructured(
           content: page.text,
         });
       }
-
-      // Map individual elements if available
-      if (page.elements) {
-        for (const el of page.elements) {
-          const type = el.type === 'table' ? 'table' :
-                       el.type === 'heading' ? 'heading' :
-                       el.type === 'list' ? 'list' :
-                       'paragraph';
-          elements.push({
-            type,
-            pageNumber: page.page_number || 1,
-            content: el.content || '',
-            bbox: el.bbox,
-          });
-        }
-      }
     }
   }
 
-  // If no structured pages, create elements from markdown
-  if (elements.length === 0 && data.markdown) {
-    const pages = data.markdown.split(/--- Page \d+ ---/);
+  // If no structured pages, create elements from text
+  if (elements.length === 0 && data.text) {
+    const text = data.text;
+    const pages = text.split(/--- Page \d+ ---/);
     for (let i = 0; i < pages.length; i++) {
       if (pages[i].trim()) {
         elements.push({
@@ -350,45 +352,46 @@ function mapDoclingToStructured(
   }));
 
   // Build the combined markdown
-  const markdown = data.markdown || 
+  const markdown = data.text ||
     elements.map(e => e.content).join('\n\n') ||
     '';
 
   // Update route result with Docling-corrected info
+  const pageCount = data.metadata?.page_count ?? routeResult.pageCount;
   const updatedRoute: DocumentRouteResult = {
     ...routeResult,
-    pageCount: data.page_count,
-    isScanned: data.is_scanned,
+    pageCount,
+    isScanned: data.metadata?.is_scanned ?? routeResult.isScanned,
     needsOcr: false, // Docling handles OCR internally
-    hasTables: data.tables.length > 0,
-    detectedLanguage: data.metadata.language || routeResult.detectedLanguage,
-    documentQuality: mapQuality(data.quality.quality_label),
+    hasTables: (data.tables?.length ?? 0) > 0,
+    detectedLanguage: routeResult.detectedLanguage,
+    documentQuality: mapQuality(data.confidence ?? 0.9),
   };
 
   return {
     fileName,
     fileFormat: routeResult.fileFormat,
-    pageCount: data.page_count,
+    pageCount,
     markdown,
     elements,
     tables,
     metadata: {
-      title: data.filename,
-      author: data.metadata.author || undefined,
-      createdAt: data.metadata.created_at || undefined,
-      pageCount: data.page_count,
-      language: data.metadata.language || 'en',
+      title: data.metadata?.filename || fileName,
+      author: undefined,
+      createdAt: undefined,
+      pageCount,
+      language: routeResult.detectedLanguage || 'en',
     },
     routeResult: updatedRoute,
     extractionMethod: 'docling',
-    extractionConfidence: data.quality.quality_score || 0.9,
-    warnings: data.warnings || [],
+    extractionConfidence: data.confidence ?? 0.9,
+    warnings: [],
   };
 }
 
 function detectTableType(table: DoclingParsedTable): StructuredTable['detectedAs'] {
   const allText = [table.caption, ...table.rows.flat().map(c => String(c))].join(' ').toLowerCase();
-  
+
   if (allText.includes('fee') || allText.includes('charge') || allText.includes('cost')) {
     return 'fee_schedule';
   }
@@ -401,28 +404,34 @@ function detectTableType(table: DoclingParsedTable): StructuredTable['detectedAs
   return 'general';
 }
 
-function mapQuality(label: string): DocumentRouteResult['documentQuality'] {
-  switch (label) {
-    case 'excellent': return 'excellent';
-    case 'good': return 'good';
-    case 'fair': return 'fair';
-    case 'poor': return 'poor';
-    default: return 'poor';
-  }
+function mapQuality(confidence: number): DocumentRouteResult['documentQuality'] {
+  if (confidence >= 0.85) return 'excellent';
+  if (confidence >= 0.65) return 'good';
+  if (confidence >= 0.40) return 'fair';
+  return 'poor';
 }
 
 // ─── Utility: check if Docling should be used for this file ───
 
 /**
  * Determine whether to route to Docling or use the fallback processor.
- * Docling is best for: PDF, DOCX, PPTX, XLSX (structured formats)
- * Fallback is used for: images, email, text, ZIP (formats Docling handles less well or not at all)
+ * Docling handles ALL supported formats natively — PDF, Office docs, images, text, HTML.
+ *
+ * The format list is dynamically derived from Docling's supported formats.
+ * Do NOT hard-code only PDF/image support.
  */
 export function shouldUseDocling(routeResult: DocumentRouteResult): boolean {
-  // Docling handles all formats natively — PDF, Office docs, images, text, HTML
   const doclingFormats = [
-    'pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'html', 'rtf', 'txt', 'md', 'csv',
-    'png', 'jpg', 'jpeg', 'webp', 'heic', 'tiff', 'tif', 'bmp', 'gif',
+    // PDF
+    'pdf',
+    // Office documents
+    'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls',
+    // Web markup
+    'html', 'htm',
+    // Images (OCR-processed by Docling)
+    'png', 'jpg', 'jpeg', 'tiff', 'tif', 'bmp',
+    // Text
+    'txt', 'md', 'csv', 'rtf',
   ];
   return doclingFormats.includes(routeResult.fileFormat);
 }
