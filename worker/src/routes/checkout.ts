@@ -95,9 +95,9 @@ checkoutRoute.get("/verify/:auditId", async (c) => {
   const job = await getJob(auditId);
   if (!job) throw errors.jobNotFound();
 
-  // If already paid, return immediately
+  // If already paid, return immediately (report may already be analyzing/complete)
   if (job.paid) {
-    return c.json({ paid: true, auditId });
+    return c.json({ paid: true, auditId, status: job.status, hasReport: !!job.report });
   }
 
   // Test mode: always return paid

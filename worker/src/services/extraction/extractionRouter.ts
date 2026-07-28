@@ -70,9 +70,10 @@ function isTextFormat(format: string): boolean {
 type ExtractionStrategy = "native-first" | "docling-first";
 
 function pickStrategy(route: DocumentRouteResult): ExtractionStrategy {
-  // ── Images always need OCR → Docling first ──
+  // ── Images: Cloudflare AI OCR is built into the Worker and FAST (<3s).
+  //   Try Cf AI OCR first. Only use Docling (10-30s ML load) if Cf AI fails.
   if (isImageFormat(route.fileFormat)) {
-    return "docling-first";
+    return "native-first";
   }
 
   // ── PDF: native-first UNLESS we KNOW it's scanned (has images, no text detected) ──
@@ -134,6 +135,9 @@ strategy=${strategy}`,
     if (route.fileFormat === "pdf") {
       console.log("[EXTRACTION_START] provider=pdf-native (instant)");
       result = await extractPdf(buffer, fileName, route, env);
+    } else if (isImageFormat(route.fileFormat)) {
+      console.log("[EXTRACTION_START] provider=image-ocr (Cloudflare AI — fast)");
+      result = await extractImage(buffer, fileName, route, env);
     } else if (isOfficeFormat(route.fileFormat)) {
       console.log("[EXTRACTION_START] provider=office-native (fast)");
       result = await extractOffice(buffer, fileName, route, env);
