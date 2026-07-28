@@ -115,20 +115,67 @@ interface OcrResult {
   rawResponseShape: string; // JSON keys of the response object, truncated
 }
 
+/**
+ * Convert an ArrayBuffer to raw pixel array for Cloudflare AI vision models.
+ * Decodes via createImageBitmap → OffscreenCanvas → getImageData.
+ * Resizes to max 1024px to fit model input constraints.
+ */
+async function bufferToPixelArray(imageBuffer: ArrayBuffer): Promise<{ pixels: number[]; width: number; height: number } | null> {
+  try {
+    const blob = new Blob([imageBuffer]);
+    const bitmap = await createImageBitmap(blob);
+    let { width, height } = bitmap;
+
+    // LLaVA models have input size limits — resize to max 1024px
+    const MAX = 1024;
+    if (width > MAX || height > MAX) {
+      const ratio = Math.min(MAX / width, MAX / height);
+      width = Math.round(width * ratio);
+      height = Math.round(height * ratio);
+    }
+
+    const canvas = new OffscreenCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { bitmap.close(); return null; }
+
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+
+    const imageData = ctx.getImageData(0, 0, width, height);
+    // Flatten RGBA to raw pixel array
+    const pixels: number[] = Array.from(imageData.data);
+    return { pixels, width, height };
+  } catch {
+    return null;
+  }
+}
+
 async function ocrImageWithDiagnostics(imageBuffer: ArrayBuffer, env: Env): Promise<OcrResult> {
   try {
-    const base64 = arrayBufferToBase64(imageBuffer);
-    const result = await env.AI.run("@cf/unisys/ocr", {
-      imageBase64: base64,
-    });
+    // Convert to pixel array for vision model input
+    const pixelData = await bufferToPixelArray(imageBuffer);
+    if (!pixelData) {
+      throw new Error('Failed to decode image to pixel array');
+    }
+
+    console.log(`[OCR_DIAG] Image decoded: ${pixelData.width}x${pixelData.height}, ${pixelData.pixels.length} pixels`);
+
+    const result = await env.AI.run(
+      "@cf/llava-hf/llava-1.5-7b-hf" as any,
+      {
+        image: pixelData.pixels,
+        prompt: "Extract ALL text visible in this document image. Preserve line breaks, numbers, dates, dollar amounts, and table structure. Output ONLY the extracted text, no explanations.",
+        max_tokens: 2048,
+      } as any
+    );
 
     // Capture the actual response shape for debugging
     const rawShape = JSON.stringify(Object.keys(result as Record<string, unknown>)).slice(0, 200);
     console.log(`[OCR_DIAG] Response keys: ${rawShape}`);
 
-    // Try multiple known property names for extracted text
+    // LLaVA returns { description: "..." } - try common response properties
     const r = result as Record<string, unknown>;
-    const text = (r.text || r.result || r.output || r.data || '') as string;
+    const text = (r.description || r.text || r.result || r.output || r.response || '') as string;
     const trimmed = text.trim();
     const textLength = trimmed.length;
 
