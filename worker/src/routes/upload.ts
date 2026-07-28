@@ -214,10 +214,13 @@ uploadRoute.post("/", async (c) => {
         // NEW PIPELINE: DeepSeek Vision (existing)
         // ──────────────────────────────────────────────
         if (useNew && processor) {
+          console.log(`[EXTRACTION_STARTED] auditId=${auditId} pipeline=new-deepseek fileName="${fileName}"`);
           const result = await processor.process(buffer, fileName);
+          console.log(`[OCR_COMPLETE] auditId=${auditId} textLength=${result.fullText.length} pages=${result.pageCount} confidence=${result.extractionConfidence.toFixed(2)}`);
 
           // Circuit breaker
           if (result.extractionConfidence < 0.5) {
+            console.log(`[JOB_UPDATE] auditId=${auditId} status=error (low confidence)`);
             await updateJob(auditId, {
               status: "error",
               error: "We could not reliably read this document. Please upload a clearer image or PDF.",
@@ -233,6 +236,7 @@ uploadRoute.post("/", async (c) => {
             return;
           }
 
+          console.log(`[JOB_UPDATE] auditId=${auditId} status=extracted`);
           await updateJob(auditId, {
             status: "extracted",
             extractedText: result.fullText,
@@ -245,9 +249,13 @@ uploadRoute.post("/", async (c) => {
               confidenceScore: Math.round(result.extractionConfidence * 100),
             },
           });
+          console.log(`[EXTRACTION_COMPLETE] auditId=${auditId} status=extracted`);
         } else {
           // ── LEGACY PIPELINE ──
+          console.log(`[EXTRACTION_STARTED] auditId=${auditId} pipeline=legacy fileName="${fileName}"`);
           const result = await extractTextLegacy(buffer, fileName, c.env);
+          console.log(`[OCR_COMPLETE] auditId=${auditId} textLength=${result.text.length} method=${result.extractionMethod}`);
+          console.log(`[JOB_UPDATE] auditId=${auditId} status=extracted`);
           await updateJob(auditId, {
             status: "extracted",
             extractedText: result.text,
@@ -259,8 +267,10 @@ uploadRoute.post("/", async (c) => {
               confidenceScore: result.confidenceScore,
             },
           });
+          console.log(`[EXTRACTION_COMPLETE] auditId=${auditId} status=extracted`);
         }
       } catch (extractError) {
+        console.error(`[EXTRACTION_FAILED] auditId=${auditId} error="${extractError instanceof Error ? extractError.message : 'unknown'}"`);
         await updateJob(auditId, {
           status: "error",
           error: extractError instanceof Error ? extractError.message : "Extraction failed",

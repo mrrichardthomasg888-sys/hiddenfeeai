@@ -294,14 +294,29 @@ Here is the document image:
   console.log(`[deepSeekOCR] Request model: ${requestBody.model}, messages: ${requestBody.messages.length}`);
   console.log(`[deepSeekOCR] User content length: ${(requestBody.messages[0].content as string).length} chars`);
 
-  const response = await fetch(ocrEndpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify(requestBody)
-  });
+  // 60-second timeout to prevent hanging the worker indefinitely
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60_000);
+
+  let response: Response;
+  try {
+    response = await fetch(ocrEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    });
+  } catch (fetchErr) {
+    clearTimeout(timeoutId);
+    const errMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+    console.error(`[deepSeekOCR] Fetch failed: ${errMsg}`);
+    throw new Error(`DeepSeek OCR request failed: ${errMsg}`);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const errText = await response.text().catch(() => 'Unknown error');
