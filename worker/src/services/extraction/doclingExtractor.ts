@@ -58,6 +58,30 @@ export async function extractWithDocling(
     return null;
   }
 
+  // ── PRE-CHECK: Verify Docling is reachable before sending any data ──
+  // This prevents 60-120s timeouts when the tunnel/service is down.
+  // A fast health check (5s timeout) determines if we should even attempt Docling.
+  try {
+    const healthCheckController = new AbortController();
+    const healthTimeoutId = setTimeout(() => healthCheckController.abort(), 5_000);
+    const healthResp = await fetch(`${env.DOCLING_SERVICE_URL}/health`, {
+      method: 'GET',
+      signal: healthCheckController.signal,
+    });
+    clearTimeout(healthTimeoutId);
+    if (!healthResp.ok) {
+      console.log(
+        `[DOCLING_SKIP] reason=health_check_failed status=${healthResp.status} willFallback=true`,
+      );
+      return null;
+    }
+  } catch (healthErr) {
+    console.log(
+      `[DOCLING_SKIP] reason=health_check_unreachable willFallback=true`,
+    );
+    return null;
+  }
+
   const timeoutMs = timeoutForSize(buffer.byteLength);
   const maxAttempts = RETRIES.docling;
 
