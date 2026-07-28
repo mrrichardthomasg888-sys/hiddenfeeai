@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070913" />
+      <stop offset="100%" stop-color="#020306" />
+    </linearGradient>
+
+    <linearGradient id="purpleGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C77DFF" />
+      <stop offset="50%" stop-color="#9D4EDD" />
+      <stop offset="100%" stop-color="#5A189A" />
+    </linearGradient>
+
+    <linearGradient id="cyanNeon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F2FE" />
+      <stop offset="100%" stop-color="#4FACFE" />
+    </linearGradient>
+
+    <linearGradient id="aiOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFB703" />
+      <stop offset="100%" stop-color="#FB8500" />
+    </linearGradient>
+
+    <filter id="ultraGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12" result="blur1" />
+      <feGaussianBlur stdDeviation="5" result="blur2" />
+      <feMerge>
+        <feMergeNode in="blur1" />
+        <feMergeNode in="blur2" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="deepShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="20" stdDeviation="18" flood-color="#000000" flood-opacity="0.85" />
+    </filter>
+  </defs>
+
+  <!-- App Container Base -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  <rect width="512" height="512" rx="112" fill="none" stroke="#9D4EDD" stroke-width="4" opacity="0.6" />
+
+  <!-- Futuristic Background Grid / AI HUD Floor -->
+  <g stroke="url(#cyanNeon)" stroke-width="1.2" opacity="0.2" fill="none">
+    <path d="M 50 390 L 210 460 L 460 340 L 300 270 Z" />
+    <line x1="130" y1="425" x2="380" y2="305" />
+    <line x1="210" y1="365" x2="285" y2="425" />
+  </g>
+
+  <!-- Document Stack Layer -->
+  <g filter="url(#deepShadow)">
+    <path d="M 160 140 H 330 L 380 190 V 370 H 160 Z" fill="#0D0B1A" stroke="#3C096C" stroke-width="3" rx="16" />
+    <path d="M 140 120 H 310 L 360 170 V 350 H 140 Z" fill="#15112E" stroke="#7B2CBF" stroke-width="3" rx="16" />
+    <path d="M 120 100 H 290 L 340 150 V 330 H 120 Z" fill="#1C1738" stroke="url(#cyanNeon)" stroke-width="3" stroke-linejoin="round" />
+    <path d="M 290 100 L 340 150 H 290 Z" fill="#5A189A" stroke="url(#cyanNeon)" stroke-width="2" stroke-linejoin="round" />
+
+    <!-- Contract Code & Scanned Lines -->
+    <g stroke="url(#cyanNeon)" stroke-width="2" stroke-linecap="round" opacity="0.35">
+      <line x1="145" y1="135" x2="230" y2="135" />
+      <line x1="145" y1="155" x2="260" y2="155" />
+      <line x1="145" y1="175" x2="200" y2="175" />
+      <line x1="145" y1="210" x2="250" y2="210" />
+      <line x1="145" y1="230" x2="270" y2="230" />
+      <line x1="145" y1="265" x2="220" y2="265" />
+      <line x1="145" y1="285" x2="255" y2="285" />
+    </g>
+  </g>
+
+  <!-- AI HUD Scanner Targeting Rings (Outer Pulsing UI) -->
+  <g filter="url(#ultraGlow)">
+    <circle cx="230" cy="230" r="122" fill="none" stroke="url(#cyanNeon)" stroke-width="2.5" stroke-dasharray="14 10" opacity="0.9" />
+    <circle cx="230" cy="230" r="136" fill="none" stroke="url(#aiOrange)" stroke-width="1.5" stroke-dasharray="6 20" opacity="0.7" />
+  </g>
+
+  <!-- Magnifying Glass & Advanced AI Lens -->
+  <g filter="url(#ultraGlow)">
+    <!-- Handle -->
+    <path d="M 315 315 L 415 415" stroke="url(#purpleGlow)" stroke-width="36" stroke-linecap="round" />
+    <path d="M 325 325 L 405 405" stroke="#E0AAFF" stroke-width="8" stroke-linecap="round" opacity="0.8" />
+
+    <!-- Outer Rim -->
+    <circle cx="230" cy="230" r="105" fill="#070514" stroke="url(#purpleGlow)" stroke-width="14" />
+    
+    <!-- Lens Deep Glass -->
+    <circle cx="230" cy="230" r="93" fill="#02060D" />
+
+    <!-- AI Laser Scanning Grid inside Lens -->
+    <g stroke="url(#cyanNeon)" stroke-width="1.5" opacity="0.3">
+      <line x1="135" y1="230" x2="325" y2="230" />
+      <line x1="230" y1="135" x2="230" y2="325" />
+      <circle cx="230" cy="230" r="45" fill="none" />
+      <circle cx="230" cy="230" r="75" fill="none" />
+    </g>
+
+    <!-- Detected Target Content -->
+    <g transform="translate(230, 230)">
+      <!-- Dollar Signs & AI Flags -->
+      <g fill="url(#cyanNeon)" font-family="sans-serif" font-weight="bold" opacity="0.95">
+        <text x="20" y="-40" font-size="20">$</text>
+        <text x="50" y="-15" font-size="24">$</text>
+        <text x="-50" y="15" font-size="26">$</text>
+        <text x="35" y="45" font-size="18">$</text>
+      </g>
+      
+      <!-- Center "hidden" text -->
+      <text x="0" y="10" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="800" font-style="italic" font-size="42" fill="#FFFFFF" text-anchor="middle" filter="url(#ultraGlow)" letter-spacing="1.5">hidden</text>
+      
+      <!-- Redaction Highlight Bar -->
+      <g stroke="url(#aiOrange)" stroke-width="4" stroke-linecap="round">
+        <line x1="-25" y1="32" x2="25" y2="32" />
+        <circle cx="-35" cy="32" r="2.5" fill="#FB8500" />
+        <circle cx="35" cy="32" r="2.5" fill="#FB8500" />
+      </g>
+    </g>
+
+    <!-- Glass Reflection -->
+    <path d="M 155 175 C 175 150, 210 140, 240 140 C 200 140, 155 165, 155 205 Z" fill="#FFFFFF" opacity="0.25" />
+  </g>
+
+  <!-- Floating AI Detection Callouts (Fees & Penalties Flags) -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9" font-weight="bold" fill="#FFFFFF" filter="url(#deepShadow)">
+    <!-- Top Left Callout -->
+    <g transform="translate(35, 150)">
+      <rect width="96" height="22" rx="4" fill="#1A0A2A" stroke="#FF5470" stroke-width="1.5" />
+      <circle cx="10" cy="11" r="3" fill="#FF5470" />
+      <text x="20" y="14" fill="#FF85A1">AI SCAN: FEE</text>
+    </g>
+
+    <!-- Bottom Right Callout 1 -->
+    <g transform="translate(315, 335)">
+      <rect width="112" height="22" rx="4" fill="#1A0A2A" stroke="#FB8500" stroke-width="1.5" />
+      <circle cx="10" cy="11" r="3" fill="#FB8500" />
+      <text x="20" y="14" fill="#FFB703">SURCHARGE +$45</text>
+    </g>
+
+    <!-- Bottom Right Callout 2 -->
+    <g transform="translate(330, 365)">
+      <rect width="98" height="22" rx="4" fill="#1A0A2A" stroke="#FF5470" stroke-width="1.5" />
+      <circle cx="10" cy="11" r="3" fill="#FF5470" />
+      <text x="20" y="14" fill="#FF85A1">PENALTY 3.5%</text>
+    </g>
+
+    <!-- Connecting Laser Lines from Flags to Document -->
+    <path d="M 131 161 L 160 170" stroke="#FF5470" stroke-width="1.5" stroke-dasharray="2 2" />
+    <path d="M 315 346 L 285 315" stroke="#FB8500" stroke-width="1.5" stroke-dasharray="2 2" />
+  </g>
+
+  <!-- Sparking AI Detection Nodes -->
+  <g fill="url(#aiOrange)" filter="url(#ultraGlow)">
+    <circle cx="280" cy="290" r="4" />
+    <circle cx="265" cy="305" r="3" fill="#00F2FE" />
+  </g>
+</svg>
