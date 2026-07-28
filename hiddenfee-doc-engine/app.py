@@ -74,16 +74,15 @@ def get_converter() -> DocumentConverter:
     if _docling_converter is None:
         logger.info("Initializing IBM Docling converter with full format support...")
 
-        # ── PDF pipeline: OCR + table structure + layout understanding ──
+        # ── PDF pipeline: OCR ONLY when needed ──
+        # Digital PDFs already have text - skip OCR for speed (<1s)
+        # Table structure and layout are still extracted (fast, no ML loading)
         pdf_pipeline_opts = PdfPipelineOptions()
-        pdf_pipeline_opts.do_ocr = True
+        pdf_pipeline_opts.do_ocr = False        # OFF by default - only for scanned
         pdf_pipeline_opts.do_table_structure = True
         pdf_pipeline_opts.table_structure_options.do_cell_matching = True
-        pdf_pipeline_opts.images_scale = 2.0
 
-        # ── Image pipeline: OCR for scanned docs, photos, screenshots ──
-        # Images use the same PDF pipeline options (Docling processes images
-        # through the same OCR + layout pipeline as scanned PDFs)
+        # ── Image pipeline: always OCR (images have no text layer) ──
         image_pipeline_opts = PdfPipelineOptions()
         image_pipeline_opts.do_ocr = True
         image_pipeline_opts.do_table_structure = True
