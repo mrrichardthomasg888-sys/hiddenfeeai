@@ -91,7 +91,7 @@ uploadRoute.post("/", async (c) => {
         await updateJob(auditId, { status: "extracting" });
 
         // ──────────────────────────────────────────────
-        // V2 PIPELINE: Docling → fallback to DeepSeek Vision
+        // V2 PIPELINE: Docling extraction (all formats)
         // ──────────────────────────────────────────────
         if (useV2) {
           // Step 1: Route the document
@@ -100,75 +100,45 @@ uploadRoute.post("/", async (c) => {
             `digital=${routeResult.isDigital}, needsOcr=${routeResult.needsOcr}, ` +
             `quality=${routeResult.documentQuality}`);
 
-          // Step 2: Try Docling (if applicable)
-          let structuredDoc = null;
+          // Step 2: Run Docling (for all supported formats)
+          let structuredDoc;
           let usedDocling = false;
 
           if (shouldUseDocling(routeResult) && c.env.DOCLING_SERVICE_URL) {
-            // ── Docling with exponential backoff retry ──
-            let doclingAttempts = 0;
-            const maxRetries = 2; // 1 initial + 1 retry
+            const maxRetries = 2;
             for (let attempt = 0; attempt < maxRetries; attempt++) {
               try {
-                doclingAttempts++;
                 console.log(`[Upload V2] Docling attempt ${attempt + 1}/${maxRetries}...`);
                 const doclingResult = await parseWithDocling(buffer, fileName, routeResult, c.env);
                 structuredDoc = doclingResult.structuredDocument;
                 usedDocling = true;
-                console.log(`[Upload V2] Docling SUCCESS (attempt ${doclingAttempts}) — ${structuredDoc.pageCount} pages, ` +
+                console.log(`[Upload V2] Docling SUCCESS — ${structuredDoc.pageCount} pages, ` +
                   `${structuredDoc.tables.length} tables, quality=${doclingResult.metadata.qualityLabel}`);
-                break; // Success — exit retry loop
+                break;
               } catch (doclingErr) {
                 const dErr = doclingErr as DoclingError;
-                const isLastAttempt = attempt === maxRetries - 1;
-                if (isLastAttempt) {
-                  console.warn(`[Upload V2] Docling FAILED after ${doclingAttempts} attempt(s) [${dErr.code}]: ${dErr.error}. Falling back to DeepSeek Vision.`);
-                } else {
-                  const backoffMs = Math.pow(2, attempt) * 500; // 500ms, 1000ms
-                  console.warn(`[Upload V2] Docling attempt ${attempt + 1} FAILED [${dErr.code}]: ${dErr.error}. Retrying in ${backoffMs}ms...`);
-                  await new Promise((resolve) => setTimeout(resolve, backoffMs));
+                if (attempt === maxRetries - 1) {
+                  console.error(`[Upload V2] Docling FAILED [${dErr.code}]: ${dErr.error}. No fallback available.`);
+                  throw dErr;
                 }
+                const backoffMs = Math.pow(2, attempt) * 500;
+                console.warn(`[Upload V2] Docling attempt ${attempt + 1} FAILED [${dErr.code}]. Retry in ${backoffMs}ms...`);
+                await new Promise((resolve) => setTimeout(resolve, backoffMs));
               }
             }
           } else {
-            console.log(`[Upload V2] Docling not configured — falling back to legacy extraction for ${routeResult.fileFormat}.`);
+            throw new Error(
+              !c.env.DOCLING_SERVICE_URL
+                ? 'Docling service is not configured (DOCLING_SERVICE_URL is empty). All document processing requires Docling.'
+                : `Docling does not support format: ${routeResult.fileFormat}`
+            );
           }
 
-          // Step 3: Fallback to legacy extractor (Cloudflare AI vision model)
           if (!structuredDoc) {
-            try {
-              console.log(`[Upload V2] Using legacy extraction fallback for ${fileName}...`);
-              const legacyResult = await extractTextLegacy(buffer, fileName, c.env);
-              
-              // Convert legacy ExtractionResult → StructuredDocument
-              structuredDoc = {
-                fileName,
-                fileFormat: routeResult.fileFormat,
-                pageCount: legacyResult.pages,
-                markdown: legacyResult.text,
-                elements: [{
-                  type: 'paragraph' as const,
-                  pageNumber: 1,
-                  content: legacyResult.text,
-                }],
-                tables: [],
-                metadata: {
-                  pageCount: legacyResult.pages,
-                  language: routeResult.detectedLanguage,
-                },
-                routeResult,
-                extractionMethod: legacyResult.extractionMethod,
-                extractionConfidence: legacyResult.confidenceScore / 100,
-                warnings: [],
-              };
-              console.log(`[Upload V2] Legacy extraction SUCCESS: ${legacyResult.text.length} chars, method=${legacyResult.extractionMethod}`);
-            } catch (fallbackErr) {
-              console.error(`[Upload V2] Legacy extraction also failed:`, fallbackErr);
-              throw fallbackErr;
-            }
+            throw new Error('Docling returned no structured document after retries.');
           }
 
-          // Step 4: Circuit breaker
+          // Step 3: Circuit breaker
           if (structuredDoc.extractionConfidence < 0.3) {
             await updateJob(auditId, {
               status: "error",
@@ -179,14 +149,14 @@ uploadRoute.post("/", async (c) => {
                 pages: structuredDoc.pageCount,
                 lineItems: structuredDoc.markdown.split("\n").filter(l => l.trim()).length,
                 fileType: structuredDoc.fileFormat,
-                extractionMethod: usedDocling ? "docling" : "deepseek-vision",
+                extractionMethod: "docling",
                 confidenceScore: Math.round(structuredDoc.extractionConfidence * 100),
               },
             });
             return;
           }
 
-          // Step 5: Store result
+          // Step 4: Store result
           await updateJob(auditId, {
             status: "extracted",
             extractedText: structuredDoc.markdown,
@@ -195,7 +165,7 @@ uploadRoute.post("/", async (c) => {
               pages: structuredDoc.pageCount,
               lineItems: structuredDoc.markdown.split("\n").filter(l => l.trim()).length,
               fileType: structuredDoc.fileFormat,
-              extractionMethod: usedDocling ? "docling" : "deepseek-vision",
+              extractionMethod: "docling",
               confidenceScore: Math.round(structuredDoc.extractionConfidence * 100),
             },
           });
