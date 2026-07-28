@@ -117,37 +117,59 @@ interface OcrResult {
 
 /**
  * Convert an ArrayBuffer to raw pixel array for Cloudflare AI vision models.
- * Decodes via createImageBitmap → OffscreenCanvas → getImageData.
+ * Tries multiple decoding strategies for Workers runtime compatibility.
  * Resizes to max 1024px to fit model input constraints.
  */
 async function bufferToPixelArray(imageBuffer: ArrayBuffer): Promise<{ pixels: number[]; width: number; height: number } | null> {
-  try {
-    const blob = new Blob([imageBuffer]);
-    const bitmap = await createImageBitmap(blob);
-    let { width, height } = bitmap;
+  // Strategy 1: Try with explicit MIME type derived from magic bytes
+  const arr = new Uint8Array(imageBuffer.slice(0, 12));
+  let mimeType = 'image/png';
+  if (arr[0] === 0xFF && arr[1] === 0xD8) mimeType = 'image/jpeg';
+  else if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) mimeType = 'image/png';
+  else if (arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46) mimeType = 'image/webp';
 
-    // LLaVA models have input size limits — resize to max 1024px
-    const MAX = 1024;
-    if (width > MAX || height > MAX) {
-      const ratio = Math.min(MAX / width, MAX / height);
-      width = Math.round(width * ratio);
-      height = Math.round(height * ratio);
+  const strategies = [
+    { label: 'Blob+type', fn: async () => createImageBitmap(new Blob([imageBuffer], { type: mimeType })) },
+    { label: 'Blob-no-type', fn: async () => createImageBitmap(new Blob([imageBuffer])) },
+  ];
+
+  for (const strategy of strategies) {
+    try {
+      console.log(`[bufferToPixelArray] Trying decode strategy: ${strategy.label}, mimeType=${mimeType}, bytes=${imageBuffer.byteLength}`);
+      const bitmap = await strategy.fn();
+      let { width, height } = bitmap;
+      console.log(`[bufferToPixelArray] Decoded successfully: ${width}x${height}`);
+
+      const MAX = 1024;
+      if (width > MAX || height > MAX) {
+        const ratio = Math.min(MAX / width, MAX / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+        console.log(`[bufferToPixelArray] Resized to: ${width}x${height}`);
+      }
+
+      const canvas = new OffscreenCanvas(width, height);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        console.error('[bufferToPixelArray] OffscreenCanvas 2d context unavailable');
+        bitmap.close();
+        break; // try next strategy
+      }
+
+      ctx.drawImage(bitmap, 0, 0, width, height);
+      bitmap.close();
+
+      const imageData = ctx.getImageData(0, 0, width, height);
+      const pixels: number[] = Array.from(imageData.data);
+      console.log(`[bufferToPixelArray] Pixel array: ${pixels.length} values`);
+      return { pixels, width, height };
+    } catch (err) {
+      console.error(`[bufferToPixelArray] Strategy "${strategy.label}" failed: ${err instanceof Error ? err.message : String(err)}`);
     }
-
-    const canvas = new OffscreenCanvas(width, height);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) { bitmap.close(); return null; }
-
-    ctx.drawImage(bitmap, 0, 0, width, height);
-    bitmap.close();
-
-    const imageData = ctx.getImageData(0, 0, width, height);
-    // Flatten RGBA to raw pixel array
-    const pixels: number[] = Array.from(imageData.data);
-    return { pixels, width, height };
-  } catch {
-    return null;
   }
+
+  console.error('[bufferToPixelArray] All decoding strategies failed');
+  return null;
 }
 
 async function ocrImageWithDiagnostics(imageBuffer: ArrayBuffer, env: Env): Promise<OcrResult> {
