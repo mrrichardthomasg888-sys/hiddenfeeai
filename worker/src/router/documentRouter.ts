@@ -320,9 +320,13 @@ function detectPdfNature(buffer: ArrayBuffer): {
   // < 200 chars but has images = likely scanned PDF
   // Neither = possibly empty or corrupted
   
-  const isDigital = totalTextChars > 200;
+  // KEY INSIGHT: If a PDF has NO image XObjects, it's a digital PDF.
+  // Many PDFs use FlateDecode compression — text is invisible to regex
+  // but the native extractor CAN decompress it. Only mark as scanned
+  // if the PDF actively contains embedded images (the hallmark of a scan).
+  const isDigital = totalTextChars > 200 || !hasImages;
   const isScanned = !isDigital && hasImages;
-  const needsOcr = isScanned || (!isDigital && !hasImages && totalTextChars < 50);
+  const needsOcr = hasImages && !isDigital;
 
   return { isDigital, isScanned, needsOcr, hasImages };
 }

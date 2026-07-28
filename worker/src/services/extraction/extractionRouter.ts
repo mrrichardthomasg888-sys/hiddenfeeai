@@ -75,14 +75,15 @@ function pickStrategy(route: DocumentRouteResult): ExtractionStrategy {
     return "docling-first";
   }
 
-  // ── PDF: smart decision based on document properties ──
+  // ── PDF: native-first UNLESS we KNOW it's scanned (has images, no text detected) ──
+  // Many PDFs have text compressed in streams — the router can't see uncompressed
+  // text blocks. Try native extraction first (it decompresses streams). Only if
+  // the PDF is clearly a scan (has images, zero text chars) go straight to Docling.
   if (route.fileFormat === "pdf") {
-    // Digital PDF with good quality and no OCR needed → native is instant
-    if (!route.needsOcr && route.isDigital && route.documentQuality !== "poor" && route.documentQuality !== "unusable") {
-      return "native-first";
+    if (route.isScanned) {
+      return "docling-first";
     }
-    // Scanned PDF or needs OCR → Docling is the right tool
-    return "docling-first";
+    return "native-first";
   }
 
   // ── Office docs: native JSZip is fast (<500ms) → try native first, Docling as enhancement ──
@@ -141,8 +142,8 @@ strategy=${strategy}`,
       result = await extractFallback(buffer, fileName, route, env);
     }
 
-    // If native extraction succeeded with good quality, return immediately
-    if (result && result.success && result.text.length > 50 && result.context.confidenceScore >= 60) {
+    // If native extraction got ANY text, return immediately — don't waste time on Docling
+    if (result && result.success && result.text.length > 25) {
       console.log(
         `[EXTRACTION_COMPLETE]
 provider=${result.provider}
@@ -169,7 +170,18 @@ confidence=${doclingResult.context.confidenceScore}`,
       }
     }
 
-    // If native succeeded but quality was low, use it anyway (better than nothing)
+    // If native got text but quality was low, try Docling enhancement
+    if (result && result.success && result.text.length > 0 && env.DOCLING_SERVICE_URL) {
+      console.log("[ROUTER] native_result_low_quality — trying Docling enhancement");
+      const doclingResult = await extractWithDocling(buffer, fileName, route, env);
+      if (doclingResult && doclingResult.success && doclingResult.text.length > result.text.length) {
+        console.log(
+          `[EXTRACTION_COMPLETE] provider=docling strategy=native-first→docling textLength=${doclingResult.text.length} confidence=${doclingResult.context.confidenceScore}`,
+        );
+        return doclingResult;
+      }
+    }
+    // Use native result as-is (better than failing)
     if (result && result.success && result.text.length > 0) {
       console.log(
         `[EXTRACTION_COMPLETE]
