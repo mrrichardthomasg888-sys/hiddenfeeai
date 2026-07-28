@@ -5,7 +5,7 @@ import { extractText as extractTextLegacy, isAcceptedExtension as isAcceptedExte
 import { DocumentProcessor, isAcceptedExtension } from "../services/documentProcessor.js";
 import { parseWithDocling, shouldUseDocling } from "../services/doclingClient.js";
 import { routeDocument } from "../router/documentRouter.js";
-import type { DoclingError } from "../services/doclingClient.js";
+import type { DoclingError, DoclingResult } from "../services/doclingClient.js";
 import * as errors from "../utils/errors.js";
 
 export const uploadRoute = new Hono<{ Bindings: Env }>();
@@ -90,153 +90,201 @@ uploadRoute.post("/", async (c) => {
       try {
         await updateJob(auditId, { status: "extracting" });
 
+        // ── [EXTRACT_START] — Log extraction entry point details ──
+        const fileMime = file.type || 'unknown';
+        const fileSize = file.size;
+        console.log(`[EXTRACT_START]
+filename="${fileName}"
+mime="${fileMime}"
+size=${fileSize}
+env.ENVIRONMENT=${c.env.ENVIRONMENT}
+env.USE_V2_PIPELINE=${c.env.USE_V2_PIPELINE}
+env.USE_NEW_PIPELINE=${c.env.USE_NEW_PIPELINE}`);
+
         // ──────────────────────────────────────────────
-        // V2 PIPELINE: Docling extraction (all formats)
+        // PIPELINE SELECTION LOGIC
+        // Priority: V2 (Docling) → New (DeepSeek Vision) → Legacy
         // ──────────────────────────────────────────────
+
+        let extractionSucceeded = false;
+        let extractedText = '';
+        let extractedDocument: any = null;
+        let documentContext: any = null;
+
         if (useV2) {
-          // Step 1: Route the document
+          // ────────────────────────────────────────────
+          // V2 PIPELINE: Try Docling, fallback on failure
+          // ────────────────────────────────────────────
           const routeResult = routeDocument(buffer, fileName);
-          console.log(`[Upload V2] Routed: ${routeResult.fileFormat}, ` +
-            `digital=${routeResult.isDigital}, needsOcr=${routeResult.needsOcr}, ` +
-            `quality=${routeResult.documentQuality}`);
+          let doclingResult: DoclingResult | null = null;
 
-          // Step 2: Run Docling (for all supported formats)
-          let structuredDoc;
-          let usedDocling = false;
+          // Check if Docling is even worth attempting
+          const doclingAvailable = !!c.env.DOCLING_SERVICE_URL;
+          const formatIsDoclingCompatible = shouldUseDocling(routeResult);
 
-          if (shouldUseDocling(routeResult) && c.env.DOCLING_SERVICE_URL) {
+          if (doclingAvailable && formatIsDoclingCompatible) {
             const maxRetries = 2;
             for (let attempt = 0; attempt < maxRetries; attempt++) {
               try {
-                console.log(`[Upload V2] Docling attempt ${attempt + 1}/${maxRetries}...`);
-                const doclingResult = await parseWithDocling(buffer, fileName, routeResult, c.env);
-                structuredDoc = doclingResult.structuredDocument;
-                usedDocling = true;
-                console.log(`[Upload V2] Docling SUCCESS — ${structuredDoc.pageCount} pages, ` +
-                  `${structuredDoc.tables.length} tables, quality=${doclingResult.metadata.qualityLabel}`);
+                console.log(`[DOCLING_REQUEST] attempt=${attempt + 1}/${maxRetries} url="${c.env.DOCLING_SERVICE_URL}/parse" bytes=${buffer.byteLength}`);
+                const startTs = Date.now();
+                const result = await parseWithDocling(buffer, fileName, routeResult, c.env);
+                const durationMs = Date.now() - startTs;
+                doclingResult = result;
+                console.log(`[DOCLING_RESPONSE]
+status=success
+durationMs=${durationMs}
+pageCount=${result.structuredDocument.pageCount}
+tables=${result.structuredDocument.tables.length}
+confidence=${result.structuredDocument.extractionConfidence}
+qualityLabel=${result.metadata.qualityLabel}`);
                 break;
               } catch (doclingErr) {
                 const dErr = doclingErr as DoclingError;
+                const stack = (doclingErr instanceof Error) ? (doclingErr.stack || '(no stack)') : '(not an Error)';
+                console.error(`[DOCLING_ERROR]
+attempt=${attempt + 1}/${maxRetries}
+code=${dErr.code}
+message=${dErr.error}
+retryable=${dErr.retryable}
+stack=${stack}`);
+
                 if (attempt === maxRetries - 1) {
-                  console.error(`[Upload V2] Docling FAILED [${dErr.code}]: ${dErr.error}. No fallback available.`);
-                  throw dErr;
+                  console.error(`[DOCLING_FAILURE]
+reason="Docling failed after ${maxRetries} attempts"
+code=${dErr.code}
+message=${dErr.error}
+format=${routeResult.fileFormat}
+willFallback=true`);
+                } else {
+                  const backoffMs = Math.pow(2, attempt) * 500;
+                  console.warn(`[DOCLING_ERROR] Retry in ${backoffMs}ms...`);
+                  await new Promise((resolve) => setTimeout(resolve, backoffMs));
                 }
-                const backoffMs = Math.pow(2, attempt) * 500;
-                console.warn(`[Upload V2] Docling attempt ${attempt + 1} FAILED [${dErr.code}]. Retry in ${backoffMs}ms...`);
-                await new Promise((resolve) => setTimeout(resolve, backoffMs));
               }
             }
           } else {
-            throw new Error(
-              !c.env.DOCLING_SERVICE_URL
-                ? 'Docling service is not configured (DOCLING_SERVICE_URL is empty). All document processing requires Docling.'
-                : `Docling does not support format: ${routeResult.fileFormat}`
-            );
+            console.log(`[DOCLING_UNAVAILABLE]
+reason=${doclingAvailable ? 'format_not_supported' : 'service_not_configured'}
+format=${routeResult.fileFormat}
+doclingUrlConfigured=${doclingAvailable}
+willFallback=true`);
           }
 
-          if (!structuredDoc) {
-            throw new Error('Docling returned no structured document after retries.');
-          }
+          // If Docling succeeded, use its result
+          if (doclingResult) {
+            const sd = doclingResult.structuredDocument;
 
-          // Step 3: Circuit breaker
-          if (structuredDoc.extractionConfidence < 0.3) {
-            await updateJob(auditId, {
-              status: "error",
-              error: "We could not reliably read this document. Please upload a clearer image or PDF.",
-              extractedDocument: structuredDoc as any,
-              extractedText: structuredDoc.markdown,
-              documentContext: {
-                pages: structuredDoc.pageCount,
-                lineItems: structuredDoc.markdown.split("\n").filter(l => l.trim()).length,
-                fileType: structuredDoc.fileFormat,
+            // Circuit breaker for low confidence
+            if (sd.extractionConfidence >= 0.3) {
+              extractionSucceeded = true;
+              extractedText = sd.markdown;
+              extractedDocument = sd;
+              documentContext = {
+                pages: sd.pageCount,
+                lineItems: sd.markdown.split("\n").filter(l => l.trim()).length,
+                fileType: sd.fileFormat,
                 extractionMethod: "docling",
-                confidenceScore: Math.round(structuredDoc.extractionConfidence * 100),
-              },
-            });
-            return;
+                confidenceScore: Math.round(sd.extractionConfidence * 100),
+              };
+              console.log(`[EXTRACT_COMPLETE] auditId=${auditId} method=docling confidence=${sd.extractionConfidence.toFixed(2)}`);
+            } else {
+              // Low confidence — don't mark as failed, still fallback
+              console.log(`[DOCLING_FAILURE] reason="Low confidence (${sd.extractionConfidence})" willFallback=true`);
+            }
           }
 
-          // Step 4: Store result
-          await updateJob(auditId, {
-            status: "extracted",
-            extractedText: structuredDoc.markdown,
-            extractedDocument: structuredDoc as any,
-            documentContext: {
-              pages: structuredDoc.pageCount,
-              lineItems: structuredDoc.markdown.split("\n").filter(l => l.trim()).length,
-              fileType: structuredDoc.fileFormat,
-              extractionMethod: "docling",
-              confidenceScore: Math.round(structuredDoc.extractionConfidence * 100),
-            },
-          });
-
-          return;
+          // Fallback: if Docling didn't succeed, try the next pipeline
+          if (!extractionSucceeded) {
+            console.log(`[FALLBACK_STARTED] provider=${useNew ? 'deepseek-vision' : 'legacy'} reason="Docling unavailable or failed"`);
+          }
         }
 
         // ──────────────────────────────────────────────
-        // NEW PIPELINE: DeepSeek Vision (existing)
+        // FALLBACK 1: NEW PIPELINE (DeepSeek Vision)
         // ──────────────────────────────────────────────
-        if (useNew && processor) {
+        if (!extractionSucceeded && useNew && processor) {
           console.log(`[EXTRACTION_STARTED] auditId=${auditId} pipeline=new-deepseek fileName="${fileName}"`);
-          const result = await processor.process(buffer, fileName);
-          console.log(`[OCR_COMPLETE] auditId=${auditId} textLength=${result.fullText.length} pages=${result.pageCount} confidence=${result.extractionConfidence.toFixed(2)}`);
+          try {
+            const result = await processor.process(buffer, fileName);
+            console.log(`[OCR_COMPLETE] auditId=${auditId} textLength=${result.fullText.length} pages=${result.pageCount} confidence=${result.extractionConfidence.toFixed(2)}`);
 
-          // Circuit breaker
-          if (result.extractionConfidence < 0.5) {
-            console.log(`[JOB_UPDATE] auditId=${auditId} status=error (low confidence)`);
-            await updateJob(auditId, {
-              status: "error",
-              error: "We could not reliably read this document. Please upload a clearer image or PDF.",
-              extractedDocument: result,
-              documentContext: {
+            if (result.extractionConfidence >= 0.5) {
+              extractionSucceeded = true;
+              extractedText = result.fullText;
+              extractedDocument = result;
+              documentContext = {
                 pages: result.pageCount,
                 lineItems: result.fullText.split("\n").filter(l => l.trim()).length,
                 fileType: result.fileType,
                 extractionMethod: "deepseek-vision",
                 confidenceScore: Math.round(result.extractionConfidence * 100),
-              },
-            });
-            return;
+              };
+              console.log(`[FALLBACK_SUCCESS] provider=deepseek-vision textLength=${result.fullText.length} confidence=${result.extractionConfidence.toFixed(2)}`);
+            } else {
+              console.warn(`[FALLBACK_FAILED] reason="Low confidence (${result.extractionConfidence})" willFallback=true`);
+            }
+          } catch (fallbackErr) {
+            const fbMsg = fallbackErr instanceof Error ? fallbackErr.message : 'unknown';
+            console.error(`[FALLBACK_FAILED] provider=deepseek-vision message="${fbMsg}" willFallback=true`);
           }
+        }
 
-          console.log(`[JOB_UPDATE] auditId=${auditId} status=extracted`);
-          await updateJob(auditId, {
-            status: "extracted",
-            extractedText: result.fullText,
-            extractedDocument: result,
-            documentContext: {
-              pages: result.pageCount,
-              lineItems: result.fullText.split("\n").filter(l => l.trim()).length,
-              fileType: result.fileType,
-              extractionMethod: "deepseek-vision",
-              confidenceScore: Math.round(result.extractionConfidence * 100),
-            },
-          });
-          console.log(`[EXTRACTION_COMPLETE] auditId=${auditId} status=extracted`);
-        } else {
-          // ── LEGACY PIPELINE ──
+        // ──────────────────────────────────────────────
+        // FALLBACK 2: LEGACY PIPELINE
+        // ──────────────────────────────────────────────
+        if (!extractionSucceeded) {
           console.log(`[EXTRACTION_STARTED] auditId=${auditId} pipeline=legacy fileName="${fileName}"`);
-          const result = await extractTextLegacy(buffer, fileName, c.env);
-          console.log(`[OCR_COMPLETE] auditId=${auditId} textLength=${result.text.length} method=${result.extractionMethod}`);
-          console.log(`[JOB_UPDATE] auditId=${auditId} status=extracted`);
-          await updateJob(auditId, {
-            status: "extracted",
-            extractedText: result.text,
-            documentContext: {
+          try {
+            const result = await extractTextLegacy(buffer, fileName, c.env);
+            console.log(`[OCR_COMPLETE] auditId=${auditId} textLength=${result.text.length} method=${result.extractionMethod}`);
+
+            extractionSucceeded = true;
+            extractedText = result.text;
+            extractedDocument = null;
+            documentContext = {
               pages: result.pages,
               lineItems: result.lineItems,
               fileType: result.fileType,
               extractionMethod: result.extractionMethod,
               confidenceScore: result.confidenceScore,
-            },
+            };
+            console.log(`[FALLBACK_SUCCESS] provider=legacy textLength=${result.text.length} method=${result.extractionMethod}`);
+          } catch (fallbackErr) {
+            const fbMsg = fallbackErr instanceof Error ? fallbackErr.message : 'unknown';
+            console.error(`[FALLBACK_FAILED] provider=legacy message="${fbMsg}"`);
+            throw fallbackErr; // Last resort failed — propagate the error
+          }
+        }
+
+        // ──────────────────────────────────────────────
+        // STORE EXTRACTION RESULT
+        // ──────────────────────────────────────────────
+        if (extractionSucceeded) {
+          console.log(`[JOB_UPDATE] auditId=${auditId} status=extracted method=${documentContext?.extractionMethod}`);
+          await updateJob(auditId, {
+            status: "extracted",
+            extractedText,
+            extractedDocument: extractedDocument as any,
+            documentContext,
           });
-          console.log(`[EXTRACTION_COMPLETE] auditId=${auditId} status=extracted`);
+          console.log(`[EXTRACTION_COMPLETE] auditId=${auditId} status=extracted method=${documentContext?.extractionMethod}`);
+        } else {
+          // All pipelines failed — last resort error
+          await updateJob(auditId, {
+            status: "error",
+            error: "We could not read this document. Please upload a clearer image or PDF.",
+          });
         }
       } catch (extractError) {
-        console.error(`[EXTRACTION_FAILED] auditId=${auditId} error="${extractError instanceof Error ? extractError.message : 'unknown'}"`);
+        const errMsg = extractError instanceof Error ? extractError.message : 'unknown';
+        const errStack = extractError instanceof Error ? (extractError.stack || '(no stack)') : '(not an Error)';
+        const errCode = (extractError as any)?.code || 'unknown';
+        console.error(`[EXTRACTION_FAILED] auditId=${auditId} code=${errCode} message="${errMsg}"
+stack=${errStack}`);
         await updateJob(auditId, {
           status: "error",
-          error: extractError instanceof Error ? extractError.message : "Extraction failed",
+          error: "Something went wrong — Extraction failed",
         });
       }
     })()

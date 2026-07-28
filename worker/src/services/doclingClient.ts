@@ -73,7 +73,7 @@ interface DoclingParseResponse {
 
 // ─── Configuration ───
 
-const DOCLING_TIMEOUT_MS = 90_000; // 90 seconds — Docling can be slow on large docs
+const DOCLING_TIMEOUT_MS = 25_000; // 25 seconds — fail fast for production reliability
 const DOCLING_MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 const HEALTH_CHECK_TIMEOUT_MS = 5_000;
 
