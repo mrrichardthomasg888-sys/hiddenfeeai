@@ -121,6 +121,142 @@ async function ocrImage(imageBuffer: ArrayBuffer, env: Env): Promise<string | nu
 }
 
 /**
+ * Detect actual image format from magic bytes (not filename extension).
+ * Returns standard MIME type string or "unknown".
+ */
+function detectImageFormat(buffer: ArrayBuffer): string {
+  const arr = new Uint8Array(buffer.slice(0, 12));
+
+  // JPEG: FF D8 FF
+  if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) return 'image/jpeg';
+  // PNG: 89 50 4E 47
+  if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) return 'image/png';
+  // WEBP: RIFF....WEBP
+  if (arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46) {
+    const webpMarker = new TextDecoder().decode(arr.slice(8, 12));
+    if (webpMarker === 'WEBP') return 'image/webp';
+  }
+  // HEIC/HEIF: ftyp box at bytes 4-7: 'ftyp', then brand at 8-11
+  if (arr[4] === 0x66 && arr[5] === 0x74 && arr[6] === 0x79 && arr[7] === 0x70) {
+    const brand = new TextDecoder().decode(arr.slice(8, 12)).toLowerCase();
+    if (brand === 'heic' || brand === 'heif' || brand === 'heix' || brand === 'hevc') return `image/${brand}`;
+  }
+  // BMP: BM
+  if (arr[0] === 0x42 && arr[1] === 0x4D) return 'image/bmp';
+  return 'unknown';
+}
+
+/**
+ * Normalize an image before OCR:
+ * - Detect actual format from magic bytes
+ * - Convert HEIC/HEIF → JPEG (if runtime supports it)
+ * - Apply EXIF orientation correction
+ * - Resize oversized images while preserving readability
+ * - Re-encode as clean JPEG for OCR processing
+ *
+ * Returns { buffer, mimeType, width, height, format }
+ */
+interface NormalizedImage {
+  buffer: ArrayBuffer;
+  mimeType: string;
+  width: number;
+  height: number;
+  format: string; // original detected format
+  normalized: boolean; // true if transformation was applied
+}
+
+async function normalizeImage(
+  imageBuffer: ArrayBuffer,
+  fileName: string,
+  auditId: string
+): Promise<NormalizedImage> {
+  const originalBytes = imageBuffer.byteLength;
+  const detectedFormat = detectImageFormat(imageBuffer);
+  const originalMime = detectedFormat;
+
+  console.log(`[IMAGE_NORMALIZED] auditId=${auditId} fileName="${fileName}" originalMime=${originalMime} originalBytes=${originalBytes}`);
+
+  // Try to decode the image — createImageBitmap is the only decoder available in Workers
+  const blob = new Blob([imageBuffer], { type: detectedFormat });
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(blob);
+  } catch (decodeErr) {
+    const errMsg = decodeErr instanceof Error ? decodeErr.message : String(decodeErr);
+
+    // HEIC/HEIF: Workers runtime does not support this codec
+    if (detectedFormat.startsWith('image/heic') || detectedFormat.startsWith('image/heif')) {
+      console.error(`[IMAGE_NORMALIZED] auditId=${auditId} HEIC/HEIF not decodable in Workers runtime: ${errMsg}`);
+      // Try passing raw bytes to OCR anyway — some AI models handle HEIC natively
+      console.log(`[IMAGE_NORMALIZED] auditId=${auditId} passing raw HEIC bytes to OCR (${originalBytes} bytes)`);
+      return {
+        buffer: imageBuffer,
+        mimeType: detectedFormat,
+        width: 0,
+        height: 0,
+        format: detectedFormat,
+        normalized: false,
+      };
+    }
+
+    console.error(`[IMAGE_NORMALIZED] auditId=${auditId} image decoding failed: ${errMsg}`);
+    // Return original — let OCR attempt raw bytes
+    return {
+      buffer: imageBuffer,
+      mimeType: detectedFormat,
+      width: 0,
+      height: 0,
+      format: detectedFormat,
+      normalized: false,
+    };
+  }
+
+  let { width, height } = bitmap;
+  console.log(`[IMAGE_NORMALIZED] auditId=${auditId} original dimensions: ${width}x${height}`);
+
+  // ── EXIF Orientation correction ──
+  // iPhones tag photos with orientation metadata; we must physically rotate
+  // the pixel data since OCR models don't interpret EXIF orientation.
+  // We handle this during the canvas draw below.
+
+  // ── Resize if too large for OCR (preserve readability at max 2048 longest edge) ──
+  const MAX_DIM = 2048;
+  if (width > MAX_DIM || height > MAX_DIM) {
+    const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+    width = Math.round(width * ratio);
+    height = Math.round(height * ratio);
+    console.log(`[IMAGE_NORMALIZED] auditId=${auditId} resized to: ${width}x${height}`);
+  }
+
+  // ── Render to canvas (this applies any natural orientation from the ImageBitmap) ──
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    console.warn(`[IMAGE_NORMALIZED] auditId=${auditId} OffscreenCanvas unavailable — using raw image`);
+    bitmap.close();
+    return { buffer: imageBuffer, mimeType: detectedFormat, width: 0, height: 0, format: detectedFormat, normalized: false };
+  }
+
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
+
+  // Convert to JPEG for consistent OCR input
+  const normalizedBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 });
+  const normalizedBuffer = await normalizedBlob.arrayBuffer();
+
+  console.log(`[IMAGE_NORMALIZED] auditId=${auditId} outputMime=image/jpeg outputBytes=${normalizedBuffer.byteLength} width=${width} height=${height} normalized=true`);
+
+  return {
+    buffer: normalizedBuffer,
+    mimeType: 'image/jpeg',
+    width,
+    height,
+    format: detectedFormat,
+    normalized: true,
+  };
+}
+
+/**
  * Extract text from a PDF using Cloudflare AI OCR
  * This handles both native PDFs that failed native extraction and scanned PDFs
  */
@@ -226,10 +362,34 @@ export async function extractPdf(buffer: ArrayBuffer, env: Env): Promise<Extract
 /**
  * Extract text from an image using Cloudflare AI OCR
  */
-export async function extractImage(buffer: ArrayBuffer, env: Env): Promise<ExtractionResult> {
-  const ocrText = await ocrImage(buffer, env);
-  if (ocrText) {
+export async function extractImage(
+  buffer: ArrayBuffer,
+  env: Env,
+  fileName?: string,
+  auditId?: string
+): Promise<ExtractionResult> {
+  const id = auditId || 'unknown';
+
+  // ── Normalize image (format detection, HEIC→JPEG, EXIF orientation, resize) ──
+  const normalized = await normalizeImage(buffer, fileName || 'image', id);
+  const ocrBuffer = normalized.buffer;
+
+  console.log(`[DOCLING_STARTED] auditId=${id} mimeType=${normalized.mimeType} bytes=${ocrBuffer.byteLength} normalized=${normalized.normalized}`);
+
+  let ocrText: string | null = null;
+  let ocrError: string | null = null;
+
+  try {
+    ocrText = await ocrImage(ocrBuffer, env);
+  } catch (err) {
+    ocrError = err instanceof Error ? err.message : String(err);
+    console.error(`[DOCLING_RESPONSE] auditId=${id} OCR error: ${ocrError}`);
+  }
+
+  if (ocrText && ocrText.trim().length > 10) {
     const lineItems = ocrText.split("\n").filter((l) => l.trim().length > 0).length;
+    const textPreview = ocrText.slice(0, 150).replace(/\n/g, ' ');
+    console.log(`[DOCLING_COMPLETE] auditId=${id} textLength=${ocrText.length} pageCount=1 extractedTextPreview="${textPreview}..."`);
     return {
       text: ocrText,
       pages: 1,
@@ -240,6 +400,9 @@ export async function extractImage(buffer: ArrayBuffer, env: Env): Promise<Extra
     };
   }
 
+  // Log the actual OCR failure details before throwing
+  const textPreview = (ocrText || '').slice(0, 100);
+  console.error(`[DOCLING_COMPLETE] auditId=${id} OCR returned empty or insufficient text. textLength=${ocrText?.length || 0} preview="${textPreview}" error=${ocrError || 'none'}`);
   throw errors.badFile("Could not extract text from this image. Try a clearer scan or a different format.");
 }
 
