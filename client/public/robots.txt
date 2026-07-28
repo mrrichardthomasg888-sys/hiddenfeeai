@@ -1,5 +1,6 @@
 # HiddenFeeAI robots.txt
 # https://hiddenfeeai.com
+# All AI crawlers and search bots are welcome on public pages
 
 User-agent: Googlebot
 Allow: /
@@ -7,6 +8,7 @@ Disallow: /report/
 
 User-agent: GoogleOther
 Allow: /
+Disallow: /report/
 
 User-agent: Google-Extended
 Allow: /
@@ -21,9 +23,11 @@ Allow: /
 Disallow: /report/
 
 User-agent: GPTBot
+Allow: /
 Disallow: /report/
 
 User-agent: ChatGPT-User
+Allow: /
 Disallow: /report/
 
 User-agent: ClaudeBot
@@ -35,6 +39,7 @@ Allow: /
 Disallow: /report/
 
 User-agent: CCBot
+Allow: /
 Disallow: /report/
 
 User-agent: Amazonbot
@@ -50,6 +55,7 @@ Allow: /
 Disallow: /report/
 
 User-agent: Bytespider
+Allow: /
 Disallow: /report/
 
 User-agent: YandexBot
@@ -68,9 +74,22 @@ User-agent: Twitterbot
 Allow: /
 Disallow: /report/
 
+User-agent: Meta-ExternalAgent
+Allow: /
+Disallow: /report/
+
+User-agent: cohere-ai
+Allow: /
+Disallow: /report/
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /report/
+
 User-agent: *
 Disallow: /report/
 Disallow: /api/
 Allow: /
 
 Sitemap: https://hiddenfeeai.com/sitemap.xml
+LLMs: https://hiddenfeeai.com/llms.txt

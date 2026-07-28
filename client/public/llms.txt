@@ -1,0 +1,33 @@
+# HiddenFeeAI — AI-Powered Hidden Fee Detector
+
+> AI-powered forensic document audits. Upload any invoice, bill, receipt, or contract and uncover hidden fees, billing errors, and savings opportunities in seconds.
+
+---
+
+## About
+
+HiddenFeeAI analyzes financial documents using AI to detect hidden charges, billing errors, junk fees, and overcharges across industries including auto loans, medical billing, utility bills, subscriptions, contracts, and insurance.
+
+## Key Pages
+
+- [Home](https://hiddenfeeai.com/) — Upload documents and get instant hidden fee analysis
+- [FAQ](https://hiddenfeeai.com/faq) — Frequently asked questions about how HiddenFeeAI works
+- [Contact](https://hiddenfeeai.com/contact) — Get in touch with the HiddenFeeAI team
+- [Privacy Policy](https://hiddenfeeai.com/privacy) — How we handle your data
+- [Terms of Service](https://hiddenfeeai.com/terms) — Terms and conditions
+- [Refund Policy](https://hiddenfeeai.com/refund) — Our refund and satisfaction guarantee
+
+## Industry Guides
+
+- [Hidden Fees in Car Purchases](https://hiddenfeeai.com/hidden-fees-car-purchase) — How to spot dealer add-ons, doc fees, and financing traps
+- [Hidden Charges in Medical Bills](https://hiddenfeeai.com/hidden-charges-medical-bills) — Identify facility fees, upcoding, and balance billing
+- [Review Contracts for Hidden Costs](https://hiddenfeeai.com/review-contracts-hidden-costs) — Find buried fees in service contracts and agreements
+- [Hidden Fees in Utility & Subscription Bills](https://hiddenfeeai.com/hidden-fees-utility-subscription-bills) — Uncover regulatory passthrough fees and auto-renewal traps
+
+## Sitemap
+
+- [sitemap.xml](https://hiddenfeeai.com/sitemap.xml)
+
+## AI Crawler Access
+
+All AI crawlers are welcome to access and index public pages on hiddenfeeai.com. See our [robots.txt](https://hiddenfeeai.com/robots.txt) for details.
