@@ -1,16 +1,20 @@
 /**
  * Extraction Router — IBM DOCLING IS THE PRIMARY EXTRACTION ENGINE
  *
- * Architecture:
- *   ALL documents → IBM Docling FIRST (OCR + layout + tables + headings)
- *     ↓ SUCCESS → return structured extraction
- *     ↓ FAILURE → format-specific fallback
- *       ├── PDF → native text extraction
- *       ├── Images → Cloudflare AI OCR (fast backup)
- *       ├── DOCX/XLSX → JSZip native
- *       └── TXT/CSV → direct decode
+ * OPTIMIZED DUAL-PATH ROUTING:
  *
- * Fallbacks exist ONLY for reliability. Docling is the source of truth.
+ *   FAST-PATH (instant <100ms):
+ *     → Digital PDFs (have embedded text, not scanned)
+ *     → DOCX/XLSX (structured text in XML)
+ *     → TXT/CSV/MD (plain text)
+ *     These use native extraction — text already exists, no ML needed.
+ *
+ *   OCR-PATH (2-3s, IBM Docling):
+ *     → Scanned PDFs (image-based, no text layer)
+ *     → Images (PNG, JPG, screenshots)
+ *     These NEED OCR — Docling provides full pipeline with table structure.
+ *
+ *   FALLBACK: If Docling fails or native extraction is empty, try the other path.
  */
 
 import type { Env, DocumentRouteResult } from "../../types.js";
@@ -33,12 +37,24 @@ function isImageFormat(f: string): boolean { return IMAGE_FORMATS.includes(f); }
 function isOfficeFormat(f: string): boolean { return OFFICE_FORMATS.includes(f); }
 function isTextFormat(f: string): boolean { return TEXT_FORMATS.includes(f); }
 
+/**
+ * Decide whether this document needs OCR (Docling heavy path)
+ * or can use fast native extraction (text already embedded).
+ */
+function needsOcr(route: DocumentRouteResult): boolean {
+  if (isImageFormat(route.fileFormat)) return true;                          // Images always need OCR
+  if (route.fileFormat === "pdf" && !route.isDigital && route.hasImages) return true; // Only use Docling if PDF has images AND no embedded text
+  if (route.fileFormat === "pdf" && route.needsOcr && route.hasImages) return true;
+  return false;
+}
+
 export async function routeExtraction(
   buffer: ArrayBuffer,
   fileName: string,
   env: Env,
 ): Promise<UnifiedExtractionResult> {
   const route: DocumentRouteResult = routeDocument(buffer, fileName);
+  const requiresOcr = needsOcr(route);
 
   console.log(
     `[EXTRACTION_START]
@@ -47,53 +63,72 @@ format=${route.fileFormat}
 size=${buffer.byteLength}
 isDigital=${route.isDigital}
 isScanned=${route.isScanned}
-needsOcr=${route.needsOcr}`,
+needsOcr=${route.needsOcr}
+route=${requiresOcr ? "ocr-path" : "fast-path"}`,
   );
 
   // ══════════════════════════════════════════════════════════
-  // PRIMARY: IBM Docling for ALL formats
+  // OCR-PATH: Document needs OCR → IBM Docling primary
+  // (scanned PDFs, images, phone photos, screenshots)
   // ══════════════════════════════════════════════════════════
-  if (env.DOCLING_SERVICE_URL) {
-    console.log("[ROUTER] primary=docling");
+  if (requiresOcr && env.DOCLING_SERVICE_URL) {
+    console.log("[ROUTER] route=ocr-path (Docling)");
     const doclingResult = await extractWithDocling(buffer, fileName, route, env);
     if (doclingResult?.success) {
       console.log(`[EXTRACTION_COMPLETE] provider=docling textLength=${doclingResult.text.length} confidence=${doclingResult.context.confidenceScore}`);
       return doclingResult;
     }
-    console.log("[DOCLING_FAILURE] falling back");
+    console.log("[DOCLING_FAILURE] falling back to format-specific extractor");
   }
 
   // ══════════════════════════════════════════════════════════
-  // FALLBACK: Format-specific
+  // FAST-PATH: Text already exists → native extraction (instant)
+  // (digital PDFs with embedded text, DOCX, XLSX, TXT, CSV)
+  // Also serves as FALLBACK when Docling fails on OCR path.
   // ══════════════════════════════════════════════════════════
+  console.log(`[ROUTER] route=${requiresOcr ? "ocr-path-fallback" : "fast-path"}`);
+
   let result: UnifiedExtractionResult | null = null;
 
   if (route.fileFormat === "pdf") {
-    console.log("[FALLBACK_STARTED] provider=pdf-native");
+    console.log("[EXTRACTION_START] provider=pdf-native (decompressing FlateDecode streams)");
     result = await extractPdf(buffer, fileName, route, env);
   } else if (isImageFormat(route.fileFormat)) {
-    console.log("[FALLBACK_STARTED] provider=image-ocr");
+    console.log("[EXTRACTION_START] provider=image-ocr (Cloudflare AI)");
     result = await extractImage(buffer, fileName, route, env);
   } else if (isOfficeFormat(route.fileFormat)) {
-    console.log("[FALLBACK_STARTED] provider=office-native");
+    console.log("[EXTRACTION_START] provider=office-native (JSZip)");
     result = await extractOffice(buffer, fileName, route, env);
   } else {
-    console.log("[FALLBACK_STARTED] provider=txt-direct");
+    console.log("[EXTRACTION_START] provider=txt-direct");
     result = await extractFallback(buffer, fileName, route, env);
   }
 
-  if (result?.success) {
-    console.log(`[FALLBACK_SUCCESS] provider=${result.provider} textLength=${result.text.length}`);
+  if (result?.success && result.text.length > 10) {
+    // Fast-path digital PDF: enhance with Docling if quality is low
+    if (route.fileFormat === "pdf" && !requiresOcr && env.DOCLING_SERVICE_URL && result.context.confidenceScore < 70) {
+      console.log("[ROUTER] native_quality_low — trying Docling enhancement");
+      const doclingResult = await extractWithDocling(buffer, fileName, route, env);
+      if (doclingResult?.success && doclingResult.text.length > result.text.length) {
+        console.log(`[EXTRACTION_COMPLETE] provider=docling (enhanced) textLength=${doclingResult.text.length}`);
+        return doclingResult;
+      }
+    }
+
+    console.log(`[EXTRACTION_COMPLETE] provider=${result.provider} textLength=${result.text.length} confidence=${result.context.confidenceScore}`);
     return result;
   }
 
   // ══════════════════════════════════════════════════════════
-  // LAST RESORT
+  // LAST RESORT: General fallback
   // ══════════════════════════════════════════════════════════
   if (!isTextFormat(route.fileFormat)) {
     console.log("[FALLBACK_STARTED] provider=general-fallback");
     const fb = await extractFallback(buffer, fileName, route, env);
-    if (fb?.success) return fb;
+    if (fb?.success && fb.text.length > 0) {
+      console.log(`[EXTRACTION_COMPLETE] provider=general-fallback textLength=${fb.text.length}`);
+      return fb;
+    }
   }
 
   const msg = CUSTOMER_MESSAGES.generic;
