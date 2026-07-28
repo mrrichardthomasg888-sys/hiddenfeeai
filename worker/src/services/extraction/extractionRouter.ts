@@ -42,8 +42,9 @@ function isTextFormat(f: string): boolean { return TEXT_FORMATS.includes(f); }
  * or can use fast native extraction (text already embedded).
  */
 function needsOcr(route: DocumentRouteResult): boolean {
-  if (isImageFormat(route.fileFormat)) return true;                          // Images always need OCR
-  if (route.fileFormat === "pdf" && !route.isDigital && route.hasImages) return true; // Only use Docling if PDF has images AND no embedded text
+  // Images → Cloudflare AI OCR is FAST (<3s). Only scanned PDFs need Docling's heavy pipeline.
+  if (isImageFormat(route.fileFormat)) return false;  // Use fast-path: Cloudflare AI OCR
+  if (route.fileFormat === "pdf" && !route.isDigital && route.hasImages) return true; // Scanned PDF → Docling
   if (route.fileFormat === "pdf" && route.needsOcr && route.hasImages) return true;
   return false;
 }
