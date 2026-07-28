@@ -90,21 +90,118 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 
 // ─── Image Preprocessing using OffscreenCanvas ───
 
-async function preprocessImage(imageBuffer: ArrayBuffer): Promise<string> {
+interface ImageDiagnostics {
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  detectedFormat: string;
+  width?: number;
+  height?: number;
+  successfullyDecoded: boolean;
+  preprocessed: boolean;
+  outputFormat: string;
+  outputSize: number;
+}
+
+async function preprocessImage(
+  imageBuffer: ArrayBuffer,
+  diagnostics?: ImageDiagnostics
+): Promise<string> {
   console.log(`[preprocessImage] Input buffer: ${imageBuffer.byteLength} bytes`);
 
-  const blob = new Blob([imageBuffer]);
+  // Detect format from magic bytes for accurate MIME type
+  const arr = new Uint8Array(imageBuffer.slice(0, 12));
+  let actualFormat = 'unknown';
+
+  // JPEG: FF D8 FF
+  if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) actualFormat = 'image/jpeg';
+  // PNG: 89 50 4E 47
+  else if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) actualFormat = 'image/png';
+  // WEBP: RIFF....WEBP
+  else if (arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46) {
+    const webpMarker = new TextDecoder().decode(arr.slice(8, 12));
+    if (webpMarker === 'WEBP') actualFormat = 'image/webp';
+  }
+  // HEIC/HEIF: ftyp box
+  else if (arr[4] === 0x66 && arr[5] === 0x74 && arr[6] === 0x79 && arr[7] === 0x70) {
+    const brand = new TextDecoder().decode(arr.slice(8, 12)).toLowerCase();
+    if (brand === 'heic' || brand === 'heif' || brand === 'heix' || brand === 'hevc') {
+      actualFormat = `image/${brand}`;
+    }
+  }
+  // TIFF: II or MM
+  else if (
+    (arr[0] === 0x49 && arr[1] === 0x49 && arr[2] === 0x2A) ||
+    (arr[0] === 0x4D && arr[1] === 0x4D && arr[2] === 0x00 && arr[3] === 0x2A)
+  ) {
+    actualFormat = 'image/tiff';
+  }
+
+  console.log(`[preprocessImage] Detected format from magic bytes: ${actualFormat}`);
+  if (diagnostics) diagnostics.detectedFormat = actualFormat;
+  if (diagnostics) diagnostics.fileSize = imageBuffer.byteLength;
+
+  // ── Check if this is a format that needs conversion ──
+  const isHeic = actualFormat.startsWith('image/heic') || actualFormat.startsWith('image/heif');
+  const isTiff = actualFormat === 'image/tiff';
+  const isUnsupportedImage = actualFormat === 'unknown';
+
+  const blob = new Blob([imageBuffer], { type: actualFormat });
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(blob);
   } catch (err) {
-    console.error(`[preprocessImage] createImageBitmap failed: ${err}`);
-    // If bitmap decode fails, try passing the raw base64 directly to OCR
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[preprocessImage] createImageBitmap failed (format: ${actualFormat}): ${errMsg}`);
+
+    if (diagnostics) {
+      diagnostics.successfullyDecoded = false;
+      diagnostics.preprocessed = false;
+    }
+
+    // HEIC/HEIF: Cloudflare Workers runtime does not support this codec.
+    // Cannot pass raw bytes with wrong MIME to DeepSeek — it will 400.
+    if (isHeic) {
+      throw new Error(
+        'HEIC/HEIF images from iPhones cannot be processed in this environment. ' +
+        'Please convert the photo to JPG or PNG before uploading. ' +
+        'On iPhone: go to Settings > Camera > Formats > select "Most Compatible". ' +
+        `(Detected format: ${actualFormat}, size: ${imageBuffer.byteLength} bytes)`
+      );
+    }
+
+    if (isTiff) {
+      throw new Error(
+        'TIFF images are not supported for direct OCR. ' +
+        'Please convert the file to JPG, PNG, or PDF before uploading. ' +
+        `(Detected format: ${actualFormat}, size: ${imageBuffer.byteLength} bytes)`
+      );
+    }
+
+    // Unknown format — also unsafe to pass through
+    if (isUnsupportedImage) {
+      throw new Error(
+        'The uploaded image format could not be identified. ' +
+        'Please upload as JPG, PNG, or PDF. ' +
+        `(File size: ${imageBuffer.byteLength} bytes, first bytes: ${
+          Array.from(arr.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join(' ')
+        })`
+      );
+    }
+
+    // For known formats (PNG, JPEG, WebP) that somehow fail, try raw as last resort
+    // but log a strong warning — this shouldn't normally happen
+    console.warn('[preprocessImage] Known format failed to decode — passing raw base64 as fallback');
     return arrayBufferToBase64(imageBuffer);
   }
 
   let { width, height } = bitmap;
   console.log(`[preprocessImage] Original dimensions: ${width}x${height}`);
+  if (diagnostics) {
+    diagnostics.width = width;
+    diagnostics.height = height;
+    diagnostics.successfullyDecoded = true;
+  }
 
   const maxDim = 2048;
   if (width > maxDim || height > maxDim) {
@@ -126,6 +223,7 @@ async function preprocessImage(imageBuffer: ArrayBuffer): Promise<string> {
   const imageData = ctx.getImageData(0, 0, width, height);
   const data = imageData.data;
 
+  // ── Grayscale + contrast stretch for document readability ──
   let min = 255, max = 0;
   for (let i = 0; i < data.length; i += 4) {
     const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
@@ -146,6 +244,11 @@ async function preprocessImage(imageBuffer: ArrayBuffer): Promise<string> {
   const processedBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.85 });
   const processedBuffer = await processedBlob.arrayBuffer();
   console.log(`[preprocessImage] Output JPEG: ${processedBuffer.byteLength} bytes`);
+  if (diagnostics) {
+    diagnostics.outputFormat = 'image/jpeg';
+    diagnostics.outputSize = processedBuffer.byteLength;
+    diagnostics.preprocessed = true;
+  }
   return arrayBufferToBase64(processedBuffer);
 }
 
@@ -200,7 +303,8 @@ Do not include markdown formatting or explanations. Return ONLY the JSON object.
   if (!response.ok) {
     const errText = await response.text().catch(() => 'Unknown error');
     console.error(`[deepSeekOCR] API error (${response.status}):`, errText.slice(0, 500));
-    throw new Error(`DeepSeek OCR failed (${response.status})`);
+    // Include actual API response body in the thrown error for debugging
+    throw new Error(`DeepSeek OCR failed (${response.status}): ${errText.slice(0, 300)}`);
   }
 
   const data = (await response.json()) as {

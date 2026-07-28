@@ -52,6 +52,38 @@ uploadRoute.post("/", async (c) => {
   // Read file buffer
   const buffer = await file.arrayBuffer();
 
+  // ── File diagnostics logging (for debugging mobile upload issues) ──
+  const fileMimeType = file.type || 'unknown';
+  console.log(`[Upload Diagnostics] fileName="${fileName}" mimeType="${fileMimeType}" fileSize=${file.size} bytes`);
+
+  // Detect actual format from magic bytes (more reliable than MIME type from device)
+  const arr = new Uint8Array(buffer.slice(0, 12));
+  const hexHeader = Array.from(arr.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+  console.log(`[Upload Diagnostics] Magic bytes (first 8): ${hexHeader}`);
+
+  let detectedFormat = 'unknown';
+  if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) detectedFormat = 'JPEG';
+  else if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) detectedFormat = 'PNG';
+  else if (arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46) detectedFormat = 'WEBP';
+  else if (arr[4] === 0x66 && arr[5] === 0x74 && arr[6] === 0x79 && arr[7] === 0x70) {
+    const brand = new TextDecoder().decode(arr.slice(8, 12)).toLowerCase();
+    detectedFormat = brand.toUpperCase(); // HEIC, HEIF, HEIX, HEVC
+  }
+  else if (arr[0] === 0x25 && arr[1] === 0x50 && arr[2] === 0x44 && arr[3] === 0x46) detectedFormat = 'PDF';
+  console.log(`[Upload Diagnostics] Detected format: ${detectedFormat}`);
+
+  // For images, try to log dimensions
+  if (['JPEG', 'PNG', 'WEBP', 'HEIC', 'HEIF'].includes(detectedFormat)) {
+    try {
+      const blob = new Blob([buffer]);
+      const bitmap = await createImageBitmap(blob);
+      console.log(`[Upload Diagnostics] Image dimensions: ${bitmap.width}x${bitmap.height}`);
+      bitmap.close();
+    } catch {
+      console.log(`[Upload Diagnostics] Could not decode image dimensions (format may be unsupported: ${detectedFormat})`);
+    }
+  }
+
   // Start extraction (async)
   c.executionCtx.waitUntil(
     (async () => {
