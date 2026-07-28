@@ -419,6 +419,10 @@ function mapQuality(label: string): DocumentRouteResult['documentQuality'] {
  * Fallback is used for: images, email, text, ZIP (formats Docling handles less well or not at all)
  */
 export function shouldUseDocling(routeResult: DocumentRouteResult): boolean {
-  const doclingFormats = ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'html', 'rtf'];
-  return doclingFormats.includes(routeResult.fileFormat) && !routeResult.needsOcr;
+  // Docling handles all formats natively — PDF, Office docs, images, text, HTML
+  const doclingFormats = [
+    'pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'html', 'rtf', 'txt', 'md', 'csv',
+    'png', 'jpg', 'jpeg', 'webp', 'heic', 'tiff', 'tif', 'bmp', 'gif',
+  ];
+  return doclingFormats.includes(routeResult.fileFormat);
 }

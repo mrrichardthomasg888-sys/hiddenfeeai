@@ -131,46 +131,39 @@ uploadRoute.post("/", async (c) => {
               }
             }
           } else {
-            console.log(`[Upload V2] Docling not applicable for ${routeResult.fileFormat}. Using DeepSeek Vision.`);
+            console.log(`[Upload V2] Docling not configured — falling back to legacy extraction for ${routeResult.fileFormat}.`);
           }
 
-          // Step 3: Fallback to DocumentProcessor (DeepSeek Vision)
+          // Step 3: Fallback to legacy extractor (Cloudflare AI vision model)
           if (!structuredDoc) {
             try {
-              console.log(`[Upload V2] Using DeepSeek Vision fallback...`);
-              const fallbackProcessor = new DocumentProcessor(c.env);
-              const extracted = await fallbackProcessor.process(buffer, fileName);
-
-              // Convert ExtractedDocument → StructuredDocument (lightweight conversion)
+              console.log(`[Upload V2] Using legacy extraction fallback for ${fileName}...`);
+              const legacyResult = await extractTextLegacy(buffer, fileName, c.env);
+              
+              // Convert legacy ExtractionResult → StructuredDocument
               structuredDoc = {
-                fileName: extracted.fileName,
-                fileFormat: extracted.fileType as any,
-                pageCount: extracted.pageCount,
-                markdown: extracted.fullText,
-                elements: extracted.pages.map(p => ({
+                fileName,
+                fileFormat: routeResult.fileFormat,
+                pageCount: legacyResult.pages,
+                markdown: legacyResult.text,
+                elements: [{
                   type: 'paragraph' as const,
-                  pageNumber: p.pageNumber,
-                  content: p.text,
-                })),
-                tables: (extracted.pages || []).flatMap(p =>
-                  (p.tables || []).map(t => ({
-                    pageNumber: p.pageNumber,
-                    headers: t.length > 0 ? t[0].map(c => String(c)) : [],
-                    rows: t.length > 1 ? t.slice(1) : [],
-                    detectedAs: 'general' as const,
-                  }))
-                ),
+                  pageNumber: 1,
+                  content: legacyResult.text,
+                }],
+                tables: [],
                 metadata: {
-                  pageCount: extracted.pageCount,
+                  pageCount: legacyResult.pages,
                   language: routeResult.detectedLanguage,
                 },
                 routeResult,
-                extractionMethod: 'deepseek-vision',
-                extractionConfidence: extracted.extractionConfidence,
-                warnings: extracted.warnings,
+                extractionMethod: legacyResult.extractionMethod,
+                extractionConfidence: legacyResult.confidenceScore / 100,
+                warnings: [],
               };
+              console.log(`[Upload V2] Legacy extraction SUCCESS: ${legacyResult.text.length} chars, method=${legacyResult.extractionMethod}`);
             } catch (fallbackErr) {
-              console.error(`[Upload V2] DeepSeek Vision fallback also failed:`, fallbackErr);
+              console.error(`[Upload V2] Legacy extraction also failed:`, fallbackErr);
               throw fallbackErr;
             }
           }
