@@ -360,7 +360,9 @@ export async function extractPdf(buffer: ArrayBuffer, env: Env): Promise<Extract
 }
 
 /**
- * Extract text from an image using Cloudflare AI OCR
+ * Extract text from an image using Cloudflare AI OCR.
+ * Strategy: try original bytes first (preserves working desktop path),
+ * then fall back to normalized JPEG if original fails (fixes mobile).
  */
 export async function extractImage(
   buffer: ArrayBuffer,
@@ -369,40 +371,71 @@ export async function extractImage(
   auditId?: string
 ): Promise<ExtractionResult> {
   const id = auditId || 'unknown';
+  const name = fileName || 'image';
 
-  // ── Normalize image (format detection, HEIC→JPEG, EXIF orientation, resize) ──
-  const normalized = await normalizeImage(buffer, fileName || 'image', id);
-  const ocrBuffer = normalized.buffer;
-
-  console.log(`[DOCLING_STARTED] auditId=${id} mimeType=${normalized.mimeType} bytes=${ocrBuffer.byteLength} normalized=${normalized.normalized}`);
-
-  let ocrText: string | null = null;
-  let ocrError: string | null = null;
-
-  try {
-    ocrText = await ocrImage(ocrBuffer, env);
-  } catch (err) {
-    ocrError = err instanceof Error ? err.message : String(err);
-    console.error(`[DOCLING_RESPONSE] auditId=${id} OCR error: ${ocrError}`);
-  }
+  // ── Attempt 1: Original bytes (desktop path — known working) ──
+  console.log(`[OCR_ATTEMPT] auditId=${id} attempt=1 strategy=original bytes=${buffer.byteLength}`);
+  let ocrText = await ocrImage(buffer, env);
 
   if (ocrText && ocrText.trim().length > 10) {
     const lineItems = ocrText.split("\n").filter((l) => l.trim().length > 0).length;
     const textPreview = ocrText.slice(0, 150).replace(/\n/g, ' ');
-    console.log(`[DOCLING_COMPLETE] auditId=${id} textLength=${ocrText.length} pageCount=1 extractedTextPreview="${textPreview}..."`);
-    return {
-      text: ocrText,
-      pages: 1,
-      lineItems,
-      fileType: "image",
-      extractionMethod: "image-ocr",
-      confidenceScore: 75,
-    };
+    console.log(`[DOCLING_COMPLETE] auditId=${id} strategy=original textLength=${ocrText.length} pageCount=1 preview="${textPreview}..."`);
+    return { text: ocrText, pages: 1, lineItems, fileType: "image", extractionMethod: "image-ocr", confidenceScore: 75 };
   }
 
-  // Log the actual OCR failure details before throwing
+  console.log(`[OCR_ATTEMPT] auditId=${id} attempt=1 FAILED textLength=${ocrText?.length || 0} — trying normalized fallback`);
+
+  // ── Attempt 2: Normalize (HEIC→JPEG, EXIF orientation, resize) ──
+  const normalized = await normalizeImage(buffer, name, id);
+
+  if (normalized.normalized) {
+    console.log(`[OCR_ATTEMPT] auditId=${id} attempt=2 strategy=normalized mimeType=${normalized.mimeType} bytes=${normalized.buffer.byteLength} dims=${normalized.width}x${normalized.height}`);
+    ocrText = await ocrImage(normalized.buffer, env);
+
+    if (ocrText && ocrText.trim().length > 10) {
+      const lineItems = ocrText.split("\n").filter((l) => l.trim().length > 0).length;
+      const textPreview = ocrText.slice(0, 150).replace(/\n/g, ' ');
+      console.log(`[DOCLING_COMPLETE] auditId=${id} strategy=normalized textLength=${ocrText.length} pageCount=1 preview="${textPreview}..."`);
+      return { text: ocrText, pages: 1, lineItems, fileType: "image", extractionMethod: "image-ocr", confidenceScore: 75 };
+    }
+    console.log(`[OCR_ATTEMPT] auditId=${id} attempt=2 FAILED textLength=${ocrText?.length || 0}`);
+  } else {
+    console.log(`[OCR_ATTEMPT] auditId=${id} attempt=2 SKIPPED normalization not applied (format=${normalized.format})`);
+  }
+
+  // ── Attempt 3: PNG fallback ──
+  if (normalized.normalized) {
+    try {
+      const blob = new Blob([normalized.buffer], { type: normalized.mimeType });
+      const bitmap = await createImageBitmap(blob);
+      const canvas = new OffscreenCanvas(normalized.width || bitmap.width, normalized.height || bitmap.height);
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        bitmap.close();
+        const pngBlob = await canvas.convertToBlob({ type: 'image/png' });
+        const pngBuffer = await pngBlob.arrayBuffer();
+        console.log(`[OCR_ATTEMPT] auditId=${id} attempt=3 strategy=png bytes=${pngBuffer.byteLength}`);
+        ocrText = await ocrImage(pngBuffer, env);
+        if (ocrText && ocrText.trim().length > 10) {
+          const lineItems = ocrText.split("\n").filter((l) => l.trim().length > 0).length;
+          const textPreview = ocrText.slice(0, 150).replace(/\n/g, ' ');
+          console.log(`[DOCLING_COMPLETE] auditId=${id} strategy=png textLength=${ocrText.length} pageCount=1 preview="${textPreview}..."`);
+          return { text: ocrText, pages: 1, lineItems, fileType: "image", extractionMethod: "image-ocr", confidenceScore: 75 };
+        }
+        console.log(`[OCR_ATTEMPT] auditId=${id} attempt=3 FAILED textLength=${ocrText?.length || 0}`);
+      } else {
+        bitmap.close();
+      }
+    } catch (pngErr) {
+      console.log(`[OCR_ATTEMPT] auditId=${id} attempt=3 PNG conversion failed: ${pngErr instanceof Error ? pngErr.message : pngErr}`);
+    }
+  }
+
+  // All attempts failed — log details and throw
   const textPreview = (ocrText || '').slice(0, 100);
-  console.error(`[DOCLING_COMPLETE] auditId=${id} OCR returned empty or insufficient text. textLength=${ocrText?.length || 0} preview="${textPreview}" error=${ocrError || 'none'}`);
+  console.error(`[DOCLING_COMPLETE] auditId=${id} ALL_ATTEMPTS_FAILED finalTextLength=${ocrText?.length || 0} preview="${textPreview}"`);
   throw errors.badFile("Could not extract text from this image. Try a clearer scan or a different format.");
 }
 
