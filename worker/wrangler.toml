@@ -28,7 +28,7 @@ USE_V2_PIPELINE = "true"
 # ── IBM Docling Service Endpoint ──
 # ACTIVE: Quick Tunnel to local Docling service.
 # Deploy with: npx wrangler deploy
-DOCLING_SERVICE_URL = "https://during-piece-approved-democrats.trycloudflare.com"
+DOCLING_SERVICE_URL = "https://stranger-managed-tunnel-shaw.trycloudflare.com"
 
 [env.dev]
 vars = { ENVIRONMENT = "development", FRONTEND_URL = "https://hiddenfeeai.com", TEST_MODE_SKIP_PAYMENT = "false", USE_NEW_PIPELINE = "true", USE_V2_PIPELINE = "false", DOCLING_SERVICE_URL = "http://localhost:8000" }
