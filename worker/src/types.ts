@@ -165,7 +165,7 @@ export interface ExtractionResult {
   pages: number;
   lineItems: number;
   fileType: string;
-  extractionMethod: "native" | "ocr" | "image-ocr";
+  extractionMethod: "native" | "ocr" | "image-ocr" | "docling" | "direct";
   confidenceScore: number;
 }
 

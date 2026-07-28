@@ -73,8 +73,8 @@ interface DoclingParseResponse {
 
 // ─── Configuration ───
 
-const DOCLING_TIMEOUT_MS = 25_000; // 25 seconds — fail fast for production reliability
-const DOCLING_MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+const DOCLING_DEFAULT_TIMEOUT_MS = 120_000; // 120 seconds default — size-aware timeout applied by extractor
+const DOCLING_MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB — matches Docling engine limit
 const HEALTH_CHECK_TIMEOUT_MS = 5_000;
 
 // ─── Health check (call at startup or periodically) ───
@@ -195,7 +195,7 @@ export async function parseWithDocling(
 
   // Send request with timeout
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), DOCLING_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), DOCLING_DEFAULT_TIMEOUT_MS);
 
   try {
     const response = await fetch(`${serviceUrl}/parse`, {
@@ -262,7 +262,7 @@ export async function parseWithDocling(
     // AbortError = timeout
     if (err instanceof DOMException && err.name === 'AbortError') {
       throw {
-        error: `Docling request timed out after ${DOCLING_TIMEOUT_MS / 1000}s`,
+        error: `Docling request timed out after ${DOCLING_DEFAULT_TIMEOUT_MS / 1000}s`,
         code: 'timeout',
         retryable: true,
       } as DoclingError;
