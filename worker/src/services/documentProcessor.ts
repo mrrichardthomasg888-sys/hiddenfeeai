@@ -258,20 +258,18 @@ async function deepSeekOCR(base64Image: string, pageNumber: number, env: Env, re
   const apiKey = env.DEEPSEEK_API_KEY;
   if (!apiKey) throw new Error("DEEPSEEK_API_KEY is not configured");
 
-  console.log(`[deepSeekOCR] Page ${pageNumber}: sending OCR request (attempt ${retryCount + 1})`);
+  const ocrEndpoint = `${env.DEEPSEEK_BASE_URL}/v1/chat/completions`;
+  console.log(`[deepSeekOCR] Page ${pageNumber}: sending OCR request (attempt ${retryCount + 1}) to ${ocrEndpoint}`);
+  console.log(`[deepSeekOCR] Base64 image length: ${base64Image.length} chars`);
 
-  const response = await fetch(`${env.DEEPSEEK_BASE_URL}/v1/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: 'deepseek-chat',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a precise OCR engine. Extract ALL text from this document image.
+  // DeepSeek chat API uses text-only content parts (no image_url variant).
+  // Embed the image as a data URI inline within a text content block.
+  const requestBody = {
+    model: env.DEEPSEEK_MODEL || 'deepseek-chat',
+    messages: [
+      {
+        role: 'user',
+        content: `You are a precise OCR engine. Extract ALL text from this document image.
 Preserve line breaks, table structure, and layout.
 Identify text blocks and estimate confidence for each.
 Return ONLY valid JSON in this exact format:
@@ -283,21 +281,26 @@ Return ONLY valid JSON in this exact format:
   ],
   "tables": [[["cell1","cell2"],["cell3","cell4"]]]
 }
-Do not include markdown formatting or explanations. Return ONLY the JSON object.`
-        },
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image_url',
-              image_url: { url: `data:image/jpeg;base64,${base64Image}` }
-            }
-          ]
-        }
-      ],
-      temperature: 0.1,
-      max_tokens: 4096
-    })
+Do not include markdown formatting or explanations. Return ONLY the JSON object.
+
+Here is the document image:
+![document](data:image/jpeg;base64,${base64Image})`
+      }
+    ],
+    temperature: 0.1,
+    max_tokens: 4096
+  };
+
+  console.log(`[deepSeekOCR] Request model: ${requestBody.model}, messages: ${requestBody.messages.length}`);
+  console.log(`[deepSeekOCR] User content length: ${(requestBody.messages[0].content as string).length} chars`);
+
+  const response = await fetch(ocrEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify(requestBody)
   });
 
   if (!response.ok) {
