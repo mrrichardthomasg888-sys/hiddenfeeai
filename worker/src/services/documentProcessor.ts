@@ -77,6 +77,23 @@ export function isAcceptedExtension(filename: string): boolean {
   return ACCEPTED_EXTENSIONS.includes(ext);
 }
 
+// ─── MIME Type Detection ───
+
+function detectMimeType(buffer: ArrayBuffer, fileName: string): string {
+  const arr = new Uint8Array(buffer.slice(0, 4));
+  if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) return 'image/png';
+  if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) return 'image/jpeg';
+  if (arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46) return 'image/webp';
+  
+  const ext = fileName.toLowerCase().split('.').pop() ?? '';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+  if (ext === 'webp') return 'image/webp';
+  if (ext === 'heic' || ext === 'heif') return 'image/heic';
+  if (ext === 'tiff' || ext === 'tif') return 'image/tiff';
+  return 'image/jpeg'; // fallback to JPEG as a common image type for Gemini
+}
+
 // ─── Base64 utilities ───
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -93,168 +110,135 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
-// ─── Image Preprocessing using OffscreenCanvas ───
+// ─── Gemini Vision OCR ───
 
-interface ImageDiagnostics {
-  fileName: string;
-  mimeType: string;
-  fileSize: number;
-  detectedFormat: string;
-  width?: number;
-  height?: number;
-  successfullyDecoded: boolean;
-  preprocessed: boolean;
-  outputFormat: string;
-  outputSize: number;
+async function geminiOCR(
+  base64Image: string,
+  mimeType: string,
+  pageNumber: number,
+  env: Env,
+  retryCount = 0
+): Promise<ExtractedPage> {
+  const apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY or GOOGLE_API_KEY is not configured");
+
+  const model = env.GEMINI_MODEL || "gemini-1.5-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  console.log(`[geminiOCR] Page ${pageNumber}: sending OCR request (attempt ${retryCount + 1}) to Gemini`);
+
+  const requestBody = {
+    contents: [
+      {
+        parts: [
+          {
+            inlineData: {
+              mimeType: mimeType === 'image/heic' ? 'image/jpeg' : mimeType,
+              data: base64Image,
+            },
+          },
+          {
+            text: `You are a precise, high-fidelity OCR engine. Extract ALL text from this document image.
+Preserve line breaks, table structure, and layout.
+Identify text blocks and estimate confidence (0.0 to 1.0) for each.
+Return ONLY valid JSON in this exact format:
+{
+  "pageNumber": ${pageNumber},
+  "text": "full extracted text with line breaks",
+  "textBlocks": [
+    {"text": "string", "confidence": 0.0-1.0}
+  ],
+  "tables": [[["cell1","cell2"],["cell3","cell4"]]]
 }
+Do not include any conversational text, markdown wrapping (no \`\`\`json blocks), or explanations. Return ONLY the JSON object.`,
+          },
+        ],
+      },
+    ],
+    generationConfig: {
+      responseMimeType: "application/json",
+    },
+    safetySettings: [
+      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+      { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+      { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+      { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+    ]
+  };
 
-async function preprocessImage(
-  imageBuffer: ArrayBuffer,
-  diagnostics?: ImageDiagnostics
-): Promise<string> {
-  console.log(`[preprocessImage] Input buffer: ${imageBuffer.byteLength} bytes`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60_000);
 
-  // Detect format from magic bytes for accurate MIME type
-  const arr = new Uint8Array(imageBuffer.slice(0, 12));
-  let actualFormat = 'unknown';
-
-  // JPEG: FF D8 FF
-  if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) actualFormat = 'image/jpeg';
-  // PNG: 89 50 4E 47
-  else if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) actualFormat = 'image/png';
-  // WEBP: RIFF....WEBP
-  else if (arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46) {
-    const webpMarker = new TextDecoder().decode(arr.slice(8, 12));
-    if (webpMarker === 'WEBP') actualFormat = 'image/webp';
-  }
-  // HEIC/HEIF: ftyp box
-  else if (arr[4] === 0x66 && arr[5] === 0x74 && arr[6] === 0x79 && arr[7] === 0x70) {
-    const brand = new TextDecoder().decode(arr.slice(8, 12)).toLowerCase();
-    if (brand === 'heic' || brand === 'heif' || brand === 'heix' || brand === 'hevc') {
-      actualFormat = `image/${brand}`;
-    }
-  }
-  // TIFF: II or MM
-  else if (
-    (arr[0] === 0x49 && arr[1] === 0x49 && arr[2] === 0x2A) ||
-    (arr[0] === 0x4D && arr[1] === 0x4D && arr[2] === 0x00 && arr[3] === 0x2A)
-  ) {
-    actualFormat = 'image/tiff';
-  }
-
-  console.log(`[preprocessImage] Detected format from magic bytes: ${actualFormat}`);
-  if (diagnostics) diagnostics.detectedFormat = actualFormat;
-  if (diagnostics) diagnostics.fileSize = imageBuffer.byteLength;
-
-  // ── Check if this is a format that needs conversion ──
-  const isHeic = actualFormat.startsWith('image/heic') || actualFormat.startsWith('image/heif');
-  const isTiff = actualFormat === 'image/tiff';
-  const isUnsupportedImage = actualFormat === 'unknown';
-
-  const blob = new Blob([imageBuffer], { type: actualFormat });
-  let bitmap: ImageBitmap;
+  let response: Response;
   try {
-    bitmap = await createImageBitmap(blob);
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    });
   } catch (err) {
-    const errMsg = err instanceof Error ? err.message : String(err);
-    console.error(`[preprocessImage] createImageBitmap failed (format: ${actualFormat}): ${errMsg}`);
+    clearTimeout(timeoutId);
+    throw new Error(`Gemini OCR fetch failed: ${err instanceof Error ? err.message : String(err)}`);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
-    if (diagnostics) {
-      diagnostics.successfullyDecoded = false;
-      diagnostics.preprocessed = false;
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(`Gemini OCR failed (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json() as any;
+  const rawContent = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  console.log(`[geminiOCR] Raw response length: ${rawContent.length} chars`);
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(rawContent);
+  } catch (err) {
+    console.warn("[geminiOCR] Failed to parse JSON directly, attempting fallback cleanup");
+    const match = rawContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (match) {
+      try {
+        parsed = JSON.parse(match[1]);
+      } catch { parsed = null; }
     }
+  }
 
-    // HEIC/HEIF: Cloudflare Workers runtime does not support this codec.
-    // Cannot pass raw bytes with wrong MIME to DeepSeek — it will 400.
-    if (isHeic) {
-      throw new Error(
-        'HEIC/HEIF images from iPhones cannot be processed in this environment. ' +
-        'Please convert the photo to JPG or PNG before uploading. ' +
-        'On iPhone: go to Settings > Camera > Formats > select "Most Compatible". ' +
-        `(Detected format: ${actualFormat}, size: ${imageBuffer.byteLength} bytes)`
-      );
+  if (!parsed || !parsed.text || parsed.text.trim().length < 5) {
+    if (retryCount === 0) {
+      console.log(`[geminiOCR] Empty/low response — retrying once...`);
+      return geminiOCR(base64Image, mimeType, pageNumber, env, retryCount + 1);
     }
-
-    if (isTiff) {
-      throw new Error(
-        'TIFF images are not supported for direct OCR. ' +
-        'Please convert the file to JPG, PNG, or PDF before uploading. ' +
-        `(Detected format: ${actualFormat}, size: ${imageBuffer.byteLength} bytes)`
-      );
-    }
-
-    // Unknown format — also unsafe to pass through
-    if (isUnsupportedImage) {
-      throw new Error(
-        'The uploaded image format could not be identified. ' +
-        'Please upload as JPG, PNG, or PDF. ' +
-        `(File size: ${imageBuffer.byteLength} bytes, first bytes: ${
-          Array.from(arr.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join(' ')
-        })`
-      );
-    }
-
-    // For known formats (PNG, JPEG, WebP) that somehow fail, try raw as last resort
-    // but log a strong warning — this shouldn't normally happen
-    console.warn('[preprocessImage] Known format failed to decode — passing raw base64 as fallback');
-    return arrayBufferToBase64(imageBuffer);
+    return {
+      pageNumber,
+      text: rawContent || '[No text extracted]',
+      textBlocks: [{ text: rawContent || '', confidence: 0.3 }],
+      ocrEngine: 'gemini-vision',
+      ocrConfidence: 0.3
+    };
   }
 
-  let { width, height } = bitmap;
-  console.log(`[preprocessImage] Original dimensions: ${width}x${height}`);
-  if (diagnostics) {
-    diagnostics.width = width;
-    diagnostics.height = height;
-    diagnostics.successfullyDecoded = true;
-  }
+  const textBlocks: PageBlock[] = (parsed.textBlocks || []).map((b: any) => ({
+    text: String(b.text || ''),
+    confidence: Math.min(1, Math.max(0, Number(b.confidence) || 0.8))
+  }));
 
-  const maxDim = 2048;
-  if (width > maxDim || height > maxDim) {
-    const ratio = Math.min(maxDim / width, maxDim / height);
-    width = Math.round(width * ratio);
-    height = Math.round(height * ratio);
-    console.log(`[preprocessImage] Resized to: ${width}x${height}`);
-  }
+  const avgConfidence = textBlocks.length > 0
+    ? textBlocks.reduce((s: number, b: PageBlock) => s + b.confidence, 0) / textBlocks.length
+    : (parsed.text && parsed.text.length > 20 ? 0.85 : 0.5);
 
-  const canvas = new OffscreenCanvas(width, height);
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    console.warn('[preprocessImage] OffscreenCanvas not available, returning raw base64');
-    bitmap.close();
-    return arrayBufferToBase64(imageBuffer);
-  }
-
-  ctx.drawImage(bitmap, 0, 0, width, height);
-  const imageData = ctx.getImageData(0, 0, width, height);
-  const data = imageData.data;
-
-  // ── Grayscale + contrast stretch for document readability ──
-  let min = 255, max = 0;
-  for (let i = 0; i < data.length; i += 4) {
-    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-    data[i] = data[i + 1] = data[i + 2] = gray;
-    if (gray < min) min = gray;
-    if (gray > max) max = gray;
-  }
-
-  const range = max - min || 1;
-  for (let i = 0; i < data.length; i += 4) {
-    const val = ((data[i] - min) / range) * 255;
-    data[i] = data[i + 1] = data[i + 2] = val;
-  }
-
-  ctx.putImageData(imageData, 0, 0);
-  bitmap.close();
-
-  const processedBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.85 });
-  const processedBuffer = await processedBlob.arrayBuffer();
-  console.log(`[preprocessImage] Output JPEG: ${processedBuffer.byteLength} bytes`);
-  if (diagnostics) {
-    diagnostics.outputFormat = 'image/jpeg';
-    diagnostics.outputSize = processedBuffer.byteLength;
-    diagnostics.preprocessed = true;
-  }
-  return arrayBufferToBase64(processedBuffer);
+  return {
+    pageNumber,
+    text: String(parsed.text || ''),
+    textBlocks,
+    tables: parsed.tables || [],
+    ocrEngine: 'gemini-vision',
+    ocrConfidence: avgConfidence
+  };
 }
 
 // ─── DeepSeek Vision OCR ───
@@ -748,17 +732,19 @@ export class DocumentProcessor {
       case 'webp':
       case 'heic': {
         console.log(`[DocumentProcessor] Image path: ${fileType}`);
-        const preprocessed = await preprocessImage(buffer);
+        const imageMimeType = detectMimeType(buffer, fileName);
+        const base64Image = arrayBufferToBase64(buffer);
         let page: ExtractedPage;
+
         if (this.env.GEMINI_API_KEY || this.env.GOOGLE_API_KEY) {
           try {
-            page = await geminiOCR(preprocessed, 1, this.env);
+            page = await geminiOCR(base64Image, imageMimeType, 1, this.env);
           } catch (err) {
             console.error(`[DocumentProcessor] Gemini image OCR failed, falling back to DeepSeek:`, err);
-            page = await deepSeekOCR(preprocessed, 1, this.env);
+            page = await deepSeekOCR(base64Image, 1, this.env);
           }
         } else {
-          page = await deepSeekOCR(preprocessed, 1, this.env);
+          page = await deepSeekOCR(base64Image, 1, this.env);
         }
         pages = [page];
         if (page.ocrConfidence < 0.6) {

@@ -141,6 +141,136 @@ async function extractPdfViaOcr(buffer: ArrayBuffer, env: Env): Promise<string |
   }
 }
 
+// ─── MIME Type Detection ───
+
+function detectMimeType(buffer: ArrayBuffer, fileName: string): string {
+  const arr = new Uint8Array(buffer.slice(0, 4));
+  if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) return 'image/png';
+  if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) return 'image/jpeg';
+  if (arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46) return 'image/webp';
+  
+  const ext = fileName.toLowerCase().split('.').pop() ?? '';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+  if (ext === 'webp') return 'image/webp';
+  if (ext === 'heic' || ext === 'heif') return 'image/heic';
+  if (ext === 'tiff' || ext === 'tif') return 'image/tiff';
+  return 'image/png'; // fallback
+}
+
+// ─── Gemini Core Services ───
+
+async function extractImageViaGemini(
+  base64Image: string,
+  mimeType: string,
+  env: Env
+): Promise<string> {
+  const apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY or GOOGLE_API_KEY is not configured");
+  }
+  const model = env.GEMINI_MODEL || "gemini-1.5-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            {
+              inlineData: {
+                mimeType: mimeType === 'image/heic' ? 'image/jpeg' : mimeType,
+                data: base64Image,
+              },
+            },
+            {
+              text: "You are a precise, high-fidelity OCR engine. Extract ALL text from this document image exactly as it appears. Preserve all layout, line breaks, structural elements, and tables as closely as possible. Do not add any conversational text, introductory notes, markdown backticks, or explanation. Return ONLY the raw extracted text.",
+            },
+          ],
+        },
+      ],
+      safetySettings: [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+      ]
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(`Gemini OCR failed (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json() as any;
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error("Gemini returned empty text or failed to generate content.");
+  }
+
+  return text.trim();
+}
+
+async function extractPdfViaGemini(
+  base64Pdf: string,
+  env: Env
+): Promise<string> {
+  const apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY or GOOGLE_API_KEY is not configured");
+  }
+  const model = env.GEMINI_MODEL || "gemini-1.5-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            {
+              inlineData: {
+                mimeType: "application/pdf",
+                data: base64Pdf,
+              },
+            },
+            {
+              text: "You are a precise, high-fidelity OCR engine. Extract ALL text from this PDF exactly as it appears. Preserve all layout, line breaks, structural elements, and tables as closely as possible. Do not add any conversational text, introductory notes, markdown backticks, or explanation. Return ONLY the raw extracted text.",
+            },
+          ],
+        },
+      ],
+      safetySettings: [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+      ]
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(`Gemini PDF OCR failed (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json() as any;
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error("Gemini returned empty text or failed to generate content.");
+  }
+
+  return text.trim();
+}
+
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   if (typeof globalThis !== 'undefined' && (globalThis as any).Buffer) {
     return (globalThis as any).Buffer.from(buffer).toString('base64');
@@ -196,7 +326,11 @@ function extractFromCsv(buffer: ArrayBuffer): ExtractionResult {
  * Main PDF extraction function with layered pipeline.
  * Priority: native text > OCR fallback
  */
-export async function extractPdf(buffer: ArrayBuffer, env: Env): Promise<ExtractionResult> {
+export async function extractPdf(
+  buffer: ArrayBuffer,
+  env: Env,
+  fileName: string = "document.pdf"
+): Promise<ExtractionResult> {
   // Phase 1: Native text extraction (lightweight, handles most text-based PDFs)
   const nativeText = await extractPdfNative(buffer);
   if (nativeText) {
@@ -211,7 +345,28 @@ export async function extractPdf(buffer: ArrayBuffer, env: Env): Promise<Extract
     };
   }
 
-  // Phase 2: Cloudflare AI OCR fallback (for scanned/image-based PDFs)
+  // Phase 2: Try direct Gemini PDF Vision OCR if configured
+  const apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
+  if (apiKey) {
+    try {
+      console.log(`[Extractor] Attempting direct Gemini PDF Vision OCR for ${fileName}...`);
+      const base64 = arrayBufferToBase64(buffer);
+      const text = await extractPdfViaGemini(base64, env);
+      const lineItems = text.split("\n").filter((l) => l.trim().length > 0).length;
+      return {
+        text,
+        pages: 1,
+        lineItems,
+        fileType: "pdf",
+        extractionMethod: "gemini-pdf-ocr",
+        confidenceScore: 95,
+      };
+    } catch (err) {
+      console.error(`[Extractor] Gemini PDF OCR failed, falling back to local OCR:`, err);
+    }
+  }
+
+  // Phase 3: Cloudflare AI OCR fallback (for scanned/image-based PDFs)
   const ocrText = await extractPdfViaOcr(buffer, env);
   if (ocrText) {
     const lineItems = ocrText.split("\n").filter((l) => l.trim().length > 0).length;
@@ -231,7 +386,35 @@ export async function extractPdf(buffer: ArrayBuffer, env: Env): Promise<Extract
 /**
  * Extract text from an image using Cloudflare AI OCR
  */
-export async function extractImage(buffer: ArrayBuffer, env: Env): Promise<ExtractionResult> {
+export async function extractImage(
+  buffer: ArrayBuffer,
+  env: Env,
+  fileName: string = "image.png"
+): Promise<ExtractionResult> {
+  const apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
+
+  if (apiKey) {
+    try {
+      console.log(`[Extractor] Attempting high-speed Gemini OCR for ${fileName}...`);
+      const mimeType = detectMimeType(buffer, fileName);
+      const base64 = arrayBufferToBase64(buffer);
+      const text = await extractImageViaGemini(base64, mimeType, env);
+
+      const lineItems = text.split("\n").filter((l) => l.trim().length > 0).length;
+      return {
+        text,
+        pages: 1,
+        lineItems,
+        fileType: "image",
+        extractionMethod: "gemini-ocr",
+        confidenceScore: 95,
+      };
+    } catch (err) {
+      console.error(`[Extractor] Gemini OCR failed, falling back to local OCR:`, err);
+    }
+  }
+
+  console.log(`[Extractor] Falling back to local Cloudflare AI OCR for ${fileName}...`);
   const ocrText = await ocrImage(buffer, env);
   if (ocrText) {
     const lineItems = ocrText.split("\n").filter((l) => l.trim().length > 0).length;
