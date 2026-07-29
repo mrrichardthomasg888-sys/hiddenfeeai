@@ -749,7 +749,17 @@ export class DocumentProcessor {
       case 'heic': {
         console.log(`[DocumentProcessor] Image path: ${fileType}`);
         const preprocessed = await preprocessImage(buffer);
-        const page = await deepSeekOCR(preprocessed, 1, this.env);
+        let page: ExtractedPage;
+        if (this.env.GEMINI_API_KEY || this.env.GOOGLE_API_KEY) {
+          try {
+            page = await geminiOCR(preprocessed, 1, this.env);
+          } catch (err) {
+            console.error(`[DocumentProcessor] Gemini image OCR failed, falling back to DeepSeek:`, err);
+            page = await deepSeekOCR(preprocessed, 1, this.env);
+          }
+        } else {
+          page = await deepSeekOCR(preprocessed, 1, this.env);
+        }
         pages = [page];
         if (page.ocrConfidence < 0.6) {
           warnings.push(

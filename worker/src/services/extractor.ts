@@ -297,7 +297,7 @@ export async function extractText(
 
   switch (ext) {
     case ".pdf":
-      return extractPdf(buffer, env);
+      return extractPdf(buffer, env, fileName);
     case ".png":
     case ".jpg":
     case ".jpeg":
@@ -305,7 +305,7 @@ export async function extractText(
     case ".tiff":
     case ".tif":
     case ".heic":
-      return extractImage(buffer, env);
+      return extractImage(buffer, env, fileName);
     case ".docx":
     case ".doc":
       return extractDocx(buffer);
