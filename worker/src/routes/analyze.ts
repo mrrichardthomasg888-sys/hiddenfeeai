@@ -3,8 +3,15 @@ import type { Env } from "../types.js";
 import { getJob, updateJob } from "../jobStore.js";
 import { runAudit as runAuditLegacy } from "../services/ai.legacy.js";
 import { AIAnalyzer } from "../services/aiAnalyzer.js";
-import { generatePdf } from "../services/report.js";
+import { generateEnhancedPdf, type EnhancedReportData } from "../services/enhancedReport.js";
 import * as errors from "../utils/errors.js";
+import { generateExecutiveSummary } from "../intelligence/executiveSummary.js";
+import { prioritizeFindings } from "../intelligence/prioritizationEngine.js";
+import { calculateTrustScore } from "../trust/trustScore.js";
+import { generateNegotiationAdvice } from "../intelligence/negotiationEngine.js";
+import { generateEducationTopics } from "../education/consumerEducation.js";
+import { generateActionPlan } from "../intelligence/actionPlanEngine.js";
+import { estimateSavings } from "../intelligence/savingsEstimator.js";
 
 export const analyzeRoute = new Hono<{ Bindings: Env }>();
 
@@ -144,11 +151,34 @@ analyzeRoute.get("/:auditId/pdf", async (c) => {
     throw errors.badFile("The report is not ready yet. Please wait for the analysis to complete.");
   }
 
+  // Define a timeout for PDF generation to prevent Worker CPU limit issues
+  const PDF_GENERATION_TIMEOUT_MS = 25_000; // 25 seconds, well within typical Worker limits
+
   try {
-    const pdfBytes = await generatePdf(
-      job.report,
-      `Audit Report for ${job.fileName ?? "your document"}`
-    );
+    // ── Assemble Full, Premium Report Data ──
+    // This is where we call all the intelligence modules to create a rich dataset
+    // for the premium PDF report, ensuring it's complete and impressive.
+    const enhancedData: EnhancedReportData = {
+      auditReport: job.report,
+      // Generate all the rich components for a professional report
+      executiveSummary: generateExecutiveSummary(job.report),
+      prioritizedFindings: prioritizeFindings(job.report.findings),
+      trustScore: calculateTrustScore(job.report),
+      negotiationAdvice: generateNegotiationAdvice(job.report.findings),
+      educationTopics: generateEducationTopics(job.report.findings),
+      actionPlan: generateActionPlan(job.report.findings),
+      savingsEstimates: estimateSavings(job.report.findings),
+      // The 'explanations' map can be added here if that engine is developed
+    };
+
+    const pdfGenerationPromise = generateEnhancedPdf(enhancedData);
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error("PDF_GENERATION_TIMEOUT"));
+      }, PDF_GENERATION_TIMEOUT_MS);
+    });
+    const pdfBytes = await Promise.race([pdfGenerationPromise, timeoutPromise]);
 
     return new Response(pdfBytes, {
       headers: {
@@ -157,7 +187,11 @@ analyzeRoute.get("/:auditId/pdf", async (c) => {
       },
     });
   } catch (err) {
+    if (err instanceof Error && err.message === "PDF_GENERATION_TIMEOUT") {
+      console.error(`[PDF] Generation timed out for auditId=${auditId}`);
+      throw errors.generic("PDF generation took too long. Please try again later or contact support.");
+    }
     console.error("[PDF] Generation failed:", err);
-    throw errors.generic();
+    throw errors.generic("Failed to generate PDF report.");
   }
 });
