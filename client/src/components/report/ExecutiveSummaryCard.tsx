@@ -1,12 +1,13 @@
 import { motion } from "framer-motion";
 import { Lightbulb, ArrowRight, FileSearch, MessageSquare, AlertTriangle, Target } from "lucide-react";
-import type { Finding } from "@/types/audit";
+import type { HiddenFee } from "@/types/audit";
 
 interface ExecutiveSummaryCardProps {
-  summary: string;
-  topConcerns: Finding[];
-  onViewEvidence?: (finding: Finding) => void;
-  onViewNegotiation?: (finding: Finding) => void;
+  headline: string;
+  overview: string;
+  criticalFindings: string;
+  immediateActions: string;
+  topConcerns: HiddenFee[];
 }
 
 const severityConfig = {
@@ -16,9 +17,13 @@ const severityConfig = {
   Low: { color: "text-blue-400", bg: "card-low", badge: "bg-blue-500/20 text-blue-300" },
 };
 
-export function ExecutiveSummaryCard({ summary, topConcerns, onViewEvidence, onViewNegotiation }: ExecutiveSummaryCardProps) {
-  if (topConcerns.length === 0) return null;
-
+export function ExecutiveSummaryCard({
+  headline,
+  overview,
+  criticalFindings,
+  immediateActions,
+  topConcerns,
+}: ExecutiveSummaryCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
@@ -34,97 +39,118 @@ export function ExecutiveSummaryCard({ summary, topConcerns, onViewEvidence, onV
               <Lightbulb className="h-7 w-7 text-intel-300" />
             </div>
             <div>
-              <h2 className="text-2xl sm:text-3xl font-black text-premium-primary tracking-[-0.02em]">Your Biggest Discoveries</h2>
-              <p className="text-base text-premium-tertiary mt-0.5">Intelligence briefings from our analysis of your document</p>
+              <h2 className="text-2xl sm:text-3xl font-black text-premium-primary tracking-[-0.02em]">Executive Summary</h2>
+              <p className="text-base text-premium-tertiary mt-0.5">Intelligence briefing from our analysis of your document</p>
             </div>
           </div>
-          <p className="mt-6 text-lg sm:text-xl leading-relaxed text-premium-tertiary max-w-3xl">
-            {summary}
+
+          {/* Headline */}
+          {headline && (
+            <div className="mt-6 rounded-xl border border-intel-400/15 bg-intel-400/[0.04] px-5 py-4">
+              <p className="text-lg font-bold text-intel-300 leading-snug">{headline}</p>
+            </div>
+          )}
+
+          {/* Overview */}
+          <p className="mt-5 text-lg sm:text-xl leading-relaxed text-premium-tertiary max-w-3xl">
+            {overview}
           </p>
+
+          {/* Critical findings + immediate action */}
+          {criticalFindings && (
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border border-red-500/10 bg-red-500/[0.04] p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="h-4 w-4 text-red-400/60" />
+                  <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-red-400/60">Critical Findings</p>
+                </div>
+                <p className="text-[16px] leading-relaxed text-premium-secondary">{criticalFindings}</p>
+              </div>
+              {immediateActions && (
+                <div className="rounded-xl border border-savings-500/10 bg-savings-500/[0.04] p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Target className="h-4 w-4 text-savings-400/60" />
+                    <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-savings-400/60">Immediate Action</p>
+                  </div>
+                  <p className="text-[16px] leading-relaxed text-premium-secondary">{immediateActions}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="px-8 sm:px-12 pb-8 sm:pb-12 mt-8 space-y-6">
-        {topConcerns.slice(0, 3).map((f, i) => {
-          const cfg = severityConfig[f.severity] ?? severityConfig.Medium;
-          return (
-            <motion.div
-              key={f.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 + i * 0.12, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              className={`relative overflow-hidden rounded-2xl ${cfg.bg} p-7 sm:p-8`}
-            >
-              <div className="flex items-center gap-4 mb-5">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.08] text-lg font-black text-premium-primary border border-white/[0.06]">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <span className={`rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider ${cfg.badge}`}>
-                  {f.severity === "Critical" ? "CRITICAL RISK" : f.severity === "High" ? "HIGH SEVERITY" : f.severity === "Medium" ? "REVIEW NEEDED" : "INFO"}
-                </span>
-                {f.page && <span className="text-[13px] text-premium-muted font-mono">PG {f.page}</span>}
-              </div>
-
-              <h3 className="text-2xl font-bold text-premium-primary leading-snug tracking-[-0.01em]">{f.title}</h3>
-
-              <div className="mt-6 space-y-5">
-                <div>
-                  <div className="flex items-center gap-2.5 mb-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-400/60" />
-                    <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-amber-400/60">Why This Matters</p>
-                  </div>
-                  <p className="text-[17px] leading-relaxed text-premium-tertiary">
-                    {f.why_it_matters || f.explanation}
-                  </p>
+      {topConcerns.length > 0 && (
+        <div className="px-8 sm:px-12 pb-8 sm:pb-12 mt-8 space-y-6">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-premium-muted">Top Concerns</p>
+          {topConcerns.slice(0, 3).map((f, i) => {
+            const cfg = severityConfig[f.severity] ?? severityConfig.Medium;
+            return (
+              <motion.div
+                key={f.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + i * 0.12, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                className={`relative overflow-hidden rounded-2xl ${cfg.bg} p-7 sm:p-8`}
+              >
+                <div className="flex items-center gap-4 mb-5">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.08] text-lg font-black text-premium-primary border border-white/[0.06]">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span className={`rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider ${cfg.badge}`}>
+                    {f.severity === "Critical" ? "CRITICAL RISK" : f.severity === "High" ? "HIGH SEVERITY" : f.severity === "Medium" ? "REVIEW NEEDED" : "INFO"}
+                  </span>
+                  {f.pageNumber && (
+                    <span className="text-[13px] text-premium-muted font-mono">PG {f.pageNumber}</span>
+                  )}
                 </div>
 
-                {f.recommended_action && (
-                  <div className="rounded-xl border border-savings-500/10 bg-savings-500/[0.04] p-5">
+                <h3 className="text-2xl font-bold text-premium-primary leading-snug tracking-[-0.01em]">{f.title}</h3>
+
+                <div className="mt-6 space-y-5">
+                  <div>
                     <div className="flex items-center gap-2.5 mb-2">
-                      <Target className="h-4 w-4 text-savings-400/60" />
-                      <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-savings-400/60">Your Move</p>
+                      <AlertTriangle className="h-4 w-4 text-amber-400/60" />
+                      <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-amber-400/60">Why This Matters</p>
                     </div>
-                    <p className="text-[17px] leading-relaxed text-premium-primary flex items-start gap-3">
-                      <ArrowRight className="h-5 w-5 mt-0.5 shrink-0 text-savings-400" />
-                      {f.recommended_action}
+                    <p className="text-[17px] leading-relaxed text-premium-tertiary">
+                      {f.whyItMatters || f.explanation}
                     </p>
                   </div>
-                )}
 
-                {/* ── EVIDENCE PREVIEW (visible by default) ── */}
-                {f.evidence && (
-                  <div className="rounded-xl border-l-[3px] border-intel-400/30 bg-gradient-to-r from-intel-400/[0.04] to-transparent p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <FileSearch className="h-4 w-4 text-intel-400/60" />
-                      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-intel-400/60">Evidence Found in Document</p>
+                  {f.recommendedAction && (
+                    <div className="rounded-xl border border-savings-500/10 bg-savings-500/[0.04] p-5">
+                      <div className="flex items-center gap-2.5 mb-2">
+                        <Target className="h-4 w-4 text-savings-400/60" />
+                        <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-savings-400/60">Your Move</p>
+                      </div>
+                      <p className="text-[17px] leading-relaxed text-premium-primary flex items-start gap-3">
+                        <ArrowRight className="h-5 w-5 mt-0.5 shrink-0 text-savings-400" />
+                        {f.recommendedAction}
+                      </p>
                     </div>
-                    <p className="text-[15px] leading-relaxed text-premium-secondary italic">&ldquo;{f.evidence.length > 200 ? f.evidence.slice(0, 200) + "..." : f.evidence}&rdquo;</p>
-                    {f.line_reference && (
-                      <p className="mt-1 text-[11px] text-premium-muted font-mono">Line reference: {f.line_reference}</p>
-                    )}
-                  </div>
-                )}
-
-                {/* ── NAVIGATION BUTTONS ── */}
-                <div className="flex flex-wrap gap-3 pt-3">
-                  {(f.negotiation_message || f.negotiation_strategy) && (
-                    <button onClick={() => onViewNegotiation?.(f)}
-                      className="btn-premium inline-flex items-center gap-2 rounded-xl px-5 py-3 text-[13px]">
-                      <MessageSquare className="h-4 w-4" />
-                      View Negotiation Script
-                    </button>
                   )}
-                  <button onClick={() => onViewEvidence?.(f)}
-                    className="btn-ghost-premium inline-flex items-center gap-2 rounded-xl px-5 py-3 text-[13px]">
-                    <FileSearch className="h-4 w-4" />
-                    View All Findings
-                  </button>
+
+                  {f.evidence && (
+                    <div className="rounded-xl border-l-[3px] border-intel-400/30 bg-gradient-to-r from-intel-400/[0.04] to-transparent p-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <FileSearch className="h-4 w-4 text-intel-400/60" />
+                        <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-intel-400/60">Evidence Found in Document</p>
+                      </div>
+                      <p className="text-[15px] leading-relaxed text-premium-secondary italic">
+                        &ldquo;{f.evidence.length > 200 ? f.evidence.slice(0, 200) + "..." : f.evidence}&rdquo;
+                      </p>
+                      {f.lineReference && (
+                        <p className="mt-1 text-[11px] text-premium-muted font-mono">Line reference: {f.lineReference}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
     </motion.div>
   );
 }

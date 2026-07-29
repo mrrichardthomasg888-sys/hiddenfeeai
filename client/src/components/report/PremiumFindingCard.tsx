@@ -1,10 +1,16 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { FileSearch, Lightbulb, MessageSquare, Copy, Check, AlertTriangle, BookOpen, Target, Scale, DollarSign } from "lucide-react";
-import type { Finding } from "@/types/audit";
+import {
+  FileSearch, Lightbulb, MessageSquare, Copy, Check,
+  BookOpen, Target, Scale, DollarSign, TrendingDown, ExternalLink,
+} from "lucide-react";
+import type { HiddenFee, QuestionableCharge } from "@/types/audit";
+
+// Unified type for both HiddenFee and QuestionableCharge
+type AnyFinding = HiddenFee | QuestionableCharge;
 
 interface PremiumFindingCardProps {
-  finding: Finding;
+  finding: AnyFinding;
   index: number;
 }
 
@@ -53,6 +59,7 @@ export function PremiumFindingCard({ finding, index }: PremiumFindingCardProps) 
   };
 
   const idxStr = String(index + 1).padStart(2, "0");
+  const ns = finding.negotiationStrategy;
 
   return (
     <motion.div
@@ -65,9 +72,8 @@ export function PremiumFindingCard({ finding, index }: PremiumFindingCardProps) 
       <div className={`pointer-events-none absolute inset-0 bg-gradient-to-b ${cfg.gradient}`} />
 
       <div className="relative p-6 sm:p-8">
-        {/* ── HEADER: Number + Severity + Metadata ── */}
+        {/* ── HEADER ── */}
         <div className="flex items-start gap-5 mb-6">
-          {/* Number badge with severity dot */}
           <div className="shrink-0 flex flex-col items-center gap-2">
             <span className={`text-lg font-black tabular-nums ${cfg.color} opacity-50`}>{idxStr}</span>
             <div className="relative flex h-2.5 w-2.5">
@@ -81,14 +87,14 @@ export function PremiumFindingCard({ finding, index }: PremiumFindingCardProps) 
               <span className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${cfg.badge}`}>
                 {finding.severity}
               </span>
-              <span className="text-[13px] font-semibold text-premium-muted">{finding.category}</span>
+              <span className="text-[13px] font-semibold text-premium-muted">{finding.status?.replace("_", " ")}</span>
               <span className="inline-flex items-center gap-1.5 text-[12px] text-premium-muted">
-                <span className="text-premium-secondary font-semibold">{finding.confidence_score}%</span>
+                <span className="text-premium-secondary font-semibold">{finding.confidenceScore}%</span>
                 <span>confidence</span>
               </span>
-              {finding.page && (
+              {finding.pageNumber && (
                 <span className="text-[12px] text-premium-muted font-mono border-l border-white/[0.06] pl-3">
-                  Page {finding.page}
+                  Page {finding.pageNumber}
                 </span>
               )}
             </div>
@@ -109,7 +115,7 @@ export function PremiumFindingCard({ finding, index }: PremiumFindingCardProps) 
           </div>
         </div>
 
-        {/* ── VISIBLE BY DEFAULT: Why This Matters ── */}
+        {/* ── WHY THIS MATTERS ── */}
         <div className="mb-6">
           <div className="flex items-center gap-2.5 mb-2">
             <Lightbulb className="h-4 w-4 text-amber-400/60" />
@@ -120,27 +126,27 @@ export function PremiumFindingCard({ finding, index }: PremiumFindingCardProps) 
           </p>
         </div>
 
-        {/* ── VISIBLE BY DEFAULT: What This Means For You ── */}
-        {finding.why_it_matters && (
+        {/* ── IMPACT ── */}
+        {finding.whyItMatters && (
           <div className="mb-6">
             <div className="flex items-center gap-2.5 mb-2">
               <BookOpen className="h-4 w-4 text-intel-400/60" />
-              <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-intel-400/60">What This Means For You</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-intel-400/60">Impact on You</p>
             </div>
-            <p className="text-[17px] leading-relaxed text-premium-secondary">{finding.why_it_matters}</p>
+            <p className="text-[17px] leading-relaxed text-premium-secondary">{finding.whyItMatters}</p>
           </div>
         )}
 
-        {/* ── VISIBLE BY DEFAULT: Your Move ── */}
-        {finding.recommended_action && (
+        {/* ── RECOMMENDED ACTION ── */}
+        {finding.recommendedAction && (
           <div className="mb-6 rounded-xl border border-savings-500/10 bg-savings-500/[0.04] p-5">
             <div className="flex items-center gap-2.5 mb-2">
               <Target className="h-4 w-4 text-savings-400/60" />
               <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-savings-400/60">Your Move — Recommended Action</p>
             </div>
-            <p className="text-[17px] leading-relaxed text-premium-secondary mb-3">{finding.recommended_action}</p>
+            <p className="text-[17px] leading-relaxed text-premium-secondary mb-3">{finding.recommendedAction}</p>
             <button
-              onClick={(e) => { e.stopPropagation(); handleCopy(finding.recommended_action!, "action"); }}
+              onClick={(e) => { e.stopPropagation(); handleCopy(finding.recommendedAction!, "action"); }}
               className="inline-flex items-center gap-2 rounded-xl btn-premium px-4 py-2.5 text-[12px]"
             >
               {copied === "action" ? <><Check className="h-3.5 w-3.5" /> Copied</> : <><Copy className="h-3.5 w-3.5" /> Copy Action</>}
@@ -148,51 +154,66 @@ export function PremiumFindingCard({ finding, index }: PremiumFindingCardProps) 
           </div>
         )}
 
-        {/* ── VISIBLE BY DEFAULT: Negotiation Strategy ── */}
-        {finding.negotiation_strategy && (
+        {/* ── NEGOTIATION STRATEGY ── */}
+        {ns && (
           <div className="mb-6 rounded-xl border border-trust-400/10 bg-trust-400/[0.03] p-5">
             <div className="flex items-center gap-2.5 mb-3">
               <Scale className="h-4 w-4 text-trust-400/60" />
               <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-trust-400/60">Negotiation Strategy</p>
             </div>
 
-            {/* Difficulty + key points */}
             <div className="flex flex-wrap gap-2 mb-4">
               <span className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${
-                finding.negotiation_strategy.difficulty === "Easy" ? "bg-savings-500/15 text-savings-400" :
-                finding.negotiation_strategy.difficulty === "Medium" ? "bg-amber-500/15 text-amber-400" :
+                ns.difficulty === "Easy" ? "bg-savings-500/15 text-savings-400" :
+                ns.difficulty === "Medium" ? "bg-amber-500/15 text-amber-400" :
                 "bg-red-500/15 text-red-400"
               }`}>
-                {finding.negotiation_strategy.difficulty}
+                {ns.difficulty}
               </span>
-              {finding.negotiation_strategy.key_points.slice(0, 2).map((kp, i) => (
+              {ns.successProbability && (
+                <span className="rounded-full bg-white/[0.04] px-3 py-1 text-[11px] font-medium text-premium-tertiary border border-white/[0.06]">
+                  {ns.successProbability}% success probability
+                </span>
+              )}
+              {ns.estimatedSavings && ns.estimatedSavings > 0 && (
+                <span className="rounded-full bg-savings-500/10 px-3 py-1 text-[11px] font-medium text-savings-400 border border-savings-500/20">
+                  ~${ns.estimatedSavings.toLocaleString()} savings
+                </span>
+              )}
+              {ns.keyPoints?.slice(0, 1).map((kp, i) => (
                 <span key={i} className="rounded-full bg-white/[0.04] px-3 py-1 text-[11px] font-medium text-premium-tertiary border border-white/[0.06]">
                   {kp}
                 </span>
               ))}
             </div>
 
-            {/* Strategy steps visible by default */}
             <ol className="space-y-2">
-              {finding.negotiation_strategy.steps.map((s, j) => (
+              {ns.steps.map((s, j) => (
                 <li key={j} className="flex items-start gap-3 text-[15px] text-premium-secondary leading-relaxed">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-trust-400/10 text-[11px] font-bold text-trust-400">{j + 1}</span>
                   {s}
                 </li>
               ))}
             </ol>
+
+            {ns.escalationPath && (
+              <div className="mt-4 pt-4 border-t border-white/[0.04]">
+                <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-premium-muted mb-1">Escalation Path</p>
+                <p className="text-[14px] text-premium-secondary">{ns.escalationPath}</p>
+              </div>
+            )}
           </div>
         )}
 
-        {/* ── VISIBLE BY DEFAULT: Negotiation Script ── */}
-        {finding.negotiation_message && (
+        {/* ── NEGOTIATION SCRIPT ── */}
+        {"negotiationMessage" in finding && finding.negotiationMessage && (
           <div className="mb-6">
             <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-savings-400/60 mb-2">What To Say (Phone Script)</p>
             <div className="relative rounded-xl border-l-[3px] border-savings-500/30 bg-gradient-to-r from-savings-500/[0.04] to-transparent p-5">
-              <p className="text-[16px] leading-relaxed text-premium-secondary italic">&ldquo;{finding.negotiation_message}&rdquo;</p>
+              <p className="text-[16px] leading-relaxed text-premium-secondary italic">&ldquo;{finding.negotiationMessage}&rdquo;</p>
             </div>
             <button
-              onClick={(e) => { e.stopPropagation(); handleCopy(finding.negotiation_message!, "script"); }}
+              onClick={(e) => { e.stopPropagation(); handleCopy(finding.negotiationMessage!, "script"); }}
               className="mt-3 inline-flex items-center gap-2 rounded-xl btn-premium px-4 py-2.5 text-[12px]"
             >
               {copied === "script" ? <><Check className="h-3.5 w-3.5" /> Copied</> : <><Copy className="h-3.5 w-3.5" /> Copy Phone Script</>}
@@ -200,7 +221,7 @@ export function PremiumFindingCard({ finding, index }: PremiumFindingCardProps) 
           </div>
         )}
 
-        {/* ── EVIDENCE: Collapsible only for long quotes ── */}
+        {/* ── EVIDENCE ── */}
         {finding.evidence && (
           <div className="border-t border-white/[0.04] pt-5">
             <button
@@ -213,8 +234,8 @@ export function PremiumFindingCard({ finding, index }: PremiumFindingCardProps) 
             {showFullEvidence && (
               <div className="mt-3 rounded-xl border-l-[3px] border-intel-400/30 bg-gradient-to-r from-intel-400/[0.04] to-transparent p-5">
                 <p className="text-[15px] leading-relaxed text-premium-secondary italic">&ldquo;{finding.evidence}&rdquo;</p>
-                {finding.line_reference && (
-                  <p className="mt-2 text-[12px] text-premium-muted font-mono">Line reference: {finding.line_reference}</p>
+                {finding.lineReference && (
+                  <p className="mt-2 text-[12px] text-premium-muted font-mono">Line reference: {finding.lineReference}</p>
                 )}
               </div>
             )}

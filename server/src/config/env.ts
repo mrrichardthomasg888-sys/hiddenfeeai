@@ -19,10 +19,9 @@ export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   isProd: process.env.NODE_ENV === "production",
 
-  deepseekApiKey: process.env.DEEPSEEK_API_KEY ?? "",
-  deepseekBaseUrl: process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com",
-  deepseekModel: process.env.DEEPSEEK_MODEL ?? "deepseek-chat",
-  deepseekReasonerModel: process.env.DEEPSEEK_REASONER_MODEL ?? "deepseek-reasoner",
+  // Google Gemini AI — the single document intelligence engine
+  geminiApiKey: process.env.GEMINI_API_KEY ?? "",
+  geminiModel: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
 
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
@@ -34,5 +33,5 @@ export const env = {
 };
 
 export function assertAiConfigured() {
-  required("DEEPSEEK_API_KEY", env.deepseekApiKey || undefined);
+  required("GEMINI_API_KEY", env.geminiApiKey || undefined);
 }

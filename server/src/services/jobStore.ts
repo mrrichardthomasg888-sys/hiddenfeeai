@@ -2,7 +2,7 @@ import type { Job } from "@/types/audit.js";
 
 // Ephemeral in-memory job store.
 // Per the privacy-first architecture: NO user accounts, NO document history.
-// Jobs are transient session state only (upload -> pay -> analyze -> deliver),
+// Jobs are transient session state only (upload → pay → analyze → deliver),
 // auto-purged after TTL regardless of whether the report was downloaded.
 
 const JOB_TTL_MS = 60 * 60 * 1000; // 1 hour

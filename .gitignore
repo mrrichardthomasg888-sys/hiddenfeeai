@@ -26,3 +26,18 @@ capacitor.config.ts
 # Large binaries
 cmdline-tools.zip
 cmdline-tools/
+
+# Test artifacts & temp output
+response.json
+stderr.txt
+stdout.txt
+test_contract.docx
+test_invoice.xlsx
+10}
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Agent configs
+.agents/

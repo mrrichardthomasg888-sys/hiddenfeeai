@@ -145,7 +145,10 @@ analyzeRoute.get("/:auditId/pdf", async (c) => {
   }
 
   try {
-    const pdfBytes = await generatePdf(job.report);
+    const pdfBytes = await generatePdf(
+      job.report,
+      `Audit Report for ${job.fileName ?? "your document"}`
+    );
 
     return new Response(pdfBytes, {
       headers: {

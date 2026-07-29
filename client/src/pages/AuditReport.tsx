@@ -18,8 +18,11 @@ import { PriorityActionCenter } from "@/components/report/PriorityActionCenter";
 import { NegotiationPlaybook } from "@/components/report/NegotiationPlaybook";
 import { ExecutiveSummaryCard } from "@/components/report/ExecutiveSummaryCard";
 import { TrustPanel } from "@/components/report/TrustPanel";
-import { EducationSection } from "@/components/report/EducationSection";
 import { ActionPlanSection } from "@/components/report/ActionPlanSection";
+import { ContractRisksSection } from "@/components/report/ContractRisksSection";
+import { MathErrorsSection } from "@/components/report/MathErrorsSection";
+import { ConsumerRightsSection } from "@/components/report/ConsumerRightsSection";
+import { NegotiationScriptsSection } from "@/components/report/NegotiationScriptsSection";
 
 interface JobState {
   auditId: string;
@@ -30,6 +33,19 @@ interface JobState {
 }
 
 type PageState = "loading" | "verifying_payment" | "analyzing" | "error" | "report";
+
+// Processing stage labels shown during analysis
+const ANALYSIS_STEPS = [
+  "Uploading document",
+  "Reading document content",
+  "Understanding financial structure",
+  "Reviewing every charge",
+  "Detecting hidden fees",
+  "Building negotiation strategy",
+  "Generating executive report",
+  "Preparing downloadable PDF",
+  "Finalizing results",
+];
 
 export function AuditReport() {
   const { auditId } = useParams<{ auditId: string }>();
@@ -42,13 +58,11 @@ export function AuditReport() {
   useEffect(() => {
     if (!auditId) return;
 
-    // Track whether we've successfully started analysis
     let analysisStarted = false;
     let startRetryCount = 0;
     const MAX_START_RETRIES = 10;
 
     const initialize = async () => {
-      // Step 1: Verify payment
       const sessionId = searchParams.get("session_id");
       const paidParam = searchParams.get("paid");
 
@@ -61,37 +75,30 @@ export function AuditReport() {
           if (!verifyRes.ok) {
             throw new Error("Payment verification failed");
           }
-        } catch (err) {
+        } catch {
           setErrorMessage("Payment verification failed. Please try uploading again.");
           setPageState("error");
           return;
         }
 
-        // Step 2: Trigger AI analysis
         setPageState("analyzing");
         try {
           const startRes = await fetch(apiUrl(`/analyze/${auditId}/start`), { method: "POST" });
           if (startRes.ok || startRes.status === 202) {
             analysisStarted = true;
-          } else if (startRes.status !== 404) {
-            // /start failed (e.g. 402 due to KV staleness) — will retry in poll loop
           }
-        } catch (err) {
-          // Network error — will retry in poll loop
+        } catch {
+          // Will retry in poll loop
         }
       }
 
-      // Step 3: Poll for results
       pollForReport();
     };
 
     const startAnalysis = async (): Promise<boolean> => {
       try {
         const startRes = await fetch(apiUrl(`/analyze/${auditId}/start`), { method: "POST" });
-        if (startRes.ok || startRes.status === 202) {
-          return true;
-        }
-        return false;
+        return startRes.ok || startRes.status === 202;
       } catch {
         return false;
       }
@@ -114,23 +121,23 @@ export function AuditReport() {
           if (data.status === "complete") {
             setPageState("report");
           } else if (data.status === "error") {
-            setErrorMessage(data.error || "Analysis failed");
+            setErrorMessage(
+              data.error ||
+                "We encountered an issue analyzing your document. Please try uploading again."
+            );
             setPageState("error");
           } else if (data.status === "paid" || data.status === "extracted") {
-            // Analysis hasn't started yet — retry /start
             if (!analysisStarted && startRetryCount < MAX_START_RETRIES) {
               startRetryCount++;
               const started = await startAnalysis();
-              if (started) {
-                analysisStarted = true;
-              }
+              if (started) analysisStarted = true;
             }
             setTimeout(poll, 1500);
           } else {
-            // Still processing — keep polling
+            setPageState("analyzing");
             setTimeout(poll, 1500);
           }
-        } catch (err) {
+        } catch {
           setErrorMessage("Unable to load your audit report. Please try again.");
           setPageState("error");
         }
@@ -140,27 +147,21 @@ export function AuditReport() {
 
     initialize();
 
-    // Animate analysis steps smoothly while polling
+    // Animate analysis steps
     const animInterval = setInterval(() => {
-      setAnalysisAnimStep((prev) => (prev < 6 ? prev + 1 : 6));
-    }, 1800);
+      setAnalysisAnimStep((prev) => (prev < ANALYSIS_STEPS.length - 1 ? prev + 1 : prev));
+    }, 2200);
     return () => clearInterval(animInterval);
   }, [auditId]);
 
-  // Loading state
+  // ── Loading / analyzing state ──────────────────────────────────────────────
   if (pageState === "loading" || pageState === "verifying_payment" || pageState === "analyzing") {
-    const scanSteps = pageState === "verifying_payment"
+    const isVerifying = pageState === "verifying_payment";
+    const steps = isVerifying
       ? ["Processing payment", "Verifying your purchase", "Starting AI analysis", "Preparing your report"]
-      : [
-          "Reading your document",
-          "Understanding financial structure",
-          "Reviewing every charge",
-          "Checking calculations",
-          "Detecting hidden fees",
-          "Preparing your personalized audit",
-        ];
+      : ANALYSIS_STEPS;
 
-    const currentStep = pageState === "verifying_payment"
+    const currentStep = isVerifying
       ? Math.min(Math.floor(Date.now() / 1000) % 4, 3)
       : analysisAnimStep;
 
@@ -171,20 +172,24 @@ export function AuditReport() {
             <Loader2 className="h-10 w-10 animate-spin text-violet-300" strokeWidth={2.5} />
           </div>
           <h1 className="mt-6 text-2xl font-bold text-violet-100">
-            {pageState === "verifying_payment" ? "Processing Payment" : "AI Audit in Progress"}
+            {isVerifying ? "Processing Payment" : "AI Audit in Progress"}
           </h1>
           <p className="mt-2 text-base font-medium text-violet-300/80">
-            {pageState === "verifying_payment"
+            {isVerifying
               ? "Confirming your payment and preparing analysis."
-              : "Our AI is analyzing every charge and line item."}
+              : "Our AI is analyzing every charge, clause, and line item."}
           </p>
 
           <div className="mt-8 space-y-3 text-left">
-            {scanSteps.map((step, i) => (
+            {steps.map((step, i) => (
               <div
                 key={step}
                 className={`flex items-center gap-3 text-base font-medium transition-colors ${
-                  i <= currentStep ? "text-violet-100" : "text-violet-400/60"
+                  i < currentStep
+                    ? "text-violet-100"
+                    : i === currentStep
+                    ? "text-violet-200"
+                    : "text-violet-400/60"
                 }`}
               >
                 {i < currentStep ? (
@@ -200,14 +205,15 @@ export function AuditReport() {
           </div>
 
           <p className="mt-6 text-sm text-violet-400/60 leading-relaxed">
-            This may take a few minutes for larger or more detailed documents. Please keep this page open while your audit is being completed. If you accidentally leave or refresh the page, your audit will continue and you can return to this report.
+            This may take a few minutes for larger documents. Keep this page open. If you
+            accidentally leave, return to this link — your audit will continue.
           </p>
         </div>
       </div>
     );
   }
 
-  // Error state
+  // ── Error state ────────────────────────────────────────────────────────────
   if (pageState === "error") {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-midnight-950 px-6 text-center">
@@ -226,44 +232,46 @@ export function AuditReport() {
   }
 
   const report = job?.report;
-  if (!report) {
-    return null;
-  }
+  if (!report) return null;
 
-  // ── Compute values for new components ──
-  const documentType = report.document_meta.document_type;
-  const hiddenFeesCount = report.hidden_fees.length;
-  const criticalCount = report.findings.filter(f => f.severity === "Critical").length;
-  const hasNegotiation = report.findings.some(f => f.negotiation_message || f.negotiation_strategy);
-  const topConcerns = [...report.findings].sort(
-    (a, b) => (b.amount ?? 0) - (a.amount ?? 0)
-  ).slice(0, 5);
-  const totalIssues = report.findings.length;
+  // ── Derive display values from new Gemini schema ────────────────────────────
+  const meta = report.documentMetadata;
+  const exec = report.executiveSummary;
+  const allFindings = report.allFindings ?? [];
 
-  // Education topics
-  const educationTopics = [
-    {
-      topic: "Understanding Hidden Fees",
-      whatIsIt: "Hidden fees are charges that are not clearly disclosed in the initial agreement or pricing. They often appear as small line items or vague service charges.",
-      whyItMatters: "These fees can add 10-30% to your total bill without you realizing. Identifying them is the first step to getting them removed.",
-      questionsToAsk: [
-        "What is this fee for exactly?",
-        "Is this fee mandatory or can it be waived?",
-        "Was this charge disclosed in my original agreement?",
-      ],
-      learnMore: "Consumer Financial Protection Bureau",
-      category: "fees",
-    },
-  ];
+  const totalIssues =
+    (report.hiddenFees?.length ?? 0) +
+    (report.questionableCharges?.length ?? 0) +
+    (report.contractRisks?.length ?? 0) +
+    (report.mathematicalErrors?.length ?? 0);
+
+  const hiddenFeesCount = report.hiddenFees?.length ?? 0;
+  const potentialSavings = report.estimatedSavings?.mostLikely ?? 0;
+  const criticalCount = allFindings.filter((f) => f.severity === "Critical").length;
+
+  const hasNegotiation =
+    allFindings.some((f) => f.negotiationMessage || f.negotiationStrategy) ||
+    (report.negotiationLeverage?.length ?? 0) > 0;
+
+  // Top concerns: combine hiddenFees + questionableCharges sorted by severity
+  const severityOrder = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+  const topConcerns = [...allFindings]
+    .sort((a, b) => {
+      const ao = severityOrder[a.severity] ?? 4;
+      const bo = severityOrder[b.severity] ?? 4;
+      if (ao !== bo) return ao - bo;
+      return (b.amount ?? 0) - (a.amount ?? 0);
+    })
+    .slice(0, 5);
 
   return (
     <div id="overview" className="min-h-screen bg-midnight-950 print:bg-midnight-950">
-      {/* Sticky summary bar at top */}
+      {/* Sticky summary bar */}
       <ReportStickySummary
-        riskScore={report.risk_score}
-        riskLevel={report.risk_level}
+        riskScore={report.overallRiskScore}
+        riskLevel={report.riskCategory}
         totalIssues={totalIssues}
-        potentialSavings={report.potential_savings}
+        potentialSavings={potentialSavings}
       />
 
       {/* Sidebar / bottom nav */}
@@ -284,15 +292,18 @@ export function AuditReport() {
 
       <Container className="py-6 sm:py-10 pb-24 lg:pb-10">
         <div className="mx-auto max-w-5xl space-y-8">
+
           {/* ── PREMIUM REPORT HERO ── */}
           <PremiumReportHero
-            documentType={documentType}
-            issuer={report.document_meta.issuer}
-            riskScore={report.risk_score}
-            riskLevel={report.risk_level}
+            documentType={meta.documentType}
+            issuer={meta.issuer}
+            riskScore={report.overallRiskScore}
+            riskLevel={report.riskCategory}
             totalIssues={totalIssues}
-            potentialExposure={report.potential_savings}
-            negotiationOpportunities={report.findings.filter(f => f.negotiation_message || f.negotiation_strategy).length}
+            potentialExposure={potentialSavings}
+            negotiationOpportunities={allFindings.filter(
+              (f) => f.negotiationMessage || f.negotiationStrategy
+            ).length}
             criticalCount={criticalCount}
             hiddenFeesCount={hiddenFeesCount}
           />
@@ -302,111 +313,134 @@ export function AuditReport() {
             <ValueSummaryDashboard
               totalIssues={totalIssues}
               hiddenFeesCount={hiddenFeesCount}
-              potentialSavings={report.potential_savings}
-              confidenceLevel={report.confidence_level}
+              potentialSavings={potentialSavings}
+              confidenceLevel={report.confidence}
             />
           </div>
 
           {/* ── EXECUTIVE SUMMARY ── */}
           <div id="discoveries" className="scroll-mt-16">
             <ExecutiveSummaryCard
-              summary={`Our AI analysis of your ${documentType.toLowerCase()} identified ${totalIssues} ${totalIssues === 1 ? "issue" : "issues"} ${totalIssues > 0 ? "that may require your attention" : ""}.`}
+              headline={exec.headline}
+              overview={exec.overview}
+              criticalFindings={exec.criticalFindings}
+              immediateActions={exec.immediateActions}
               topConcerns={topConcerns}
             />
           </div>
 
-          {/* ── PRIORITY ACTION CENTER (Risk Map) ── */}
+          {/* ── RISK MAP ── */}
           <div id="action-plan" className="scroll-mt-16">
-            <PriorityActionCenter findings={report.findings} />
+            <PriorityActionCenter findings={allFindings} />
           </div>
 
-          {/* ── ACTION PLAN ── */}
           <ActionPlanSection
-            findings={report.findings}
-            riskLevel={report.risk_level}
-            hasNegotiation={hasNegotiation}
+            recommendedActions={report.recommendedActions ?? []}
+            questionsToAsk={report.questionsToAsk ?? []}
           />
 
           {/* ── NEGOTIATION PLAYBOOK ── */}
           {hasNegotiation && (
             <div id="playbook" className="scroll-mt-16">
-              <NegotiationPlaybook findings={report.findings} />
+              <NegotiationPlaybook
+                hiddenFees={report.hiddenFees ?? []}
+                questionableCharges={report.questionableCharges ?? []}
+                negotiationLeverage={report.negotiationLeverage ?? []}
+              />
             </div>
           )}
 
-          {/* ── FINDINGS ── */}
-          <div id="findings-section" className="scroll-mt-16">
-            <div className="flex items-center gap-2 mb-6">
-              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-[-0.02em]">
-                Detailed Findings
-              </h2>
-              <span className="px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.06] text-sm font-semibold text-white/50">
-                {totalIssues}
-              </span>
-            </div>
-
-            {totalIssues > 0 ? (
+          {/* ── HIDDEN FEES ── */}
+          {(report.hiddenFees?.length ?? 0) > 0 && (
+            <div id="findings-section" className="scroll-mt-16">
+              <div className="flex items-center gap-2 mb-6">
+                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-[-0.02em]">
+                  Hidden Fees
+                </h2>
+                <span className="px-3 py-1 rounded-full bg-red-500/15 border border-red-500/20 text-sm font-semibold text-red-300">
+                  {report.hiddenFees.length}
+                </span>
+              </div>
               <div className="space-y-4">
-                {report.findings.map((finding, i) => (
-                  <PremiumFindingCard key={finding.id} finding={finding} index={i} />
+                {report.hiddenFees.map((fee, i) => (
+                  <PremiumFindingCard key={fee.id} finding={fee} index={i} />
                 ))}
               </div>
-            ) : (
-              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-12 text-center">
-                <CheckCircle2 className="mx-auto h-12 w-12 text-savings-500" />
-                <p className="mt-4 text-xl font-bold text-white">No issues found</p>
-                <p className="mt-2 text-sm text-white/40 max-w-md mx-auto">
-                  All charges in your document appear to be correct and properly documented.
-                </p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* ── CLEAN DOCUMENT SUMMARY ── */}
-          {report.clean_document_summary && (
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 sm:p-8">
-              <h2 className="text-xl font-bold text-white mb-4">Document Summary</h2>
-              <div className="grid gap-6 sm:grid-cols-2">
-                {report.clean_document_summary.money_saving_suggestions.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-white/40 mb-2">Savings Suggestions</p>
-                    <ul className="space-y-2">
-                      {report.clean_document_summary.money_saving_suggestions.map((s, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-white/70">
-                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-savings-500" />
-                          {s}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {report.clean_document_summary.questions_to_ask.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-white/40 mb-2">Questions to Ask</p>
-                    <ul className="space-y-2">
-                      {report.clean_document_summary.questions_to_ask.map((q, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-white/70">
-                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-intel-400/60" />
-                          {q}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+          {/* ── QUESTIONABLE CHARGES ── */}
+          {(report.questionableCharges?.length ?? 0) > 0 && (
+            <div id="questionable" className="scroll-mt-16">
+              <div className="flex items-center gap-2 mb-6">
+                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-[-0.02em]">
+                  Questionable Charges
+                </h2>
+                <span className="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/20 text-sm font-semibold text-amber-300">
+                  {report.questionableCharges.length}
+                </span>
+              </div>
+              <div className="space-y-4">
+                {report.questionableCharges.map((charge, i) => (
+                  <PremiumFindingCard key={charge.id} finding={charge} index={i} />
+                ))}
               </div>
             </div>
           )}
 
-          {/* ── CONSUMER EDUCATION ── */}
-          <EducationSection topics={educationTopics} />
+          {/* ── CONTRACT RISKS ── */}
+          {(report.contractRisks?.length ?? 0) > 0 && (
+            <div id="contract-risks" className="scroll-mt-16">
+              <ContractRisksSection risks={report.contractRisks} />
+            </div>
+          )}
+
+          {/* ── MATHEMATICAL ERRORS ── */}
+          {(report.mathematicalErrors?.length ?? 0) > 0 && (
+            <div id="math-errors" className="scroll-mt-16">
+              <MathErrorsSection errors={report.mathematicalErrors} />
+            </div>
+          )}
+
+          {/* ── EMPTY STATE ── */}
+          {totalIssues === 0 && (
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-12 text-center">
+              <CheckCircle2 className="mx-auto h-12 w-12 text-savings-500" />
+              <p className="mt-4 text-xl font-bold text-white">No major issues found</p>
+              <p className="mt-2 text-sm text-white/40 max-w-md mx-auto">
+                All charges in your document appear to be correct and properly documented.
+                {exec.overview && (
+                  <span className="block mt-2">{exec.overview}</span>
+                )}
+              </p>
+            </div>
+          )}
+
+          {/* ── NEGOTIATION SCRIPTS ── */}
+          {((report.phoneNegotiationScript?.length ?? 0) > 0 ||
+            (report.emailNegotiationTemplate?.length ?? 0) > 0) && (
+            <div id="scripts" className="scroll-mt-16">
+              <NegotiationScriptsSection
+                phoneScript={report.phoneNegotiationScript ?? []}
+                emailTemplate={report.emailNegotiationTemplate ?? []}
+              />
+            </div>
+          )}
+
+          {/* ── CONSUMER RIGHTS ── */}
+          {(report.consumerRights?.length ?? 0) > 0 && (
+            <div id="consumer-rights" className="scroll-mt-16">
+              <ConsumerRightsSection rights={report.consumerRights} />
+            </div>
+          )}
 
           {/* ── TRUST PANEL ── */}
           <div id="trust" className="scroll-mt-16">
             <TrustPanel
-              confidenceScore={report.confidence_level}
-              pagesReviewed={report.document_meta.pages_reviewed}
-              lineItemsReviewed={report.document_meta.line_items_reviewed}
-              reportId={report.document_meta.report_id}
+              confidenceScore={report.confidence}
+              pagesReviewed={meta.pagesReviewed}
+              lineItemsReviewed={meta.lineItemsReviewed}
+              reportId={meta.reportId}
             />
           </div>
         </div>
