@@ -226,33 +226,62 @@ function validateAuditReport(report: Partial<AuditReport>): AuditReport {
   return merged;
 }
 
-async function callDeepSeek(messages: DeepSeekMessage[], env: Env): Promise<string> {
-  const apiKey = env.DEEPSEEK_API_KEY;
+async function callGemini(messages: DeepSeekMessage[], env: Env, model: string): Promise<string> {
+  const apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
   if (!apiKey) {
-    throw new Error("DEEPSEEK_API_KEY is not configured. Set it in your Cloudflare Worker secrets.");
+    throw new Error("GEMINI_API_KEY or GOOGLE_API_KEY is not configured.");
   }
 
-  const response = await fetch(`${env.DEEPSEEK_BASE_URL}/v1/chat/completions`, {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  let systemPrompt = "";
+  const contents = messages
+    .filter(m => {
+      if (m.role === "system") {
+        systemPrompt = m.content;
+        return false;
+      }
+      return true;
+    })
+    .map(m => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }]
+    }));
+
+  const requestBody: any = {
+    contents,
+    generationConfig: {
+      maxOutputTokens: 8192,
+      temperature: 0.1,
+      responseMimeType: "application/json"
+    }
+  };
+
+  if (systemPrompt) {
+    requestBody.systemInstruction = {
+      parts: [{ text: systemPrompt }]
+    };
+  }
+
+  const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model: env.DEEPSEEK_MODEL,
-      messages,
-      temperature: 0.1,
-      max_tokens: 12000,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "Unknown error");
-    throw new Error(`DeepSeek API error (${response.status}): ${errorText}`);
+    throw new Error(`Gemini API error (${response.status}): ${errorText}`);
   }
 
-  const data = (await response.json()) as DeepSeekResponse;
-  return data.choices[0]?.message?.content ?? "";
+  const data = (await response.json()) as any;
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error("Gemini returned empty response.");
+  }
+  return text;
 }
 
 /**
@@ -266,7 +295,8 @@ export async function runAudit(input: AuditInput, env: Env): Promise<AuditReport
     { role: "user", content: buildUserMessage(input) },
   ];
 
-  const rawResponse = await callDeepSeek(messages, env);
+  const model = env.GEMINI_PRO_MODEL || env.GEMINI_MODEL || "gemini-1.5-pro";
+  const rawResponse = await callGemini(messages, env, model);
   const parsed = parseAuditResponse(rawResponse);
   const validated = validateAuditReport(parsed);
 

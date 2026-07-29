@@ -142,40 +142,71 @@ CRITICAL RULES:
 - Populate ALL arrays even if empty.
 - Return ONLY valid JSON, no markdown, no explanation.`;
 
-// ─── DeepSeek API caller ───
+// ─── Gemini API caller ───
 
-async function callDeepSeek(
+async function callGemini(
   messages: Array<{ role: string; content: string }>,
   model: string,
   env: Env,
-  maxTokens = 12000
+  maxTokens = 8192
 ): Promise<string> {
-  const apiKey = env.DEEPSEEK_API_KEY;
-  if (!apiKey) throw new Error("DEEPSEEK_API_KEY is not configured");
+  const apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY or GOOGLE_API_KEY is not configured");
 
-  const response = await fetch(`${env.DEEPSEEK_BASE_URL}/v1/chat/completions`, {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  let systemPrompt = "";
+  const contents = messages
+    .filter(m => {
+      if (m.role === "system") {
+        systemPrompt = m.content;
+        return false;
+      }
+      return true;
+    })
+    .map(m => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }]
+    }));
+
+  const requestBody: any = {
+    contents,
+    generationConfig: {
+      maxOutputTokens: maxTokens,
+      temperature: 0.1,
+    }
+  };
+
+  if (systemPrompt) {
+    requestBody.systemInstruction = {
+      parts: [{ text: systemPrompt }]
+    };
+  }
+
+  const isJsonPrompt = messages.some(m => m.content.toLowerCase().includes("json"));
+  if (isJsonPrompt) {
+    requestBody.generationConfig.responseMimeType = "application/json";
+  }
+
+  const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature: 0.1,
-      max_tokens: maxTokens,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "Unknown error");
-    throw new Error(`DeepSeek API error (${response.status}): ${errorText}`);
+    throw new Error(`Gemini API error (${response.status}): ${errorText}`);
   }
 
-  const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  return data.choices?.[0]?.message?.content ?? "";
+  const data = await response.json() as any;
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error("Gemini returned empty response.");
+  }
+  return text;
 }
 
 // ─── JSON parser with fallback ───
@@ -316,7 +347,8 @@ export class AIAnalyzer {
 
     let extractedData: Partial<ExtractedData> = {};
     try {
-      const stage1Raw = await callDeepSeek(stage1Messages, "deepseek-chat", this.env, 8000);
+      const model = this.env.GEMINI_MODEL || "gemini-1.5-flash";
+      const stage1Raw = await callGemini(stage1Messages, model, this.env, 8000);
       extractedData = parseJsonResponse(stage1Raw) as Partial<ExtractedData>;
       console.log(`[AIAnalyzer] Stage 1 complete: ${extractedData.extractedItems?.length || 0} items extracted`);
     } catch (err) {
@@ -339,12 +371,8 @@ export class AIAnalyzer {
 
     let report: AuditReport;
     try {
-      const stage2Raw = await callDeepSeek(
-        stage2Messages,
-        this.env.DEEPSEEK_REASONER_MODEL || "deepseek-reasoner",
-        this.env,
-        16000
-      );
+      const model = this.env.GEMINI_PRO_MODEL || this.env.GEMINI_MODEL || "gemini-1.5-pro";
+      const stage2Raw = await callGemini(stage2Messages, model, this.env, 8192);
       const parsed = parseJsonResponse(stage2Raw) as Partial<AuditReport>;
       report = validateAuditReport(parsed);
       console.log(`[AIAnalyzer] Stage 2 complete: ${report.findings.length} findings`);

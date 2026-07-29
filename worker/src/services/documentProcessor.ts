@@ -133,7 +133,7 @@ async function geminiOCR(
         parts: [
           {
             inlineData: {
-              mimeType: mimeType === 'image/heic' ? 'image/jpeg' : mimeType,
+              mimeType: mimeType,
               data: base64Image,
             },
           },
@@ -544,52 +544,6 @@ async function extractPdfNative(buffer: ArrayBuffer): Promise<string | null> {
 
 // ─── Scanned PDF → page images ───
 
-async function extractPdfPagesAsImages(buffer: ArrayBuffer): Promise<ArrayBuffer[]> {
-  try {
-    const { PDFDocument } = await import('pdf-lib');
-    const pdfDoc = await PDFDocument.load(buffer);
-    const pageImages: ArrayBuffer[] = [];
-    const pageCount = pdfDoc.getPageCount();
-
-    console.log(`[extractPdfPagesAsImages] PDF has ${pageCount} pages`);
-
-    for (let i = 0; i < pageCount; i++) {
-      const page = pdfDoc.getPage(i);
-      const resources = page.node.Resources();
-      if (!resources) continue;
-
-      const xObjects = resources.lookupMaybe('XObject');
-      if (!xObjects) continue;
-
-      let foundImage = false;
-      for (const [_, ref] of xObjects.entries()) {
-        const obj = pdfDoc.context.lookup(ref);
-        if (obj && (obj as any).get && (obj as any).get('Subtype')?.name === 'Image') {
-          const stream = (obj as any).getContents ? (obj as any).getContents() as Uint8Array | null : null;
-          if (stream && stream.length > 100) {
-            const slice = stream.buffer.slice(
-              stream.byteOffset,
-              stream.byteOffset + stream.byteLength
-            );
-            pageImages.push(slice);
-            foundImage = true;
-            break;
-          }
-        }
-      }
-      if (!foundImage) {
-        console.log(`[extractPdfPagesAsImages] Page ${i + 1}: no embedded images found`);
-      }
-    }
-
-    console.log(`[extractPdfPagesAsImages] Extracted ${pageImages.length} images from ${pageCount} pages`);
-    return pageImages;
-  } catch (err) {
-    console.error(`[extractPdfPagesAsImages] Failed: ${err instanceof Error ? err.message : 'Unknown'}`);
-    return [];
-  }
-}
-
 // ─── DOCX extraction ───
 
 async function extractDocx(buffer: ArrayBuffer): Promise<string> {
@@ -676,53 +630,32 @@ export class DocumentProcessor {
 
     switch (fileType) {
       case 'pdf': {
-        console.log('[DocumentProcessor] PDF path started');
-
-        // Step 1: Try native text extraction (improved with decompression)
-        const nativeText = await extractPdfNative(buffer);
-        if (nativeText && nativeText.length > 50) {
-          console.log(`[DocumentProcessor] Native PDF extraction succeeded: ${nativeText.length} chars`);
-          pages = [{
-            pageNumber: 1,
-            text: nativeText,
-            textBlocks: [{ text: nativeText, confidence: 0.9 }],
-            ocrEngine: 'native',
-            ocrConfidence: 0.9
-          }];
-        } else {
-          console.log('[DocumentProcessor] Native extraction insufficient — trying image extraction');
-          // Step 2: Try extracting embedded images (scanned PDF)
-          const images = await extractPdfPagesAsImages(buffer);
-
-          if (images.length > 0) {
-            console.log(`[DocumentProcessor] Extracted ${images.length} images from PDF`);
-            for (let i = 0; i < images.length; i++) {
-              const preprocessed = await preprocessImage(images[i]);
-              const page = await deepSeekOCR(preprocessed, i + 1, this.env);
-              pages.push(page);
-              if (page.ocrConfidence < 0.6) {
-                warnings.push(
-                  `Page ${i + 1} had low OCR confidence (${Math.round(page.ocrConfidence * 100)}%)`
-                );
-              }
+        console.log('[DocumentProcessor] Direct PDF path started');
+        
+        const imageMimeType = detectMimeType(buffer, fileName);
+        const base64Image = arrayBufferToBase64(buffer);
+        
+        if (this.env.GEMINI_API_KEY || this.env.GOOGLE_API_KEY) {
+          try {
+            const { pages: extractedPages } = await geminiExtractDocument(base64Image, imageMimeType, this.env);
+            pages = extractedPages;
+          } catch (err) {
+            console.error(`[DocumentProcessor] Gemini PDF OCR failed, falling back to native text:`, err);
+            const nativeText = await extractPdfNative(buffer);
+            if (nativeText && nativeText.length > 10) {
+              pages = [{
+                pageNumber: 1,
+                text: nativeText,
+                textBlocks: [{ text: nativeText, confidence: 0.5 }],
+                ocrEngine: 'native-fallback',
+                ocrConfidence: 0.5
+              }];
+            } else {
+              throw new Error("Could not extract any content from this PDF document.");
             }
-          } else if (nativeText && nativeText.length > 10) {
-            // Step 3: Use whatever native text we got, even if short
-            console.log(`[DocumentProcessor] Using partial native text: ${nativeText.length} chars`);
-            warnings.push('Limited text extracted. Some content may not have been captured.');
-            pages = [{
-              pageNumber: 1,
-              text: nativeText,
-              textBlocks: [{ text: nativeText, confidence: 0.5 }],
-              ocrEngine: 'native',
-              ocrConfidence: 0.5
-            }];
-          } else {
-            throw new Error(
-              'Could not read this PDF. It may be scanned with complex encoding or contain no extractable text. ' +
-              'Please upload a clearer scan (PNG or JPG) or try a different PDF format.'
-            );
           }
+        } else {
+          throw new Error("No Gemini API key configured for PDF processing");
         }
         break;
       }
@@ -734,23 +667,23 @@ export class DocumentProcessor {
         console.log(`[DocumentProcessor] Image path: ${fileType}`);
         const imageMimeType = detectMimeType(buffer, fileName);
         const base64Image = arrayBufferToBase64(buffer);
-        let page: ExtractedPage;
+        
+        console.log(`[DocumentProcessor] Starting direct Gemini OCR for ${fileName} (${imageMimeType})...`);
 
         if (this.env.GEMINI_API_KEY || this.env.GOOGLE_API_KEY) {
           try {
-            page = await geminiOCR(base64Image, imageMimeType, 1, this.env);
+            const { pages: extractedPages } = await geminiExtractDocument(base64Image, imageMimeType, this.env);
+            pages = extractedPages;
           } catch (err) {
-            console.error(`[DocumentProcessor] Gemini image OCR failed, falling back to DeepSeek:`, err);
-            page = await deepSeekOCR(base64Image, 1, this.env);
+            console.error(`[DocumentProcessor] Gemini image OCR failed:`, err);
+            throw new Error(`Image OCR failed: ${err instanceof Error ? err.message : String(err)}`);
           }
         } else {
-          page = await deepSeekOCR(base64Image, 1, this.env);
+          throw new Error("No Gemini API key configured for image OCR");
         }
-        pages = [page];
-        if (page.ocrConfidence < 0.6) {
-          warnings.push(
-            `Image had low OCR confidence (${Math.round(page.ocrConfidence * 100)}%). Try a clearer photo.`
-          );
+        
+        if (pages.length > 0 && pages[0].ocrConfidence < 0.6) {
+          warnings.push(`Image had low OCR confidence (${Math.round(pages[0].ocrConfidence * 100)}%). Try a clearer photo.`);
         }
         break;
       }

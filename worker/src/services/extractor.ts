@@ -103,58 +103,24 @@ async function extractPdfNative(buffer: ArrayBuffer): Promise<string | null> {
   }
 }
 
-/**
- * OCR via Cloudflare Workers AI for images
- */
-async function ocrImage(imageBuffer: ArrayBuffer, env: Env): Promise<string | null> {
-  try {
-    const base64 = arrayBufferToBase64(imageBuffer);
-    const result = await env.AI.run("@cf/unisys/ocr", {
-      imageBase64: base64,
-    });
-    const text = (result as { text?: string }).text ?? "";
-    return text.trim().length > 10 ? text.trim() : null;
-  } catch (err) {
-    console.log(`[Extractor] Cloudflare AI OCR failed: ${err instanceof Error ? err.message : "Unknown"}`);
-    return null;
-  }
-}
-
-/**
- * Extract text from a PDF using Cloudflare AI OCR
- * This handles both native PDFs that failed native extraction and scanned PDFs
- */
-async function extractPdfViaOcr(buffer: ArrayBuffer, env: Env): Promise<string | null> {
-  try {
-    // Try OCR on the entire PDF buffer (works for some PDFs)
-    const result = await ocrImage(buffer, env);
-    if (result) return result;
-
-    // For multi-page PDFs, we use a simpler approach:
-    // Convert first few pages to images and OCR each
-    // We use a basic approach - OCR the raw bytes as an image
-    // In production, you'd want to use a PDF rendering service
-    
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 // ─── MIME Type Detection ───
 
 function detectMimeType(buffer: ArrayBuffer, fileName: string): string {
   const arr = new Uint8Array(buffer.slice(0, 4));
+  if (arr[0] === 0x25 && arr[1] === 0x50 && arr[2] === 0x44 && arr[3] === 0x46) return 'application/pdf';
   if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) return 'image/png';
   if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) return 'image/jpeg';
   if (arr[0] === 0x52 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x46) return 'image/webp';
+  if (arr[0] === 0x42 && arr[1] === 0x4D) return 'image/bmp';
   
   const ext = fileName.toLowerCase().split('.').pop() ?? '';
+  if (ext === 'pdf') return 'application/pdf';
   if (ext === 'png') return 'image/png';
   if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
   if (ext === 'webp') return 'image/webp';
   if (ext === 'heic' || ext === 'heif') return 'image/heic';
   if (ext === 'tiff' || ext === 'tif') return 'image/tiff';
+  if (ext === 'bmp') return 'image/bmp';
   return 'image/png'; // fallback
 }
 
@@ -183,7 +149,7 @@ async function extractImageViaGemini(
           parts: [
             {
               inlineData: {
-                mimeType: mimeType === 'image/heic' ? 'image/jpeg' : mimeType,
+              mimeType: mimeType,
                 data: base64Image,
               },
             },
@@ -331,21 +297,7 @@ export async function extractPdf(
   env: Env,
   fileName: string = "document.pdf"
 ): Promise<ExtractionResult> {
-  // Phase 1: Native text extraction (lightweight, handles most text-based PDFs)
-  const nativeText = await extractPdfNative(buffer);
-  if (nativeText) {
-    const lineItems = nativeText.split("\n").filter((l) => l.trim().length > 0).length;
-    return {
-      text: nativeText,
-      pages: 1,
-      lineItems,
-      fileType: "pdf",
-      extractionMethod: "native",
-      confidenceScore: 90,
-    };
-  }
-
-  // Phase 2: Try direct Gemini PDF Vision OCR if configured
+  // Phase 1: Try high-fidelity Gemini PDF Vision OCR first (handles both text & scanned layout perfectly)
   const apiKey = env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
   if (apiKey) {
     try {
@@ -362,25 +314,25 @@ export async function extractPdf(
         confidenceScore: 95,
       };
     } catch (err) {
-      console.error(`[Extractor] Gemini PDF OCR failed, falling back to local OCR:`, err);
+      console.error(`[Extractor] Gemini PDF OCR failed, falling back to native text extraction:`, err);
     }
   }
 
-  // Phase 3: Cloudflare AI OCR fallback (for scanned/image-based PDFs)
-  const ocrText = await extractPdfViaOcr(buffer, env);
-  if (ocrText) {
-    const lineItems = ocrText.split("\n").filter((l) => l.trim().length > 0).length;
+  // Phase 2: Native text extraction fallback (offline/lightweight fallback)
+  const nativeText = await extractPdfNative(buffer);
+  if (nativeText) {
+    const lineItems = nativeText.split("\n").filter((l) => l.trim().length > 0).length;
     return {
-      text: ocrText,
+      text: nativeText,
       pages: 1,
       lineItems,
       fileType: "pdf",
-      extractionMethod: "ocr",
-      confidenceScore: 75,
+      extractionMethod: "native",
+      confidenceScore: 90,
     };
   }
 
-  throw errors.badFile("Could not extract text from this PDF. It may be a scanned document or the file may be corrupted. Try uploading a clearer scan or image format (PNG/JPG).");
+  throw errors.badFile("Could not extract text from this PDF. Please verify the file is not corrupted or password protected.");
 }
 
 /**
@@ -410,25 +362,12 @@ export async function extractImage(
         confidenceScore: 95,
       };
     } catch (err) {
-      console.error(`[Extractor] Gemini OCR failed, falling back to local OCR:`, err);
+      console.error(`[Extractor] Gemini OCR failed:`, err);
+      throw errors.badFile(`Could not extract text from this image: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
-  console.log(`[Extractor] Falling back to local Cloudflare AI OCR for ${fileName}...`);
-  const ocrText = await ocrImage(buffer, env);
-  if (ocrText) {
-    const lineItems = ocrText.split("\n").filter((l) => l.trim().length > 0).length;
-    return {
-      text: ocrText,
-      pages: 1,
-      lineItems,
-      fileType: "image",
-      extractionMethod: "image-ocr",
-      confidenceScore: 75,
-    };
-  }
-
-  throw errors.badFile("Could not extract text from this image. Try a clearer scan or a different format.");
+  throw errors.badFile("No Gemini API key is configured. OCR is unavailable.");
 }
 
 /**
@@ -488,6 +427,7 @@ export async function extractText(
     case ".tiff":
     case ".tif":
     case ".heic":
+    case ".bmp":
       return extractImage(buffer, env, fileName);
     case ".docx":
     case ".doc":
