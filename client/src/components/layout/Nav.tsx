@@ -36,7 +36,7 @@ export function Nav() {
 
         <nav aria-label="Primary navigation" className="hidden items-center gap-1 xl:flex">
           {navigation.map(([label, id]) => (
-            <button key={id} onClick={() => goTo(id)} className="rounded-lg px-3 py-2.5 text-[15px] font-bold text-[#dce4ec] transition hover:bg-white/[0.055] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4da3ff]">
+            <button key={id} onClick={() => goTo(id)} className="whitespace-nowrap rounded-lg px-3 py-2.5 text-[15px] font-bold text-[#dce4ec] transition hover:bg-white/[0.055] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4da3ff]">
               {label}
             </button>
           ))}
