@@ -97,12 +97,15 @@ export function AuditReport() {
             apiUrl(`/checkout/verify/${auditId}${sessionId ? `?session_id=${sessionId}` : ""}`)
           );
           if (!verifyRes.ok) {
-            throw new Error("Payment verification failed");
+            // A completed report can be visible before the payment-verification
+            // route sees the same KV record. Continue to the authoritative report
+            // status poll instead of blocking a paid customer on that race.
+            console.warn("Payment verification deferred; checking report status instead.");
           }
         } catch {
-          setErrorMessage("Payment verification failed. Please try uploading again.");
-          setPageState("error");
-          return;
+          // Network interruptions on the return URL are also recoverable: the
+          // report status endpoint will confirm the paid/completed job.
+          console.warn("Payment verification unavailable; checking report status instead.");
         }
 
         setPageState("analyzing");

@@ -53,6 +53,14 @@ export async function rateLimiter(c: Context<{ Bindings: Env }>, next: Next) {
     return;
   }
 
+  // Report pages poll read-only endpoints while an analysis is in progress.
+  // Throttling GET/OPTIONS here turns a normal report refresh into a 429 and
+  // makes the client show a misleading load error. Keep limits for mutations.
+  if (c.req.method === "GET" || c.req.method === "OPTIONS") {
+    await next();
+    return;
+  }
+
   const ip = c.req.header("CF-Connecting-IP") || 
              c.req.header("X-Forwarded-For") || 
              c.req.header("X-Real-IP") || 
@@ -105,6 +113,13 @@ export async function analyzeRateLimiter(c: Context<{ Bindings: Env }>, next: Ne
   const isLocalDev = c.env.ENVIRONMENT === "development" || host.includes("localhost") || host.includes("127.0.0.1");
 
   if (isLocalDev) {
+    await next();
+    return;
+  }
+
+  // Polling an existing report must stay available; only analysis-start writes
+  // consume the stricter analysis budget.
+  if (c.req.method !== "POST") {
     await next();
     return;
   }
