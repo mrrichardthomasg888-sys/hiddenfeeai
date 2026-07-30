@@ -257,7 +257,7 @@ export function UploadCard() {
           <motion.div key="uploading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="flex flex-col items-center gap-4 py-6 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
-            <p className="text-lg font-semibold text-violet-100">{uploadProgress < 25 ? "Uploading document..." : uploadProgress < 50 ? "Gemini accepted the complete file..." : uploadProgress < 75 ? "Gemini is reading every page and term..." : "Validating your structured audit..."}</p>
+            <p className="text-lg font-semibold text-violet-100">{uploadProgress < 55 ? "Uploading document securely..." : "Preparing your document for review..."}</p>
             <div className="w-full max-w-xs">
               <div className="h-2 rounded-full bg-violet-500/10">
                 <div className="h-full rounded-full bg-violet-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />

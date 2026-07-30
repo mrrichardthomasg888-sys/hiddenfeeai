@@ -17,7 +17,7 @@ const pageMetadata: Record<string, Metadata> = {
   "/changelog": { title: "HiddenFeeAI Changelog | Product Updates", description: "Follow HiddenFeeAI product, report, privacy, and reliability updates." },
   "/sitemap": { title: "HiddenFeeAI HTML Sitemap", description: "Browse canonical product, trust, support, and policy pages from HiddenFeeAI." },
   "/search": { title: "Search HiddenFeeAI", description: "Search HiddenFeeAI product documentation, FAQs, and trust resources.", noindex: true },
-  "/privacy": { title: "Privacy and Document Processing | HiddenFeeAI", description: "Learn how HiddenFeeAI temporarily processes uploaded documents, uses Google Gemini, handles Stripe checkout, and deletes original files." },
+  "/privacy": { title: "Privacy and Document Processing | HiddenFeeAI", description: "Learn how HiddenFeeAI securely processes uploaded documents, handles Stripe checkout, and deletes source review data." },
   "/terms": { title: "Terms of Service | HiddenFeeAI", description: "Read the terms for HiddenFeeAI's one-time AI document audit, including limitations, acceptable use, payment, and report access." },
   "/refund": { title: "Refund Policy | HiddenFeeAI", description: "Understand refund eligibility for a HiddenFeeAI document audit and how to contact support about a purchase." },
   "/contact": { title: "Contact HiddenFeeAI Support", description: "Contact HiddenFeeAI about uploads, payment, document analysis, reports, privacy, or account-free audit support." },

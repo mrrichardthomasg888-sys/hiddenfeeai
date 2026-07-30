@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AnalysisProgress, Env } from "../types.js";
 import { createJob, updateJob } from "../jobStore.js";
 import { isAcceptedExtension } from "../router/documentRouter.js";
-import { auditFileDirectly } from "../services/geminiDirectAudit.js";
+import { prepareFileForAudit } from "../services/geminiDirectAudit.js";
 import * as errors from "../utils/errors.js";
 import { validateUpload } from "../middleware/inputValidation.js";
 
@@ -30,14 +30,14 @@ uploadRoute.post("/", async (c) => {
   await createJob(auditId, validation.sanitizedFileName);
   await updateJob(auditId, { status: "extracting", progress: progress("analyzing", file, { geminiRequestStatus: "running" }) });
   try {
-    const report = await auditFileDirectly(file, c.env, auditId);
-    console.log(`[PIPELINE] auditId=${auditId} stage=report_generation_started findings=${report.findings.length}`);
-    await updateJob(auditId, { status: "extracted", report, resultState: report.findings.length ? "findings_found" : "no_findings_complete", progress: progress("reporting", file, { totalPages: report.document_meta.pages_reviewed, processedPages: report.document_meta.pages_reviewed, geminiRequestStatus: "succeeded", geminiResponseStatus: "valid", complete: true }) });
+    const prepared = await prepareFileForAudit(file, c.env, auditId);
+    await updateJob(auditId, { status: "extracted", geminiFile: prepared, progress: progress("preparing", file, { geminiRequestStatus: "succeeded", geminiResponseStatus: "not_started", complete: true }) });
     return c.json({ auditId, status: "extracted", fileName: validation.sanitizedFileName, fileSize: file.size }, 201);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Document analysis failed.";
-    console.error(`[PIPELINE] auditId=${auditId} stage=failed error="${message.replace(/"/g, "'")}"`);
-    await updateJob(auditId, { status: "error", error: message, resultState: "unreadable", progress: progress("failed", file, { failedUnits: ["complete file"], retryAttempts: 3, geminiRequestStatus: "failed", geminiResponseStatus: "failed" }) });
-    return c.json({ auditId, status: "error", error: message }, 422);
+    const internalMessage = error instanceof Error ? error.message : "Document preparation failed.";
+    const customerMessage = /no pages|corrupt|unsupported|password|encrypted/i.test(internalMessage) ? "This file is corrupted, password-protected, or cannot be read." : "We couldn't prepare this document. Please try again.";
+    console.error(`[PIPELINE] auditId=${auditId} stage=failed error="${internalMessage.replace(/"/g, "'")}"`);
+    await updateJob(auditId, { status: "error", error: customerMessage, resultState: "unreadable", progress: progress("failed", file, { failedUnits: ["complete file"], retryAttempts: 3, geminiRequestStatus: "failed", geminiResponseStatus: "failed" }) });
+    return c.json({ auditId, status: "error", error: customerMessage }, 422);
   }
 });

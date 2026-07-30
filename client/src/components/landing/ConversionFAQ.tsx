@@ -8,7 +8,7 @@ const questions = [
   ["How long does the review take?", "Most files finish in seconds to a few minutes. Larger documents and files with many images can take longer."],
   ["Is my payment information handled by HiddenFeeAI?", "Payment is completed on Stripe-hosted checkout. HiddenFeeAI does not receive or store your full payment-card details."],
   ["What happens to my uploaded document?", "The original file is kept temporarily while your report is created and removed when the review completes or fails. The report remains available temporarily through your private link so you can review and download it."],
-  ["Is my file used to train AI?", "HiddenFeeAI does not add uploaded files to its own training dataset. Google Gemini reads the document to create the requested audit; see the Privacy Policy for details."],
+  ["Is my file used to train AI?", "HiddenFeeAI does not add uploaded files to its own training dataset. Your file is processed only to create the requested audit; see the Privacy Policy for details."],
   ["Can HiddenFeeAI guarantee savings or a refund?", "No. The report identifies document-backed concerns and possible opportunities. Results depend on the document and provider, and no refund, savings, legal result, or negotiation outcome is guaranteed."],
   ["Is this legal, tax, accounting, or financial advice?", "No. HiddenFeeAI provides an informational document review. Important decisions and high-value disputes may require a qualified attorney, accountant, tax professional, or financial adviser."],
   ["What if the document is difficult to read?", "HiddenFeeAI will try to read the file. If it is password-protected, corrupted, blank, or too unclear, you will see what went wrong and can upload a clearer or unlocked version."],

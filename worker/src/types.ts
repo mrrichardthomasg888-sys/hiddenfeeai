@@ -166,6 +166,7 @@ export interface Job {
   report?: AuditReport;
   resultState?: "findings_found" | "no_findings_complete" | "partial_analysis" | "unreadable";
   progress?: AnalysisProgress;
+  geminiFile?: { uri: string; name: string; mimeType: string; originalFileName: string };
 }
 
 export interface AnalysisProgress {

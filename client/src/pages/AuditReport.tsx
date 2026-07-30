@@ -31,6 +31,7 @@ interface JobState {
   fileName?: string;
   error?: string;
   report?: AuditReport;
+  paid?: boolean;
 }
 
 type PageState = "loading" | "verifying_payment" | "analyzing" | "error" | "report";
@@ -81,6 +82,23 @@ export function AuditReport() {
   const [job, setJob] = useState<JobState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [analysisAnimStep, setAnalysisAnimStep] = useState(0);
+
+  const retryAnalysis = async () => {
+    if (!auditId) return;
+    setErrorMessage(null);
+    setPageState("analyzing");
+    try {
+      const response = await fetch(apiUrl(`/analyze/${auditId}/start`), { method: "POST" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error || "The audit could not be restarted.");
+      }
+      window.location.reload();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "The audit could not be restarted.");
+      setPageState("error");
+    }
+  };
 
   useEffect(() => {
     if (!auditId) return;
@@ -269,9 +287,10 @@ export function AuditReport() {
         <p className="mt-3 max-w-sm text-base leading-[1.7] text-[#dce4ec]">
           {errorMessage || "We couldn't complete the audit. Please try uploading your document again."}
         </p>
-        <Link to="/" className="mt-6">
-          <Button variant="violet">Upload a new document</Button>
-        </Link>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          {job?.paid && <Button variant="violet" onClick={retryAnalysis}>Retry audit</Button>}
+          <Link to="/"><Button variant="outline">Upload a new document</Button></Link>
+        </div>
       </div>
     );
   }

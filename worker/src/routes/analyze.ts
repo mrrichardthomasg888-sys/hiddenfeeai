@@ -12,6 +12,7 @@ import { generateNegotiationAdvice } from "../intelligence/negotiationEngine.js"
 import { generateEducationTopics } from "../education/consumerEducation.js";
 import { generateActionPlan } from "../intelligence/actionPlanEngine.js";
 import { estimateSavings } from "../intelligence/savingsEstimator.js";
+import { auditPreparedFile } from "../services/geminiDirectAudit.js";
 
 export const analyzeRoute = new Hono<{ Bindings: Env }>();
 
@@ -75,7 +76,7 @@ analyzeRoute.get("/:auditId", async (c) => {
   }
 
   // Don't expose extracted text or full document structure to the client
-  const { extractedText, extractedDocument, ...safeJob } = job;
+  const { extractedText, extractedDocument, geminiFile, ...safeJob } = job;
   // Normalize legacy snake_case report to camelCase frontend format
   const report = safeStatus === "complete" && safeJob.report ? normalizeReportForFrontend(safeJob.report) : undefined;
   return c.json({ ...safeJob, report, status: safeStatus });
@@ -91,7 +92,7 @@ analyzeRoute.post("/:auditId/start", async (c) => {
 
   if (!job) throw errors.jobNotFound();
 
-  if (job.status !== "extracted" && job.status !== "paid") {
+  if (job.status !== "extracted" && job.status !== "paid" && !(job.status === "error" && job.geminiFile && job.paid)) {
     throw errors.badFile("We couldn't start the analysis. Make sure your document is uploaded and payment is confirmed.");
   }
 
@@ -104,13 +105,24 @@ analyzeRoute.post("/:auditId/start", async (c) => {
     throw errors.notPaid();
   }
 
-  // The direct pipeline completes the Gemini audit during the upload request
-  // and holds the report behind the payment gate. No extracted-text pass is
-  // needed and no source document is retained by HiddenFeeAI.
-  if (job.report) {
-    await updateJob(auditId, { status: "complete", progress: job.progress ? { ...job.progress, stage: "complete", complete: true } : undefined });
-    console.log(`[PIPELINE] auditId=${auditId} stage=report_displayed findings=${job.report.findings.length}`);
-    return c.json({ auditId, status: "complete" }, 200);
+  // Current flow: only the file upload happens before payment. The paid start
+  // request stays open while the audit runs, so the frontend remains on its
+  // processing screen and no inference is purchased for unpaid uploads.
+  if (job.geminiFile) {
+    const startedAt = Date.now();
+    await updateJob(auditId, { status: "analyzing", progress: job.progress ? { ...job.progress, stage: "analyzing", geminiRequestStatus: "running", geminiResponseStatus: "not_started", complete: false } : undefined });
+    try {
+      const report = await auditPreparedFile(job.geminiFile, c.env, auditId);
+      await updateJob(auditId, { status: "complete", report, geminiFile: undefined, resultState: report.findings.length ? "findings_found" : "no_findings_complete", progress: job.progress ? { ...job.progress, stage: "complete", geminiRequestStatus: "succeeded", geminiResponseStatus: "valid", complete: true } : undefined });
+      console.log(`[PIPELINE] auditId=${auditId} stage=report_displayed durationMs=${Date.now() - startedAt} findings=${report.findings.length}`);
+      return c.json({ auditId, status: "complete" }, 200);
+    } catch (error) {
+      const internalMessage = error instanceof Error ? error.message : "Document analysis failed.";
+      const customerMessage = "We couldn't complete your audit. Please retry the analysis or contact support.";
+      console.error(`[PIPELINE] auditId=${auditId} stage=paid_analysis_failed error="${internalMessage.replace(/"/g, "'")}"`);
+      await updateJob(auditId, { status: "error", error: customerMessage, resultState: "unreadable", progress: job.progress ? { ...job.progress, stage: "failed", geminiRequestStatus: "failed", geminiResponseStatus: "failed", complete: false } : undefined });
+      return c.json({ auditId, status: "error", error: customerMessage }, 422);
+    }
   }
   if (!job.extractedText) throw errors.badFile("The document analysis is unavailable. Please upload the file again.");
 

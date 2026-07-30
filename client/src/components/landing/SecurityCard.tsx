@@ -4,7 +4,7 @@ import { Container } from "@/components/layout/Container";
 
 const protections = [
   { icon: Lock, title: "Protected in transit", desc: "Uploads and reports move through HTTPS-protected connections." },
-  { icon: ExternalLink, title: "Know who handles your file", desc: "Google Gemini reads the document for your audit. Stripe hosts checkout." },
+  { icon: ExternalLink, title: "Secure document processing", desc: "Your document is processed only to create your audit. Stripe hosts checkout." },
   { icon: Trash2, title: "Original file deleted", desc: "The uploaded file is removed when the review completes or fails." },
   { icon: FileClock, title: "Temporary report access", desc: "Your private report link remains available only for a limited session." },
 ];

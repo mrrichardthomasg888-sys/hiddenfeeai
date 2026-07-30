@@ -81,7 +81,7 @@ function validateReport(value: any, auditId: string): AuditReport {
   return { ...value, document_meta: { ...value.document_meta, analysis_date: new Date().toISOString(), report_id: auditId }, findings, math_errors: findings.filter((f) => f.category === "Math Error" || f.category === "Billing Error"), duplicate_charges: findings.filter((f) => f.category === "Duplicate Charge"), hidden_fees: findings.filter((f) => /fee|charge|surcharge|tax/i.test(f.category)), contract_risks: findings.filter((f) => !/math|duplicate/i.test(f.category)), clean_document_summary: findings.length ? null : { spending_breakdown: [], cost_categories: [], key_terms: [], negotiation_opportunities: [], questions_to_ask: [], money_saving_suggestions: [] } } as AuditReport;
 }
 
-export async function auditFileDirectly(file: File, env: Env, auditId: string): Promise<AuditReport> {
+export async function prepareFileForAudit(file: File, env: Env, auditId: string): Promise<{ uri: string; name: string; mimeType: string; originalFileName: string }> {
   const extension = file.name.split(".").pop()?.toLowerCase() || "";
   let geminiFile = file;
   if (["doc", "docx", "xls", "xlsx"].includes(extension)) {
@@ -92,8 +92,13 @@ export async function auditFileDirectly(file: File, env: Env, auditId: string): 
     console.log(`[PIPELINE] auditId=${auditId} stage=office_normalization_completed sourceBytes=${file.size} normalizedBytes=${geminiFile.size} worksheets=${extracted.coverage?.processedWorksheets || 0} images=${extracted.coverage?.processedImages || 0}`);
   }
   const uploaded = await uploadFile(geminiFile, env, auditId);
+  await waitUntilActive(uploaded, env, auditId);
+  return { ...uploaded, originalFileName: file.name };
+}
+
+export async function auditPreparedFile(uploaded: { uri: string; name: string; mimeType: string }, env: Env, auditId: string): Promise<AuditReport> {
+  let completed = false;
   try {
-    await waitUntilActive(uploaded, env, auditId);
     console.log(`[PIPELINE] auditId=${auditId} stage=gemini_processing_started file=${uploaded.name}`);
     let lastError: unknown;
     for (let attempt = 1; attempt <= 3; attempt++) {
@@ -110,11 +115,12 @@ export async function auditFileDirectly(file: File, env: Env, auditId: string): 
         console.log(`[PIPELINE] auditId=${auditId} stage=gemini_response_received chars=${text.length} attempt=${attempt}`);
         const report = validateReport(JSON.parse(text), auditId);
         console.log(`[PIPELINE] auditId=${auditId} stage=structured_result_validated findings=${report.findings.length}`);
+        completed = true;
         return report;
       } catch (error) { lastError = error; console.warn(`[PIPELINE] auditId=${auditId} stage=retry attempt=${attempt} error="${error instanceof Error ? error.message : String(error)}"`); }
     }
     throw lastError instanceof Error ? lastError : new Error("Gemini analysis failed.");
   } finally {
-    fetch(`https://generativelanguage.googleapis.com/v1beta/${uploaded.name}`, { method: "DELETE", headers: { "x-goog-api-key": apiKey(env) } }).catch(() => undefined);
+    if (completed) fetch(`https://generativelanguage.googleapis.com/v1beta/${uploaded.name}`, { method: "DELETE", headers: { "x-goog-api-key": apiKey(env) } }).catch(() => undefined);
   }
 }
