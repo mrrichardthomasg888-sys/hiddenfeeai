@@ -74,15 +74,16 @@ export function Hero() {
               <p>See what deserves attention, what it may cost, and what to ask next.</p>
             </div>
 
-            <div className="mt-5 flex max-w-xl flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13px] font-bold leading-6 text-[#c8d3df]" aria-label="Trust signals">
-              <span className="text-[#76ecba]">✓</span>
-              <span>Private</span><span aria-hidden="true" className="text-[#718096]">•</span>
-              <span>AI Analysis in Minutes</span><span aria-hidden="true" className="text-[#718096]">•</span>
-              <span>No Subscription</span><span aria-hidden="true" className="text-[#718096]">•</span>
-              <span>Secure Document Processing.</span>
+            <div className="mt-5 grid max-w-xl grid-cols-2 gap-2 text-[11px] font-bold leading-5 text-[#c8d3df] sm:flex sm:flex-nowrap sm:items-center sm:gap-x-2.5 sm:gap-y-1.5 sm:text-[13px] sm:leading-6 lg:flex-wrap xl:flex-nowrap" aria-label="Trust signals">
+              {[
+                "✓ Private",
+                "AI Analysis in Minutes",
+                "No Subscription",
+                "Secure Document Processing.",
+              ].map((item) => <span key={item} className="inline-flex min-h-8 min-w-0 items-center justify-center whitespace-nowrap rounded-full border border-white/[0.1] bg-white/[0.035] px-2.5 text-center sm:min-h-0 sm:justify-start sm:border-0 sm:bg-transparent sm:px-0">{item}</span>)}
             </div>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-12 flex flex-col gap-3 sm:mt-8 sm:flex-row">
               <button
                 type="button"
                 onClick={openUpload}

@@ -27,7 +27,7 @@ export function Nav() {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/[0.09] bg-[#050911]/90 shadow-[0_12px_40px_rgba(0,0,0,.24)] backdrop-blur-2xl">
+    <header className="sticky top-0 z-50 border-b border-white/[0.09] bg-[#050911]/90 pt-[env(safe-area-inset-top)] shadow-[0_12px_40px_rgba(0,0,0,.24)] backdrop-blur-2xl">
       <div className="h-[2px] bg-gradient-to-r from-transparent via-[#4da3ff]/70 to-[#f4c542]/70" />
       <Container className="flex h-[70px] max-w-[1240px] items-center justify-between gap-4 lg:h-[78px]">
         <Link to="/" aria-label="HiddenFeeAI home" className="shrink-0">
