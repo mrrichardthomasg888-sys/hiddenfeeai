@@ -49,7 +49,7 @@ export function Hero() {
   };
 
   return (
-    <section className="relative overflow-hidden border-b border-white/[0.08] bg-[#050911] pb-12 pt-10 sm:pb-16 sm:pt-14 lg:pb-20 lg:pt-16">
+    <section className="relative overflow-hidden border-b border-white/[0.08] bg-[#050911] pb-[calc(140px+env(safe-area-inset-bottom))] pt-8 sm:pb-16 sm:pt-14 lg:pb-20 lg:pt-16">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_12%,rgba(77,163,255,.18),transparent_31%),radial-gradient(circle_at_10%_74%,rgba(244,197,66,.07),transparent_28%)]" />
       <div className="enterprise-grid pointer-events-none absolute inset-0 opacity-60" />
 
@@ -61,19 +61,28 @@ export function Hero() {
             transition={{ duration: 0.45 }}
             className="pt-2 lg:sticky lg:top-28"
           >
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#36d399]/25 bg-[#36d399]/[0.07] px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#76ecba]">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#36d399]/25 bg-[#36d399]/[0.07] px-4 py-1.5 text-xs font-extrabold uppercase tracking-[0.11em] text-[#76ecba]">
               <Check className="h-4 w-4 shrink-0" strokeWidth={3} /> See what&apos;s really hiding in your documents
             </div>
 
-            <h1 className="mt-7 max-w-2xl text-[44px] font-black leading-[1.01] tracking-[-0.055em] text-white sm:text-6xl lg:text-[64px]">
+            <h1 className="mt-9 max-w-2xl text-[44px] font-black leading-[1.01] tracking-[-0.055em] text-white sm:text-6xl lg:text-[64px]">
               Find hidden fees <span className="text-[#f4c542]">before they cost you money.</span>
             </h1>
 
-            <p className="mt-7 max-w-xl text-lg font-semibold leading-[1.72] text-[#dce4ec] sm:text-xl">
-              Upload a bill, contract, invoice, receipt, or statement. See what deserves attention, understand what it may cost, and get the evidence and questions to respond with confidence.
-            </p>
+            <div className="mt-6 max-w-xl space-y-3 text-[18px] font-semibold leading-[1.6] text-[#dce4ec] sm:text-xl">
+              <p>Upload a bill, contract, invoice, receipt, or statement.</p>
+              <p>See what deserves attention, what it may cost, and what to ask next.</p>
+            </div>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-5 flex max-w-xl flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13px] font-bold leading-6 text-[#c8d3df]" aria-label="Trust signals">
+              <span className="text-[#76ecba]">✓</span>
+              <span>Private</span><span aria-hidden="true" className="text-[#718096]">•</span>
+              <span>AI Analysis in Minutes</span><span aria-hidden="true" className="text-[#718096]">•</span>
+              <span>No Subscription</span><span aria-hidden="true" className="text-[#718096]">•</span>
+              <span>Secure Document Processing.</span>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
                 onClick={openUpload}
