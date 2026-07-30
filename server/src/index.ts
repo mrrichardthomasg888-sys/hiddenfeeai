@@ -1,11 +1,11 @@
 import express from "express";
 import cors from "cors";
-import { env } from "@/config/env.js";
-import { healthRouter } from "@/routes/health.js";
-import { uploadRouter } from "@/routes/upload.js";
-import { analyzeRouter } from "@/routes/analyze.js";
-import { checkoutRouter } from "@/routes/checkout.js";
-import { errorHandler, notFoundHandler } from "@/middleware/errorHandler.js";
+import { env } from "./config/env.js";
+import { healthRouter } from "./routes/health.js";
+import { uploadRouter } from "./routes/upload.js";
+import { analyzeRouter } from "./routes/analyze.js";
+import { checkoutRouter } from "./routes/checkout.js";
+import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 
 const app = express();
 
@@ -24,6 +24,10 @@ app.use("/api/health", healthRouter);
 app.use("/api/upload", uploadRouter);
 app.use("/api/analyze", analyzeRouter);
 app.use("/api/checkout", checkoutRouter);
+
+// Keep API failures consistent and safe for the client to display.
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 app.listen(env.port, () => {
   console.log(`HiddenFeeAI server listening on http://localhost:${env.port}`);

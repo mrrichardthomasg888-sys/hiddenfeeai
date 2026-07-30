@@ -1,21 +1,29 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Landing } from "@/pages/Landing";
-import { AuditReport } from "@/pages/AuditReport";
-import { NotFound } from "@/pages/NotFound";
-import { Privacy } from "@/pages/Privacy";
-import { Terms } from "@/pages/Terms";
-import { Refund } from "@/pages/Refund";
-import { Contact } from "@/pages/Contact";
-import { FAQ } from "@/pages/FAQ";
-import { HiddenFeesCarPurchase } from "@/pages/HiddenFeesCarPurchase";
-import { HiddenChargesMedicalBills } from "@/pages/HiddenChargesMedicalBills";
-import { ReviewContractsHiddenCosts } from "@/pages/ReviewContractsHiddenCosts";
-import { HiddenFeesUtilityBills } from "@/pages/HiddenFeesUtilityBills";
+import { PageMetadata } from "@/components/seo/PageMetadata";
+
+const AuditReport = lazy(() => import("@/pages/AuditReport").then((m) => ({ default: m.AuditReport })));
+const NotFound = lazy(() => import("@/pages/NotFound").then((m) => ({ default: m.NotFound })));
+const Privacy = lazy(() => import("@/pages/Privacy").then((m) => ({ default: m.Privacy })));
+const Terms = lazy(() => import("@/pages/Terms").then((m) => ({ default: m.Terms })));
+const Refund = lazy(() => import("@/pages/Refund").then((m) => ({ default: m.Refund })));
+const Contact = lazy(() => import("@/pages/Contact").then((m) => ({ default: m.Contact })));
+const FAQ = lazy(() => import("@/pages/FAQ").then((m) => ({ default: m.FAQ })));
+const HiddenFeesCarPurchase = lazy(() => import("@/pages/HiddenFeesCarPurchase").then((m) => ({ default: m.HiddenFeesCarPurchase })));
+const HiddenChargesMedicalBills = lazy(() => import("@/pages/HiddenChargesMedicalBills").then((m) => ({ default: m.HiddenChargesMedicalBills })));
+const ReviewContractsHiddenCosts = lazy(() => import("@/pages/ReviewContractsHiddenCosts").then((m) => ({ default: m.ReviewContractsHiddenCosts })));
+const HiddenFeesUtilityBills = lazy(() => import("@/pages/HiddenFeesUtilityBills").then((m) => ({ default: m.HiddenFeesUtilityBills })));
+
+function RouteFallback() {
+  return <div className="min-h-screen bg-midnight-950" aria-label="Loading page" />;
+}
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
+      <PageMetadata />
+      <Suspense fallback={<RouteFallback />}><Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/report/:auditId" element={<AuditReport />} />
         <Route path="/privacy" element={<Privacy />} />
@@ -28,7 +36,7 @@ function App() {
         <Route path="/review-contracts-hidden-costs" element={<ReviewContractsHiddenCosts />} />
         <Route path="/hidden-fees-utility-subscription-bills" element={<HiddenFeesUtilityBills />} />
         <Route path="*" element={<NotFound />} />
-      </Routes>
+      </Routes></Suspense>
     </BrowserRouter>
   );
 }

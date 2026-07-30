@@ -43,7 +43,7 @@ export function NegotiationScriptsSection({
 
       <div className="relative p-8 sm:p-12">
         <h2 className="text-2xl sm:text-3xl font-black text-premium-primary tracking-[-0.02em] mb-8">
-          Negotiation Scripts
+          Ready-to-Use Scripts
         </h2>
 
         <div className="grid gap-8 lg:grid-cols-2">
@@ -55,7 +55,7 @@ export function NegotiationScriptsSection({
                   <div className="h-10 w-10 rounded-xl bg-trust-400/10 border border-trust-400/20 flex items-center justify-center">
                     <Phone className="h-5 w-5 text-trust-400" />
                   </div>
-                  <h3 className="text-lg font-bold text-premium-primary">Phone Script</h3>
+                  <h3 className="text-lg font-bold text-premium-primary">What to Say on the Phone</h3>
                 </div>
                 <button
                   onClick={handleCopyPhone}
@@ -95,7 +95,7 @@ export function NegotiationScriptsSection({
                   <div className="h-10 w-10 rounded-xl bg-savings-400/10 border border-savings-400/20 flex items-center justify-center">
                     <Mail className="h-5 w-5 text-savings-400" />
                   </div>
-                  <h3 className="text-lg font-bold text-premium-primary">Email Template</h3>
+                  <h3 className="text-lg font-bold text-premium-primary">Email You Can Send</h3>
                 </div>
                 <button
                   onClick={handleCopyEmail}

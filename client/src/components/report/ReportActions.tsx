@@ -29,8 +29,8 @@ export function ReportActions({ auditId }: ReportActionsProps) {
     try {
       if (navigator.share) {
         await navigator.share({
-          title: "HiddenFeeAI Audit Report",
-          text: "Check out my HiddenFeeAI audit report",
+          title: "My HiddenFeeAI Professional Audit Report",
+          text: "Here is my HiddenFeeAI document audit report.",
           url,
         });
         showFeedback("success", "Shared successfully!");
@@ -63,7 +63,7 @@ export function ReportActions({ auditId }: ReportActionsProps) {
   };
 
   return (
-    <div className="print:hidden sticky bottom-0 border-t border-violet-500/20 bg-midnight-950/95 backdrop-blur-xl z-50">
+    <div className="report-actions print:hidden sticky bottom-0 z-50 border-t border-[#f4c542]/20 bg-[#0e1625]/95 shadow-[0_-18px_55px_rgba(0,0,0,.35)] backdrop-blur-2xl">
       {feedback && (
         <div
           className={`mx-auto flex max-w-4xl items-center justify-center gap-2 px-4 py-2 text-xs font-medium ${
@@ -85,7 +85,7 @@ export function ReportActions({ auditId }: ReportActionsProps) {
           size="sm"
           onClick={handleDownload}
           disabled={isDownloading}
-          className="font-semibold"
+          className="report-download-btn font-extrabold"
         >
           {isDownloading ? (
             <>
@@ -95,7 +95,7 @@ export function ReportActions({ auditId }: ReportActionsProps) {
           ) : (
             <>
               <Download className="h-4 w-4" />
-              Download PDF
+              Download My Report
             </>
           )}
         </Button>
@@ -117,7 +117,7 @@ export function ReportActions({ auditId }: ReportActionsProps) {
           className="font-medium"
         >
           <Share2 className="h-4 w-4" />
-          Share
+          Share Report
         </Button>
       </div>
     </div>

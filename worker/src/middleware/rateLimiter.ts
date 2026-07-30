@@ -45,6 +45,14 @@ function getBucket(key: string, maxRequests: number, windowMs: number): RateLimi
  * Rate limiting middleware for general API routes.
  */
 export async function rateLimiter(c: Context<{ Bindings: Env }>, next: Next) {
+  const host = c.req.header("host") || "";
+  const isLocalDev = c.env.ENVIRONMENT === "development" || host.includes("localhost") || host.includes("127.0.0.1");
+
+  if (isLocalDev) {
+    await next();
+    return;
+  }
+
   const ip = c.req.header("CF-Connecting-IP") || 
              c.req.header("X-Forwarded-For") || 
              c.req.header("X-Real-IP") || 
@@ -67,6 +75,14 @@ export async function rateLimiter(c: Context<{ Bindings: Env }>, next: Next) {
  * Stricter rate limiting for upload endpoint.
  */
 export async function uploadRateLimiter(c: Context<{ Bindings: Env }>, next: Next) {
+  const host = c.req.header("host") || "";
+  const isLocalDev = c.env.ENVIRONMENT === "development" || host.includes("localhost") || host.includes("127.0.0.1");
+
+  if (isLocalDev) {
+    await next();
+    return;
+  }
+
   const ip = c.req.header("CF-Connecting-IP") || "unknown";
   const bucket = getBucket(`upload:${ip}`, UPLOAD_MAX, DEFAULT_WINDOW_MS);
   bucket.count++;
@@ -85,6 +101,14 @@ export async function uploadRateLimiter(c: Context<{ Bindings: Env }>, next: Nex
  * Stricter rate limiting for analysis endpoint.
  */
 export async function analyzeRateLimiter(c: Context<{ Bindings: Env }>, next: Next) {
+  const host = c.req.header("host") || "";
+  const isLocalDev = c.env.ENVIRONMENT === "development" || host.includes("localhost") || host.includes("127.0.0.1");
+
+  if (isLocalDev) {
+    await next();
+    return;
+  }
+
   const ip = c.req.header("CF-Connecting-IP") || "unknown";
   const bucket = getBucket(`analyze:${ip}`, ANALYZE_MAX, DEFAULT_WINDOW_MS);
   bucket.count++;

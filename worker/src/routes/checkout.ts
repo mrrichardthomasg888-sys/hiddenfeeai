@@ -15,7 +15,7 @@ function isTestMode(env: Env): boolean {
  * If TEST_MODE_SKIP_PAYMENT is enabled, bypasses Stripe and marks as paid immediately.
  */
 checkoutRoute.post("/create-session", async (c) => {
-  const { auditId } = await c.req.json().catch(() => ({ auditId: null }));
+  const { auditId, origin } = await c.req.json().catch(() => ({ auditId: null, origin: null }));
 
   if (!auditId || typeof auditId !== "string") {
     throw errors.badFile("Missing audit ID. Please upload a document first.");
@@ -29,7 +29,7 @@ checkoutRoute.post("/create-session", async (c) => {
     console.log(`[Checkout] TEST_MODE: Skipping Stripe for audit ${auditId}`);
     await updateJob(auditId, { paid: true, status: "paid" });
     return c.json({
-      url: `${c.env.FRONTEND_URL || "http://localhost:5173"}/report/${auditId}?paid=true`,
+      url: `${origin || c.env.FRONTEND_URL || "http://localhost:5173"}/report/${auditId}?paid=true`,
       sessionId: "test-mode-skip-payment",
       auditId,
       testMode: true,
@@ -38,10 +38,11 @@ checkoutRoute.post("/create-session", async (c) => {
 
   const apiKey = c.env.STRIPE_SECRET_KEY;
   if (!apiKey || apiKey === "sk_test_your_stripe_secret_key") {
-    throw errors.generic();
+    console.error("[Checkout Error] STRIPE_SECRET_KEY is missing or unconfigured.");
+    throw errors.generic("Payment system is not configured yet. Please contact support.");
   }
 
-  const frontendUrl = c.env.FRONTEND_URL || "http://localhost:5173";
+  const frontendUrl = origin || c.env.FRONTEND_URL || "http://localhost:5173";
   const priceCents = Number(c.env.STRIPE_PRICE_USD_CENTS || 1500);
 
   try {
@@ -66,8 +67,8 @@ checkoutRoute.post("/create-session", async (c) => {
 
     if (!stripeResponse.ok) {
       const errorText = await stripeResponse.text().catch(() => "Unknown");
-      console.error("[Stripe] Create session error:", errorText);
-      throw errors.generic();
+      console.log("[Stripe Error Output]:", stripeResponse.status, errorText);
+      return c.json({ error: `Stripe error ${stripeResponse.status}: ${errorText}` }, 400);
     }
 
     const session = await stripeResponse.json() as { url?: string; id?: string };
@@ -78,8 +79,9 @@ checkoutRoute.post("/create-session", async (c) => {
       auditId,
     });
   } catch (err) {
-    console.error("[Checkout Error]", err);
-    throw errors.generic();
+    const msg = err instanceof Error ? err.message : String(err);
+    console.log("[Checkout Exception]:", msg);
+    return c.json({ error: `Checkout error: ${msg}` }, 500);
   }
 });
 
@@ -224,3 +226,5 @@ checkoutRoute.post("/webhook", async (c) => {
     return c.json({ error: "Webhook processing failed" }, 400);
   }
 });
+
+export default checkoutRoute;

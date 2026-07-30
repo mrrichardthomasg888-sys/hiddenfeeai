@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Phone, Mail, Check, Shield, Scale, Target, FileText, Copy } from "lucide-react";
+import { Check, Shield, Scale, Target, FileText, Copy } from "lucide-react";
 import type { HiddenFee, QuestionableCharge, NegotiationLeverage } from "@/types/audit";
 
 interface NegotiationPlaybookProps {
@@ -51,9 +51,9 @@ export function NegotiationPlaybook({
             <Scale className="h-7 w-7 text-trust-400" />
           </div>
           <div>
-            <h2 className="text-2xl sm:text-3xl font-black text-premium-primary tracking-[-0.02em]">Negotiation Playbook</h2>
+            <h2 className="text-2xl sm:text-3xl font-black text-premium-primary tracking-[-0.02em]">What to Say</h2>
             <p className="text-base text-premium-tertiary mt-0.5">
-              Professional-grade negotiation toolkit — {totalScripts} scripts available
+              {totalScripts} ready-to-use question{totalScripts === 1 ? "" : "s"}, script{totalScripts === 1 ? "" : "s"}, and response{totalScripts === 1 ? "" : "s"}
             </p>
           </div>
         </div>
@@ -78,7 +78,7 @@ export function NegotiationPlaybook({
                   <div className="mb-5 rounded-xl border border-red-500/10 bg-gradient-to-br from-red-500/[0.04] to-transparent p-5">
                     <div className="flex items-center gap-2 mb-2">
                       <FileText className="h-4 w-4 text-red-400/60" />
-                      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-red-400/60">Expected Company Response</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-red-400/60">What They May Say</p>
                     </div>
                     <p className="text-[16px] text-premium-secondary italic leading-relaxed">
                       &ldquo;{ns.expectedCompanyResponse}&rdquo;
@@ -90,7 +90,7 @@ export function NegotiationPlaybook({
                   <div className="mb-5 rounded-xl border border-savings-500/10 bg-gradient-to-br from-savings-500/[0.04] to-transparent p-5">
                     <div className="flex items-center gap-2 mb-2">
                       <Target className="h-4 w-4 text-savings-400/60" />
-                      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-savings-400/60">Your Response</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-savings-400/60">What You Can Say</p>
                     </div>
                     <p className="text-[16px] text-premium-secondary italic leading-relaxed">
                       &ldquo;{(msg || (ns && ns.bestCounterResponse) || "").toString()}&rdquo;
@@ -103,7 +103,7 @@ export function NegotiationPlaybook({
                   <div className="mb-5 rounded-xl bg-white/[0.015] border border-white/[0.06] p-5">
                     <div className="flex items-center gap-2 mb-3">
                       <Shield className="h-4 w-4 text-trust-400/60" />
-                      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-premium-muted">Full Script</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-premium-muted">Ready-to-Use Script</p>
                     </div>
                     <p className="text-[15px] text-premium-secondary leading-relaxed">{ns.script}</p>
                   </div>
@@ -114,7 +114,7 @@ export function NegotiationPlaybook({
                   <div className="mb-5 rounded-xl bg-white/[0.015] border border-white/[0.06] p-5">
                     <div className="flex items-center gap-2 mb-3">
                       <Shield className="h-4 w-4 text-trust-400/60" />
-                      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-premium-muted">Strategy Steps</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-premium-muted">How to Handle the Conversation</p>
                     </div>
                     <ol className="space-y-2">
                       {ns.steps.map((s, j) => (
@@ -130,7 +130,7 @@ export function NegotiationPlaybook({
                 {/* Manager escalation */}
                 {ns?.managerEscalation && (
                   <div className="mb-5 rounded-xl border border-amber-500/10 bg-amber-500/[0.03] p-5">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-400/60 mb-2">Manager Escalation</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-400/60 mb-2">If You Need to Escalate</p>
                     <p className="text-[15px] text-premium-secondary">{ns.managerEscalation}</p>
                   </div>
                 )}
@@ -225,7 +225,7 @@ export function NegotiationPlaybook({
 
               {lev.whyCompanyMayAgree && (
                 <div className="mb-5 rounded-xl border border-savings-500/10 bg-savings-500/[0.03] p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-savings-400/60 mb-1">Why They May Agree</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-savings-400/60 mb-1">Why This Request May Work</p>
                   <p className="text-[15px] text-premium-secondary">{lev.whyCompanyMayAgree}</p>
                 </div>
               )}

@@ -22,42 +22,42 @@ import type {
   MathematicalError,
   NegotiationLeverage,
   RecommendedAction,
-} from "@/types/audit.js";
+} from "../types/audit.js";
 import PDFDocument from "pdfkit";
 
 // ── Color Palette ──────────────────────────────────────────────────────────
 const C = {
   // Backgrounds
-  navy:      "#080d1a",
-  navyMid:   "#0d1526",
-  navyCard:  "#111e33",
-  navyBorder:"#1c2d4a",
+  navy:      "#070B14",
+  navyMid:   "#0E1625",
+  navyCard:  "#131C2F",
+  navyBorder:"#26344A",
 
   // Brand
-  electric:      "#3b82f6",
-  electricBright:"#60a5fa",
-  violet:        "#8b5cf6",
-  violetLight:   "#a78bfa",
-  violetDark:    "#6d28d9",
-  teal:          "#14b8a6",
+  electric:      "#4DA3FF",
+  electricBright:"#78BBFF",
+  violet:        "#F4C542",
+  violetLight:   "#F8D96E",
+  violetDark:    "#D9A916",
+  teal:          "#36D399",
 
   // Severity
   critical: "#ef4444",
   high:     "#f97316",
   medium:   "#eab308",
   low:      "#22c55e",
-  savings:  "#10b981",
+  savings:  "#36D399",
 
   // Text
-  white:         "#f8fafc",
-  textPrimary:   "#e2e8f0",
-  textSecondary: "#94a3b8",
-  textMuted:     "#64748b",
+  white:         "#FFFFFF",
+  textPrimary:   "#E8EDF4",
+  textSecondary: "#C8D1DD",
+  textMuted:     "#97A3B8",
 
   // Tables
-  tableHeader: "#1a3a5c",
-  tableRowAlt: "#0e1d32",
-  tableRow:    "#09152a",
+  tableHeader: "#17243A",
+  tableRowAlt: "#101A2A",
+  tableRow:    "#0B1321",
 };
 
 // ── Page constants ──────────────────────────────────────────────────────────
@@ -130,6 +130,37 @@ function accentStripe(doc: PDFKit.PDFDocument, y: number, h = 4): void {
   doc.rect(PAGE_W * 0.4, y, PAGE_W * 0.6, h).fill(C.violet);
 }
 
+/** Draw the HiddenFeeAI sun/document mark using PDF-native vectors. */
+function brandSun(doc: PDFKit.PDFDocument, x: number, y: number, size = 36): void {
+  const cx = x + size / 2;
+  const cy = y + size / 2;
+  const outer = size * 0.47;
+  const inner = size * 0.32;
+
+  doc.save();
+  for (let i = 0; i < 8; i += 1) {
+    const angle = (Math.PI * 2 * i) / 8;
+    doc
+      .moveTo(cx + Math.cos(angle) * (outer + 1), cy + Math.sin(angle) * (outer + 1))
+      .lineTo(cx + Math.cos(angle) * (outer + 5), cy + Math.sin(angle) * (outer + 5))
+      .lineWidth(1.8)
+      .strokeColor(C.violet)
+      .stroke();
+  }
+  doc.circle(cx, cy, inner).fillAndStroke("#FFF2A8", C.violet);
+  const lineX = cx - inner * 0.48;
+  const lineW = inner * 0.96;
+  [-4, 0, 4].forEach((offset, index) => {
+    doc
+      .moveTo(lineX, cy + offset)
+      .lineTo(lineX + lineW * (index === 1 ? 0.72 : 1), cy + offset)
+      .lineWidth(index === 2 ? 2 : 1.5)
+      .strokeColor(index === 2 ? C.electric : "#12345B")
+      .stroke();
+  });
+  doc.restore();
+}
+
 // ── Premium section header ─────────────────────────────────────────────────
 function sectionHeader(doc: PDFKit.PDFDocument, title: string, subtitle?: string): void {
   guard(doc, 80);
@@ -166,12 +197,19 @@ function badge(doc: PDFKit.PDFDocument, x: number, y: number, label: string, col
 
 // ── Footer stamp (drawn with lineBreak:false so cursor never moves) ────────
 function footerStamp(doc: PDFKit.PDFDocument): void {
+  // The final numbered footer is applied once after every page is rendered.
+  // Keeping this helper silent prevents duplicate, overlapping footer text.
+  void doc;
+  return;
+  const previousBottomMargin = doc.page.margins.bottom;
+  doc.page.margins.bottom = 0;
   doc.rect(MARGIN, FOOTER_Y - 6, CONTENT_W, 0.5).fill(C.navyBorder);
   doc.font("Helvetica").fontSize(7).fillColor(C.textMuted)
     .text(
-      "HiddenFeeAI  |  Executive Audit Report  |  Confidential — Document not stored",
-      MARGIN, FOOTER_Y, { width: CONTENT_W, align: "center", lineBreak: true }
+      "HiddenFeeAI  |  Professional Audit Report  |  Private & Confidential",
+      MARGIN, FOOTER_Y, { width: CONTENT_W, align: "center", lineBreak: false }
     );
+  doc.page.margins.bottom = previousBottomMargin;
 }
 
 // ── Page Numbers (post-render pass) ───────────────────────────────────────
@@ -179,14 +217,17 @@ function addPageNumbers(doc: PDFKit.PDFDocument): void {
   const range = doc.bufferedPageRange();
   for (let i = 0; i < range.count; i++) {
     doc.switchToPage(range.start + i);
+    const previousBottomMargin = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
     // Draw footer line and text on every page at the very bottom
     doc.rect(MARGIN, FOOTER_Y - 6, CONTENT_W, 0.5).fill(C.navyBorder);
     doc.font("Helvetica").fontSize(7).fillColor(C.textMuted)
       .text(
-        `HiddenFeeAI Executive Audit Report  ·  Page ${i + 1} of ${range.count}  ·  Private & Confidential`,
+        `HiddenFeeAI Professional Audit Report  ·  Page ${i + 1} of ${range.count}  ·  Private & Confidential`,
         MARGIN, FOOTER_Y,
-        { width: CONTENT_W, align: "center", lineBreak: true }
+        { width: CONTENT_W, align: "center", lineBreak: false }
       );
+    doc.page.margins.bottom = previousBottomMargin;
   }
 }
 
@@ -205,15 +246,16 @@ function renderCoverPage(doc: PDFKit.PDFDocument, report: AuditReport): void {
 
   // ── Brand — ALL text uses fixed absolute Y coords ──
   // "HiddenFeeAI" at y=52, subtitle at y=78
+  brandSun(doc, MARGIN, 46, 36);
   doc.font("Helvetica-Bold").fontSize(26).fillColor(C.violetLight)
-    .text("HiddenFeeAI", MARGIN, 52);
+    .text("HiddenFeeAI", MARGIN + 48, 52);
   doc.font("Helvetica").fontSize(9).fillColor(C.textSecondary)
-    .text("Enterprise Financial Intelligence Platform", MARGIN, 78);
+    .text("Find What Deserves a Second Look", MARGIN + 48, 78);
 
   // ── Report type label ──
   doc.rect(MARGIN, 100, CONTENT_W, 1).fill(C.navyBorder);
   doc.font("Helvetica-Bold").fontSize(20).fillColor(C.white)
-    .text("EXECUTIVE AUDIT REPORT", MARGIN, 108);
+    .text("PROFESSIONAL AUDIT REPORT", MARGIN, 108);
   doc.font("Helvetica").fontSize(12).fillColor(C.electricBright)
     .text(meta.documentType, MARGIN, 132);
 
@@ -221,7 +263,7 @@ function renderCoverPage(doc: PDFKit.PDFDocument, report: AuditReport): void {
   doc.rect(MARGIN, 158, CONTENT_W, 0.5).fill(C.navyBorder);
   const col1 = MARGIN, col2 = MARGIN + CONTENT_W * 0.33, col3 = MARGIN + CONTENT_W * 0.66;
   doc.font("Helvetica-Bold").fontSize(7).fillColor(C.textMuted).text("AUDIT ID",       col1, 166);
-  doc.font("Helvetica-Bold").fontSize(7).fillColor(C.textMuted).text("ANALYSIS DATE",  col2, 166);
+  doc.font("Helvetica-Bold").fontSize(7).fillColor(C.textMuted).text("REPORT DATE",    col2, 166);
   doc.font("Helvetica-Bold").fontSize(7).fillColor(C.textMuted).text("ISSUER",         col3, 166);
   doc.font("Helvetica").fontSize(9).fillColor(C.textPrimary)
     .text(meta.reportId.slice(0, 16).toUpperCase(), col1, 178, { width: CONTENT_W * 0.3 });
@@ -284,7 +326,7 @@ function renderCoverPage(doc: PDFKit.PDFDocument, report: AuditReport): void {
   const facts = [
     { label: "Pages Reviewed",     value: String(meta.pagesReviewed ?? "—") },
     { label: "Line Items Checked", value: String(meta.lineItemsReviewed ?? "—") },
-    { label: "AI Confidence",      value: `${report.confidence}%` },
+    { label: "Evidence Confidence", value: `${report.confidence}%` },
     { label: "Hidden Fees Found",  value: String(report.hiddenFees?.length ?? 0) },
   ];
   facts.forEach((f, i) => {
@@ -300,7 +342,7 @@ function renderCoverPage(doc: PDFKit.PDFDocument, report: AuditReport): void {
   // ── Confidentiality notice — fixed y, lineBreak:false to prevent cursor bleed ──
   doc.font("Helvetica-Oblique").fontSize(8.5).fillColor(C.textMuted)
     .text(
-      "This report is prepared exclusively for the document owner. All findings are based on AI analysis and should be reviewed by a qualified professional before taking legal action.",
+      "This report is prepared for the document owner. Findings are based on information visible in the submitted document and should be verified before financial or legal action.",
       MARGIN, 556, { width: CONTENT_W, lineBreak: false }
     );
 
@@ -426,7 +468,7 @@ function renderExecutiveSummary(doc: PDFKit.PDFDocument, report: AuditReport): v
 // ═══════════════════════════════════════════════════════════════════════════
 function renderFinancialDashboard(doc: PDFKit.PDFDocument, report: AuditReport): void {
   guard(doc, 240);
-  sectionHeader(doc, "02  Financial Impact Analysis");
+  sectionHeader(doc, "02  Financial Impact");
 
   const { financialImpact: fi, estimatedSavings: es } = report;
 
@@ -450,7 +492,8 @@ function renderFinancialDashboard(doc: PDFKit.PDFDocument, report: AuditReport):
     const ry = tableY + 26 + i * 24;
     doc.rect(MARGIN, ry, CONTENT_W, 24).fill(i % 2 === 0 ? C.tableRow : C.tableRowAlt);
     if (row.label.includes("Corrected")) {
-      doc.rect(MARGIN, ry, CONTENT_W, 24).fill(C.savings + "18");
+      doc.rect(MARGIN, ry, CONTENT_W, 24).fill(C.navyCard);
+      doc.rect(MARGIN, ry, 4, 24).fill(C.savings);
     }
     doc.font(row.label.includes("Corrected") ? "Helvetica-Bold" : "Helvetica")
       .fontSize(10).fillColor(row.color).text(row.label, MARGIN + 10, ry + 7, { lineBreak: false });
@@ -499,21 +542,21 @@ function renderFinancialDashboard(doc: PDFKit.PDFDocument, report: AuditReport):
 type AnyFinding = HiddenFee | QuestionableCharge | ContractRisk;
 
 function estimateFindingH(f: AnyFinding): number {
-  let h = 84;
-  if (f.evidence) h += 26;
-  if (f.explanation) h += Math.ceil(f.explanation.length / 90) * 14 + 8;
-  if ((f as HiddenFee).whyItMatters) h += 30;
-  if ((f as HiddenFee).recommendedAction) h += 26;
-  if ((f as HiddenFee).negotiationStrategy?.script) h += 52;
-  return Math.min(h, 400);
+  let h = 96;
+  if (f.evidence) h += 32;
+  if (f.explanation) h += Math.ceil(f.explanation.length / 82) * 16 + 10;
+  if ((f as HiddenFee).whyItMatters) h += 38;
+  if ((f as HiddenFee).recommendedAction) h += 34;
+  if ((f as HiddenFee).negotiationStrategy?.script) h += 150;
+  return Math.min(h, 520);
 }
 
 function renderFindingCard(doc: PDFKit.PDFDocument, finding: AnyFinding, index: number, category: string): void {
   const cardH = estimateFindingH(finding);
-  guard(doc, Math.min(cardH + 16, 160));
+  guard(doc, cardH + 16);
 
   const cardY = doc.y;
-  const clampH = Math.min(cardH, 400);
+  const clampH = Math.min(cardH, 520);
   const sColor = severityColor(finding.severity);
 
   doc.rect(MARGIN, cardY, CONTENT_W, clampH).fill(C.navyCard);
@@ -524,7 +567,7 @@ function renderFindingCard(doc: PDFKit.PDFDocument, finding: AnyFinding, index: 
   doc.y = cardY + 12;
 
   // Title + badge
-  doc.font("Helvetica-Bold").fontSize(11).fillColor(C.white)
+  doc.font("Helvetica-Bold").fontSize(13).fillColor(C.white)
     .text(`${index + 1}. ${finding.title}`, x, doc.y, { width: CONTENT_W - 80 });
   badge(doc, MARGIN + CONTENT_W - 66, cardY + 12, finding.severity, sColor);
 
@@ -535,7 +578,7 @@ function renderFindingCard(doc: PDFKit.PDFDocument, finding: AnyFinding, index: 
     `${finding.confidenceScore ?? 0}% confidence`,
     (finding as HiddenFee).pageNumber != null ? `Page ${(finding as HiddenFee).pageNumber}` : "",
   ].filter(Boolean).join("  ·  ");
-  doc.font("Helvetica").fontSize(8).fillColor(C.textMuted)
+  doc.font("Helvetica").fontSize(9.5).fillColor(C.textMuted)
     .text(meta, x, doc.y, { width: CONTENT_W - 24 });
   doc.moveDown(0.3);
 
@@ -549,22 +592,22 @@ function renderFindingCard(doc: PDFKit.PDFDocument, finding: AnyFinding, index: 
 
   // Evidence quote
   if (finding.evidence) {
-    doc.font("Helvetica-Oblique").fontSize(9).fillColor(C.textMuted)
+    doc.font("Helvetica-Oblique").fontSize(10.5).fillColor(C.textSecondary)
       .text(`"${finding.evidence}"`, x, doc.y, { width: CONTENT_W - 24 });
     doc.moveDown(0.3);
   }
 
   // Explanation
-  doc.font("Helvetica").fontSize(10).fillColor(C.textPrimary)
+  doc.font("Helvetica").fontSize(11).fillColor(C.textPrimary)
     .text(finding.explanation, x, doc.y, { width: CONTENT_W - 24 });
   doc.moveDown(0.2);
 
   // Why it matters
   const why = (finding as HiddenFee).whyItMatters;
   if (why) {
-    doc.font("Helvetica-Bold").fontSize(8).fillColor(C.electric).text("WHY IT MATTERS", x, doc.y, { lineBreak: false });
-    doc.moveDown(0.1);
-    doc.font("Helvetica").fontSize(9).fillColor(C.textSecondary)
+    doc.font("Helvetica-Bold").fontSize(9.5).fillColor(C.electricBright).text("WHY IT MATTERS", x, doc.y, { lineBreak: false });
+    doc.y += 14;
+    doc.font("Helvetica").fontSize(10.5).fillColor(C.textSecondary)
       .text(why, x, doc.y, { width: CONTENT_W - 24 });
     doc.moveDown(0.3);
   }
@@ -572,9 +615,9 @@ function renderFindingCard(doc: PDFKit.PDFDocument, finding: AnyFinding, index: 
   // Recommended action
   const action = (finding as HiddenFee).recommendedAction;
   if (action) {
-    doc.font("Helvetica-Bold").fontSize(8).fillColor(C.savings).text("→  RECOMMENDED ACTION", x, doc.y, { lineBreak: false });
-    doc.moveDown(0.1);
-    doc.font("Helvetica").fontSize(9).fillColor(C.textPrimary)
+    doc.font("Helvetica-Bold").fontSize(9.5).fillColor(C.savings).text("RECOMMENDED ACTION", x, doc.y, { lineBreak: false });
+    doc.y += 14;
+    doc.font("Helvetica").fontSize(10.5).fillColor(C.textPrimary)
       .text(action, x, doc.y, { width: CONTENT_W - 24 });
     doc.moveDown(0.3);
   }
@@ -582,9 +625,9 @@ function renderFindingCard(doc: PDFKit.PDFDocument, finding: AnyFinding, index: 
   // ── Premium Negotiation Strategy Card (Playbook) ──
   const neg = (finding as HiddenFee).negotiationStrategy;
   if (neg) {
-    guard(doc, 130);
+    guard(doc, 170);
     const playY = doc.y;
-    const playH = 110;
+    const playH = 152;
     doc.rect(x, playY, CONTENT_W - 24, playH).fill(C.navyMid);
     doc.rect(x, playY, 3, playH).fill(C.violet);
     doc.rect(x, playY, CONTENT_W - 24, 1.5).fill(C.violet + "66");
@@ -592,25 +635,28 @@ function renderFindingCard(doc: PDFKit.PDFDocument, finding: AnyFinding, index: 
     const px = x + 12;
     doc.y = playY + 8;
 
-    doc.font("Helvetica-Bold").fontSize(8).fillColor(C.violetLight)
-      .text(`NEGOTIATION STRATEGY  ·  DIFFICULTY: ${neg.difficulty}  ·  SUCCESS PROBABILITY: ${neg.successProbability}%`, px, doc.y);
-    doc.moveDown(0.2);
+    doc.font("Helvetica-Bold").fontSize(9).fillColor(C.violetLight)
+      .text(`NEGOTIATION PLAYBOOK  |  DIFFICULTY: ${neg.difficulty}  |  SUCCESS PROBABILITY: ${neg.successProbability}%`, px, doc.y);
+    doc.y += 15;
 
     if (neg.script) {
-      doc.font("Helvetica-Bold").fontSize(7.5).fillColor(C.electricBright).text("SCRIPT PREVIEW:", px, doc.y);
-      doc.font("Helvetica-Oblique").fontSize(8).fillColor(C.textPrimary)
+      doc.font("Helvetica-Bold").fontSize(9).fillColor(C.electricBright).text("WHAT TO SAY", px, doc.y, { lineBreak: false });
+      doc.y += 13;
+      doc.font("Helvetica-Oblique").fontSize(10).fillColor(C.textPrimary)
         .text(`"${neg.script.slice(0, 220)}${neg.script.length > 220 ? "..." : ""}"`, px, doc.y, { width: CONTENT_W - 48 });
       doc.moveDown(0.2);
     }
 
     if (neg.expectedCompanyResponse && neg.bestCounterResponse) {
-      doc.font("Helvetica-Bold").fontSize(7).fillColor(C.critical).text("EXPECTED RESPONSE:", px, doc.y);
-      doc.font("Helvetica").fontSize(7.5).fillColor(C.textSecondary)
+      doc.font("Helvetica-Bold").fontSize(9).fillColor(C.critical).text("LIKELY PUSHBACK", px, doc.y, { lineBreak: false });
+      doc.y += 13;
+      doc.font("Helvetica").fontSize(9.5).fillColor(C.textSecondary)
         .text(`"${neg.expectedCompanyResponse.slice(0, 100)}${neg.expectedCompanyResponse.length > 100 ? "..." : ""}"`, px, doc.y, { width: CONTENT_W - 48 });
       doc.moveDown(0.2);
 
-      doc.font("Helvetica-Bold").fontSize(7).fillColor(C.savings).text("BEST COUNTER:", px, doc.y);
-      doc.font("Helvetica").fontSize(7.5).fillColor(C.textPrimary)
+      doc.font("Helvetica-Bold").fontSize(9).fillColor(C.savings).text("YOUR BEST COUNTER", px, doc.y, { lineBreak: false });
+      doc.y += 13;
+      doc.font("Helvetica").fontSize(9.5).fillColor(C.textPrimary)
         .text(`"${neg.bestCounterResponse.slice(0, 100)}${neg.bestCounterResponse.length > 100 ? "..." : ""}"`, px, doc.y, { width: CONTENT_W - 48 });
     }
 
@@ -629,40 +675,40 @@ function renderNegotiationLeverage(doc: PDFKit.PDFDocument, leverage: Negotiatio
   sectionHeader(doc, "07  Negotiation Leverage", "Your strategic advantages for disputing charges");
 
   leverage.forEach((item, i) => {
-    guard(doc, 160);
+    guard(doc, 190);
     const cardY = doc.y;
 
     doc.rect(MARGIN, cardY, CONTENT_W, 6).fill(C.violet);
-    doc.rect(MARGIN, cardY + 6, CONTENT_W, 134).fill(C.navyCard);
+    doc.rect(MARGIN, cardY + 6, CONTENT_W, 164).fill(C.navyCard);
 
     const x = MARGIN + 14;
     doc.y = cardY + 14;
 
-    doc.font("Helvetica-Bold").fontSize(11).fillColor(C.white)
+    doc.font("Helvetica-Bold").fontSize(13).fillColor(C.white)
       .text(`${i + 1}. ${item.title}`, x, doc.y, { width: CONTENT_W - 24 });
 
     const pc = item.priority === "Immediate" ? C.critical : item.priority === "High" ? C.high : C.medium;
-    doc.font("Helvetica").fontSize(8).fillColor(pc)
+    doc.font("Helvetica").fontSize(9.5).fillColor(pc)
       .text(`${item.priority} Priority  ·  ${item.successProbability}% Success  ·  ${fmt$(item.estimatedSavings)} potential`, x, doc.y);
     doc.moveDown(0.3);
 
-    doc.font("Helvetica").fontSize(10).fillColor(C.textPrimary)
+    doc.font("Helvetica").fontSize(11).fillColor(C.textPrimary)
       .text(item.leverage, x, doc.y, { width: CONTENT_W - 24 });
     doc.moveDown(0.2);
 
-    doc.font("Helvetica-Bold").fontSize(8).fillColor(C.electric).text("WHY THE COMPANY MAY AGREE:", x, doc.y, { lineBreak: false });
+    doc.font("Helvetica-Bold").fontSize(9.5).fillColor(C.electricBright).text("WHY THE COMPANY MAY AGREE:", x, doc.y, { lineBreak: false });
     doc.moveDown(0.1);
-    doc.font("Helvetica").fontSize(9).fillColor(C.textSecondary)
+    doc.font("Helvetica").fontSize(10.5).fillColor(C.textSecondary)
       .text(item.whyCompanyMayAgree, x, doc.y, { width: CONTENT_W - 24 });
     doc.moveDown(0.2);
 
-    doc.font("Helvetica-Bold").fontSize(8).fillColor(C.violet).text("SUGGESTED WORDING:", x, doc.y, { lineBreak: false });
+    doc.font("Helvetica-Bold").fontSize(9.5).fillColor(C.violet).text("SUGGESTED WORDING:", x, doc.y, { lineBreak: false });
     doc.moveDown(0.1);
-    doc.font("Helvetica-Oblique").fontSize(9).fillColor(C.violetLight)
+    doc.font("Helvetica-Oblique").fontSize(10.5).fillColor(C.violetLight)
       .text(item.suggestedWording, x, doc.y, { width: CONTENT_W - 24 });
     doc.moveDown(0.3);
 
-    doc.y = Math.max(doc.y + 12, cardY + 148);
+    doc.y = Math.max(doc.y + 12, cardY + 178);
     doc.x = MARGIN;
   });
 }
@@ -692,9 +738,9 @@ function renderActionPlan(doc: PDFKit.PDFDocument, actions: RecommendedAction[])
     doc.x = MARGIN;
 
     phaseActions.forEach((action) => {
-      guard(doc, 64);
+      guard(doc, 74);
       const ry = doc.y;
-      doc.rect(MARGIN, ry, CONTENT_W, 54).fill(C.navyMid);
+      doc.rect(MARGIN, ry, CONTENT_W, 64).fill(C.navyMid);
 
       // Priority circle
       const circleX = MARGIN + 22, circleY = ry + 14;
@@ -706,17 +752,17 @@ function renderActionPlan(doc: PDFKit.PDFDocument, actions: RecommendedAction[])
       const diffColor = action.difficulty === "Easy" ? C.savings : action.difficulty === "Medium" ? C.medium : C.high;
       const timeColor = action.timeframe === "Immediate" ? C.critical : C.textSecondary;
 
-      doc.font("Helvetica-Bold").fontSize(10).fillColor(C.white)
+      doc.font("Helvetica-Bold").fontSize(11).fillColor(C.white)
         .text(action.action, tx, ry + 6, { width: CONTENT_W - 50 });
 
       const tags = `${action.timeframe}  ·  Difficulty: ${action.difficulty}${action.estimatedSavings ? `  ·  Savings: ${fmt$(action.estimatedSavings)}` : ""}`;
-      doc.font("Helvetica").fontSize(8).fillColor(timeColor)
+      doc.font("Helvetica").fontSize(9.5).fillColor(timeColor)
         .text(tags, tx, ry + 22, { width: CONTENT_W - 50 });
 
-      doc.font("Helvetica").fontSize(9).fillColor(C.textSecondary)
-        .text(action.details, tx, ry + 36, { width: CONTENT_W - 50, height: 14, ellipsis: true });
+      doc.font("Helvetica").fontSize(10.5).fillColor(C.textSecondary)
+        .text(action.details, tx, ry + 39, { width: CONTENT_W - 50, height: 18, ellipsis: true });
 
-      doc.y = ry + 60;
+      doc.y = ry + 70;
       doc.x = MARGIN;
     });
   });
@@ -755,7 +801,7 @@ function renderPhoneScript(doc: PDFKit.PDFDocument, lines: string[]): void {
   doc.rect(MARGIN, tipY, CONTENT_W, 22).fill(C.tableHeader);
   doc.rect(MARGIN, tipY, CONTENT_W, 3).fill(C.teal);
   doc.font("Helvetica-Bold").fontSize(9).fillColor(C.teal)
-    .text("✓  USE THIS EXACT SCRIPT — Specific wording increases success rates by 40%", MARGIN + 10, tipY + 7, { lineBreak: false });
+    .text("USE THIS SCRIPT AS A STARTING POINT - Adapt it to your situation", MARGIN + 10, tipY + 7, { lineBreak: false });
   doc.y = tipY + 30;
   doc.x = MARGIN;
 
@@ -799,7 +845,7 @@ function renderEmailTemplate(doc: PDFKit.PDFDocument, paragraphs: string[]): voi
     guard(doc, 32);
     const isSubject = i === 0;
     doc.font(isSubject ? "Helvetica-Bold" : "Helvetica")
-      .fontSize(isSubject ? 10 : 9)
+      .fontSize(isSubject ? 11 : 10.5)
       .fillColor(isSubject ? C.white : C.textPrimary)
       .text(para, MARGIN + 14, doc.y, { width: CONTENT_W - 28 });
     doc.moveDown(0.4);
@@ -819,21 +865,22 @@ function renderBackCover(doc: PDFKit.PDFDocument, report: AuditReport): void {
 
   // ── Brand block — ALL at fixed absolute Y coords so nothing overlaps ──
   // "HiddenFeeAI" at y=100, subtitle at y=140 (fixed, NOT doc.y+offset)
+  brandSun(doc, PAGE_W / 2 - 20, 64, 40);
   doc.font("Helvetica-Bold").fontSize(32).fillColor(C.violetLight)
-    .text("HiddenFeeAI", MARGIN, 100, { width: CONTENT_W, align: "center", lineBreak: false });
+    .text("HiddenFeeAI", MARGIN, 112, { width: CONTENT_W, align: "center", lineBreak: false });
   doc.font("Helvetica").fontSize(11).fillColor(C.textSecondary)
-    .text("Enterprise Financial Intelligence Platform", MARGIN, 140, { width: CONTENT_W, align: "center", lineBreak: false });
+    .text("Your Professional Audit Report", MARGIN, 148, { width: CONTENT_W, align: "center", lineBreak: false });
 
   // Divider below brand — at fixed y=168
-  doc.rect(MARGIN, 168, CONTENT_W, 1).fill(C.navyBorder);
+  doc.rect(MARGIN, 170, CONTENT_W, 1).fill(C.navyBorder);
 
   // ── 3-column trust stats — fixed at y=180 ──
   const trustY = 180;
   const tw = CONTENT_W / 3;
   const trustStats = [
-    { value: `${report.confidence}%`,              label: "AI Confidence Score",   color: C.savings },
+    { value: `${report.confidence}%`,              label: "Evidence Confidence",   color: C.savings },
     { value: String(meta.pagesReviewed ?? "—"),    label: "Pages Reviewed",        color: C.electric },
-    { value: String(meta.lineItemsReviewed ?? "—"), label: "Line Items Analyzed", color: C.violet },
+    { value: String(meta.lineItemsReviewed ?? "—"), label: "Line Items Checked",  color: C.violet },
   ];
   trustStats.forEach((t, i) => {
     const tx = MARGIN + i * tw;
@@ -856,9 +903,8 @@ function renderBackCover(doc: PDFKit.PDFDocument, report: AuditReport): void {
 
   doc.font("Helvetica").fontSize(9).fillColor(C.textMuted)
     .text(
-      "This report was generated by HiddenFeeAI's AI analysis engine. All findings are based on automated pattern recognition " +
-      "and statistical analysis of the submitted document. This report does not constitute legal advice. " +
-      "For disputes involving significant sums, consult a qualified attorney or financial advisor.",
+      "This report is based on information visible in the submitted document. Verify important findings against the original " +
+      "and seek qualified advice when appropriate. This report is not legal, financial, tax, or accounting advice.",
       MARGIN, 318, { width: CONTENT_W }
     );
 
@@ -883,11 +929,11 @@ export async function generatePdf(report: AuditReport): Promise<Buffer> {
         margins: { top: 48, bottom: 56, left: MARGIN, right: MARGIN },
         bufferPages: true,
         info: {
-          Title:    `HiddenFeeAI Executive Audit — ${report.documentMetadata.documentType}`,
-          Author:   "HiddenFeeAI Intelligence Platform",
-          Subject:  "Financial Document Forensic Audit Report",
+          Title:    `HiddenFeeAI Professional Audit Report — ${report.documentMetadata.documentType}`,
+          Author:   "HiddenFeeAI",
+          Subject:  "Professional Financial Document Audit Report",
           Keywords: "hidden fees, financial audit, negotiation, consumer protection",
-          Creator:  "HiddenFeeAI v2",
+          Creator:  "HiddenFeeAI",
         },
       });
 
@@ -961,7 +1007,7 @@ export async function generatePdf(report: AuditReport): Promise<Buffer> {
           const x = MARGIN + 14;
           doc.y = ey + 10;
 
-          doc.font("Helvetica-Bold").fontSize(11).fillColor(C.critical)
+          doc.font("Helvetica-Bold").fontSize(13).fillColor(C.critical)
             .text(`${i + 1}. ${err.title}`, x, doc.y, { width: CONTENT_W - 20 });
 
           const vals = [
@@ -969,11 +1015,11 @@ export async function generatePdf(report: AuditReport): Promise<Buffer> {
             `Actual: ${err.actualValue != null ? fmt$(err.actualValue) : "N/A"}`,
             `Discrepancy: ${err.discrepancy != null ? fmt$(err.discrepancy) : "N/A"}`,
           ].join("   |   ");
-          doc.font("Helvetica").fontSize(9).fillColor(C.textSecondary).text(vals, x, doc.y);
+          doc.font("Helvetica").fontSize(10).fillColor(C.textSecondary).text(vals, x, doc.y);
 
-          doc.font("Helvetica").fontSize(9).fillColor(C.textPrimary)
+          doc.font("Helvetica").fontSize(10.5).fillColor(C.textPrimary)
             .text(err.explanation, x, doc.y, { width: CONTENT_W - 24 });
-          doc.font("Helvetica-Bold").fontSize(9).fillColor(C.savings)
+          doc.font("Helvetica-Bold").fontSize(10).fillColor(C.savings)
             .text(`→  ${err.recommendedAction}`, x, doc.y, { width: CONTENT_W - 24 });
 
           doc.y = ey + 86;
@@ -1008,15 +1054,15 @@ export async function generatePdf(report: AuditReport): Promise<Buffer> {
           const x = MARGIN + 14;
           doc.y = cry + 8;
 
-          doc.font("Helvetica-Bold").fontSize(10).fillColor(C.electricBright)
+          doc.font("Helvetica-Bold").fontSize(12).fillColor(C.electricBright)
             .text(`${i + 1}. ${cr.right}`, x, doc.y, { width: CONTENT_W - 24 });
-          doc.font("Helvetica").fontSize(9).fillColor(C.textPrimary)
+          doc.font("Helvetica").fontSize(10.5).fillColor(C.textPrimary)
             .text(cr.description, x, doc.y, { width: CONTENT_W - 24 });
-          doc.font("Helvetica-Bold").fontSize(8).fillColor(C.savings)
+          doc.font("Helvetica-Bold").fontSize(9.5).fillColor(C.savings)
             .text(`How to exercise: ${cr.howToExercise}`, x, doc.y, { width: CONTENT_W - 24, height: 14, ellipsis: true, lineBreak: false });
           if (cr.applicableLaw) {
             doc.moveDown(0.2);
-            doc.font("Helvetica").fontSize(8).fillColor(C.textMuted)
+            doc.font("Helvetica").fontSize(9.5).fillColor(C.textMuted)
               .text(`Law: ${cr.applicableLaw}`, x, doc.y, { width: CONTENT_W - 24, lineBreak: false });
           }
           doc.y = cry + 76;

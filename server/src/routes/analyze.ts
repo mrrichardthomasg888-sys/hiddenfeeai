@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { getJob, updateJob } from "@/services/jobStore.js";
-import { analyzeWithGemini } from "@/services/geminiEngine.js";
-import { AppError, Errors } from "@/utils/AppError.js";
+import { getJob, updateJob } from "../services/jobStore.js";
+import { analyzeWithGemini } from "../services/geminiEngine.js";
+import { AppError, Errors } from "../utils/AppError.js";
 
 export const analyzeRouter = Router();
 
@@ -115,7 +115,7 @@ analyzeRouter.get("/:auditId/pdf", async (req, res, next) => {
   }
 
   try {
-    const { generatePdf } = await import("@/services/pdfGenerator.js");
+    const { generatePdf } = await import("../services/pdfGenerator.js");
     const pdfBuffer = await generatePdf(job.report);
 
     const safeId = auditId.slice(0, 8);

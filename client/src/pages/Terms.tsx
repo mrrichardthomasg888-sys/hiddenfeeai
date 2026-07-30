@@ -4,17 +4,17 @@ import { Container } from "@/components/layout/Container";
 
 export function Terms() {
   return (
-    <div className="min-h-screen bg-midnight-950">
+    <div className="premium-page min-h-screen bg-[#050911]">
       <Nav />
-      <main className="py-16">
+      <main className="py-20 sm:py-24">
         <Container className="max-w-4xl">
-          <article className="space-y-8">
+          <article className="space-y-10">
             <header className="space-y-4">
               <h1 className="text-4xl font-bold tracking-tight text-white text-glow">
                 Terms of Service
               </h1>
               <p className="text-violet-400/70 text-sm">
-                Last updated: {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+                Last updated: July 29, 2026
               </p>
             </header>
 
@@ -30,9 +30,8 @@ export function Terms() {
               <div className="glass-panel p-6 rounded-xl space-y-4">
                 <h2 className="text-2xl font-bold text-white">2. Service Description</h2>
                 <p className="text-violet-200/80 leading-relaxed">
-                  HiddenFeeAI is an AI-powered document analysis tool that processes uploaded documents to identify potential 
-                  hidden fees, billing errors, duplicate charges, and contract risks. The Service uses artificial intelligence 
-                  to analyze document text and generate audit reports.
+                  HiddenFeeAI reviews uploaded documents for potential hidden fees, billing errors, duplicate charges, and
+                  costly contract terms. The Service uses artificial intelligence to read document text and create audit reports.
                 </p>
                 <p className="text-violet-200/80 leading-relaxed">
                   The Service supports PDF, image (PNG, JPG, WEBP, TIFF), DOCX, TXT, CSV, and XLSX file formats. 
@@ -77,7 +76,7 @@ export function Terms() {
               </div>
 
               <div className="glass-panel p-6 rounded-xl space-y-4">
-                <h2 className="text-2xl font-bold text-white">6. AI Limitations</h2>
+                <h2 className="text-2xl font-bold text-white">6. Automated Review Limitations</h2>
                 <p className="text-violet-200/80 leading-relaxed">
                   HiddenFeeAI uses artificial intelligence to analyze documents. While we strive for accuracy, AI analysis 
                   may occasionally produce incorrect or incomplete results. The Service should be used as a tool to assist 

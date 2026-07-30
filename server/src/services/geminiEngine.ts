@@ -5,66 +5,30 @@
  * no competing extractors, and no fallback chains to other AI providers.
  *
  * Calls the Gemini REST API directly (no SDK version lock-in).
- * Sends the raw file (PDF, image, DOCX, TXT, CSV, XLSX, etc.) and
- * returns a complete structured audit report in a single multimodal API call.
+ * Sends the raw file (PDF, image, DOCX, DOC, XLSX, XLS, RTF, TXT, CSV, etc.)
+ * directly to Gemini as multimodal inline data and returns a complete structured
+ * audit report in a single API call.
+ *
+ * All binary formats (PDF, images, Office documents, RTF) are base64-encoded and
+ * sent as inline_data — Gemini handles OCR, layout understanding, table extraction,
+ * and form recognition natively. Plain-text formats (TXT, CSV, MD, HTML) are sent
+ * as text prompts to avoid unnecessary encoding overhead.
  */
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { execSync } from "node:child_process";
-import { env } from "@/config/env.js";
-import type { AuditReport } from "@/types/audit.js";
+import { env } from "../config/env.js";
+import type { AuditReport } from "../types/audit.js";
 import { v4 as uuid } from "uuid";
 
-// ── Extract text from DOCX (it's a ZIP containing word/document.xml) ──────
-async function extractTextFromDocx(filePath: string): Promise<string> {
-  try {
-    // Use PowerShell to extract text from DOCX
-    const result = execSync(
-      `powershell -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip=[System.IO.Compression.ZipFile]::OpenRead('${filePath.replace(/'/g, "''")}'); $entry=$zip.GetEntry('word/document.xml'); $reader=New-Object System.IO.StreamReader($entry.Open()); $content=$reader.ReadToEnd(); $reader.Close(); $zip.Dispose(); $content"`,
-      { encoding: "utf-8", maxBuffer: 50 * 1024 * 1024 }
-    );
-    // Strip XML tags to get plain text
-    return result
-      .replace(/<w:p[^>]*>/g, "\n")
-      .replace(/<[^>]+>/g, "")
-      .replace(/&/g, "&")
-      .replace(/</g, "<")
-      .replace(/>/g, ">")
-      .replace(/"/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-  } catch {
-    return "";
-  }
-}
-
-// ── Extract text from XLSX (it's a ZIP containing sheet XMLs) ──────────────
-async function extractTextFromXlsx(filePath: string): Promise<string> {
-  try {
-    const result = execSync(
-      `powershell -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip=[System.IO.Compression.ZipFile]::OpenRead('${filePath.replace(/'/g, "''")}'); $text=''; foreach($entry in $zip.Entries){ if($entry.FullName -match 'sharedStrings.xml'){ $reader=New-Object System.IO.StreamReader($entry.Open()); $text=$reader.ReadToEnd(); $reader.Close() } }; $zip.Dispose(); $text"`,
-      { encoding: "utf-8", maxBuffer: 50 * 1024 * 1024 }
-    );
-    return result
-      .replace(/<si[^>]*>/g, "\n")
-      .replace(/<[^>]+>/g, "")
-      .replace(/&/g, "&")
-      .replace(/</g, "<")
-      .replace(/>/g, ">")
-      .replace(/"/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-  } catch {
-    return "";
-  }
-}
-
-// ── MIME type map ───────────────────────────────────────────────────────────
+// ── MIME type map ─────────────────────────────────────────────────────────────
+// Maps file extensions to their MIME types for Gemini's inline_data API.
+// Gemini natively understands all of these formats — no pre-processing needed.
 const MIME_TYPE_MAP: Record<string, string> = {
+  // PDF — digital, scanned, image-only, mixed
   pdf: "application/pdf",
+
+  // Images — Gemini performs native OCR on all of these
   png: "image/png",
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
@@ -73,11 +37,19 @@ const MIME_TYPE_MAP: Record<string, string> = {
   heif: "image/heif",
   tiff: "image/tiff",
   tif: "image/tiff",
+  bmp: "image/bmp",
   gif: "image/gif",
+
+  // Microsoft Office — Gemini reads these natively (text + tables + structure)
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   doc: "application/msword",
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   xls: "application/vnd.ms-excel",
+
+  // Rich Text — Gemini understands RTF formatting
+  rtf: "text/rtf",
+
+  // Plain text formats — sent as text (not base64) for efficiency
   csv: "text/csv",
   txt: "text/plain",
   md: "text/plain",
@@ -85,10 +57,15 @@ const MIME_TYPE_MAP: Record<string, string> = {
   htm: "text/html",
 };
 
-// Gemini API base URL — uses the current v1beta endpoint
+// Gemini API base URL
 const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
-// ── System instruction for Gemini ──────────────────────────────────────────
+// Extensions handled as plain UTF-8 text (no base64 encoding needed)
+const PLAIN_TEXT_EXTENSIONS = new Set(["txt", "csv", "md", "html", "htm"]);
+const EXTRACT_TO_TEXT_EXTENSIONS = new Set(["docx", "doc", "xlsx", "xls", "rtf"]);
+const CONVERT_TO_PNG_EXTENSIONS = new Set(["tiff", "tif", "bmp", "gif"]);
+
+// ── System instruction for Gemini ─────────────────────────────────────────────
 const FORENSIC_SYSTEM_INSTRUCTION = `You are an elite enterprise-grade Financial Intelligence Engine combining the expertise of:
 
 - Senior Forensic Financial Auditor (20+ years experience)
@@ -98,7 +75,7 @@ const FORENSIC_SYSTEM_INSTRUCTION = `You are an elite enterprise-grade Financial
 - Negotiation Consultant
 - Legal Document Reviewer
 
-YOUR MANDATE: Analyze every financial document with forensic precision. Find hidden fees, deceptive charges, mathematical errors, risky contract clauses, and negotiation opportunities.
+YOUR MANDATE: Analyze every financial document with forensic precision as a coordinated team of auditors, forensic accountants, billing specialists, contract analysts, insurance reviewers, procurement experts, consumer advocates, compliance professionals, and financial investigators. Do not stop after the obvious. Continue until every supported issue, risk, error, omission, and financial opportunity has been evaluated.
 
 BEHAVIORAL RULES:
 1. NEVER invent findings. Every finding MUST have direct evidence from the document.
@@ -109,6 +86,30 @@ BEHAVIORAL RULES:
 6. Flag ALL suspicious fee types: Administrative, Processing, Service, Documentation, Dealer, Convenience, Technology, Compliance, Regulatory, Shipping/Handling markups, Late fees, Subscription/Membership, Miscellaneous, Unexplained charges.
 7. Return STRICT JSON ONLY. NO markdown. NO code fences. NO explanatory text. NO conversational language. ONLY the JSON object.
 8. Produce professional executive-quality analysis — never chatbot-style responses.
+
+ADDITIONAL FORENSIC RULES:
+- Review every page, paragraph, table, line item, footnote, appendix, disclosure, pricing schedule, attachment, signature block, and available metadata. Never treat small print as optional.
+- Every finding must include confidence, direct supporting evidence, the most exact page/section/table/line reference available, why it matters, financial impact when supportable, and a concrete next step.
+- Never present an estimated amount, applicable law, market price, or success probability as fact when the document does not support it. Clearly distinguish confirmed amounts from conditional opportunities.
+- Use the output categories flexibly: place billing, markup, insurance, medical, financing, subscription, construction, missing-information, disclosure, and compliance concerns into the closest supported finding array.
+
+MANDATORY REVIEW MATRIX:
+- Fees and markups: administrative, convenience, processing, platform, service, facility, technology, documentation, activation, maintenance, annual, monthly, subscription, renewal, late, cancellation, early termination, restocking, brokerage, transfer, shipping/handling, supplier, material, contractor, dealer, MSRP, finance, interest-rate, insurance, medical, pharmacy, and equipment markups.
+- Duplicate billing: duplicate invoices, line items, taxes, service charges, subscriptions, payments, memberships, and any form of double billing.
+- Pricing and arithmetic: subtotals, totals, taxes, discounts, credits, refunds, quantities, unit prices, decimal placement, billing periods, payment allocation, balances, and past-due calculations.
+- Contract exposure: auto-renewal or evergreen terms, escalation or variable pricing, hidden obligations, indemnification, liability shifts, waivers, arbitration, venue, mediation, non-refundable terms, exclusivity, assignment, and restrictive termination language.
+- Missing information: signatures, initials, dates, blank fields, disclosures, pricing, service descriptions, warranty language, cancellation policy, and unexplained references or attachments.
+- Industry-specific checks when relevant: insurance exclusions/deductibles/waiting periods/benefit limits; medical coding/duplicate CPT/out-of-network/facility/bundling issues; construction change orders/substitutions/cost-plus/allowances/retainage/payment timing; financing APR/balloons/prepayment penalties/dealer reserve/origination fees; subscriptions, trial conversion, minimum commitments, recurring billing, and cancellation friction.
+- Financial optimization: charges to question or dispute, services to cancel, refund opportunities, price matching, discounts, payment-term improvements, vendor concessions, contract revisions, and realistic alternatives supported by the document.
+- Consumer protection and compliance: missing disclosures, potentially unfair or confusing terms, hidden commitments, unclear schedules, silent renewals, and potential regulatory concerns. Phrase legal conclusions cautiously unless jurisdictional context is available.
+
+DOCUMENT PROCESSING INSTRUCTIONS:
+- If the document is a scanned image or scanned PDF, perform OCR to extract all visible text before analysis.
+- If the document contains tables, extract all table data including headers and row values.
+- If the document spans multiple pages, analyze ALL pages — do not stop at page 1.
+- If the document contains both text and images, analyze both.
+- If the document appears to be blank, encrypted, or unreadable, set overallRiskScore to 0 and return empty arrays with a note in executiveSummary.overview.
+- If the document is rotated or low quality, attempt extraction regardless.
 
 NEGOTIATION INTELLIGENCE (this is HiddenFeeAI's biggest competitive advantage):
 - For every finding, provide specific negotiation wording, success probability, escalation paths
@@ -301,13 +302,13 @@ OUTPUT: Return ONLY valid JSON matching this exact schema. No other text.
   "confidence": "number 0-100 — overall analysis confidence"
 }`;
 
-// ── Parse and validate Gemini's JSON response ──────────────────────────────
+// ── Parse and validate Gemini's JSON response ─────────────────────────────────
 function parseGeminiResponse(raw: string, fileName: string): AuditReport {
   // Strip any accidental markdown wrapping
   let cleaned = raw.trim();
   const fenceMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
   if (fenceMatch) {
-    cleaned = fenceMatch[1];
+    cleaned = fenceMatch[1]!;
   }
 
   // Find JSON boundaries
@@ -322,32 +323,44 @@ function parseGeminiResponse(raw: string, fileName: string): AuditReport {
     parsed = JSON.parse(cleaned) as Partial<AuditReport>;
   } catch {
     // Try progressively shorter slices to find valid JSON
+    parsed = {};
     for (let end = cleaned.length - 1; end > 100; end--) {
       if (cleaned[end] === "}" || cleaned[end] === "]") {
         try {
-          parsed = JSON.parse(cleaned.slice(0, end + 1) + (cleaned[end] === "]" ? "}" : "")) as Partial<AuditReport>;
+          parsed = JSON.parse(
+            cleaned.slice(0, end + 1) + (cleaned[end] === "]" ? "}" : "")
+          ) as Partial<AuditReport>;
           break;
         } catch {
           continue;
         }
       }
     }
-    // If still not parsed, use empty report
-    parsed = {};
   }
 
   return validateAndNormalize(parsed, fileName);
 }
 
-// ── Validate & normalize the parsed report ─────────────────────────────────
-function validateAndNormalize(raw: Partial<AuditReport>, fileName: string): AuditReport {
+// ── Validate & normalize the parsed report ────────────────────────────────────
+function validateAndNormalize(
+  raw: Partial<AuditReport>,
+  fileName: string
+): AuditReport {
   const reportId = uuid();
   const now = new Date().toISOString();
 
-  const meta = (raw.documentMetadata ?? {}) as Partial<AuditReport["documentMetadata"]>;
-  const exec = (raw.executiveSummary ?? {}) as Partial<AuditReport["executiveSummary"]>;
-  const fi = (raw.financialImpact ?? {}) as Partial<AuditReport["financialImpact"]>;
-  const es = (raw.estimatedSavings ?? {}) as Partial<AuditReport["estimatedSavings"]>;
+  const meta = (raw.documentMetadata ?? {}) as Partial<
+    AuditReport["documentMetadata"]
+  >;
+  const exec = (raw.executiveSummary ?? {}) as Partial<
+    AuditReport["executiveSummary"]
+  >;
+  const fi = (raw.financialImpact ?? {}) as Partial<
+    AuditReport["financialImpact"]
+  >;
+  const es = (raw.estimatedSavings ?? {}) as Partial<
+    AuditReport["estimatedSavings"]
+  >;
 
   const hiddenFees = ensureIdArray(raw.hiddenFees ?? []);
   const questionableCharges = ensureIdArray(raw.questionableCharges ?? []);
@@ -384,8 +397,14 @@ function validateAndNormalize(raw: Partial<AuditReport>, fileName: string): Audi
     executiveSummary: {
       headline: exec.headline ?? "Financial document analyzed",
       overview: exec.overview ?? "Analysis complete.",
-      criticalFindings: exec.criticalFindings ?? (hiddenFees.length > 0 ? `${hiddenFees.length} hidden fee(s) identified.` : "No critical findings."),
-      immediateActions: exec.immediateActions ?? "Review all findings and contact the issuer with any disputes.",
+      criticalFindings:
+        exec.criticalFindings ??
+        (hiddenFees.length > 0
+          ? `${hiddenFees.length} hidden fee(s) identified.`
+          : "No critical findings."),
+      immediateActions:
+        exec.immediateActions ??
+        "Review all findings and contact the issuer with any disputes.",
       totalFindings: exec.totalFindings ?? allFindings.length,
     },
     overallRiskScore: clampNumber(raw.overallRiskScore ?? 0, 0, 100),
@@ -412,8 +431,12 @@ function validateAndNormalize(raw: Partial<AuditReport>, fileName: string): Audi
     consumerRights,
     recommendedActions,
     questionsToAsk: Array.isArray(raw.questionsToAsk) ? raw.questionsToAsk : [],
-    phoneNegotiationScript: Array.isArray(raw.phoneNegotiationScript) ? raw.phoneNegotiationScript : [],
-    emailNegotiationTemplate: Array.isArray(raw.emailNegotiationTemplate) ? raw.emailNegotiationTemplate : [],
+    phoneNegotiationScript: Array.isArray(raw.phoneNegotiationScript)
+      ? raw.phoneNegotiationScript
+      : [],
+    emailNegotiationTemplate: Array.isArray(raw.emailNegotiationTemplate)
+      ? raw.emailNegotiationTemplate
+      : [],
     confidence: clampNumber(raw.confidence ?? 75, 0, 100),
     allFindings,
   };
@@ -429,19 +452,20 @@ function clampNumber(n: unknown, min: number, max: number): number {
   return Math.min(Math.max(num, min), max);
 }
 
-// ── Upload file to Gemini File API (for unsupported inline MIME types) ──────
+// ── Upload file to Gemini File API (for large files exceeding inline limits) ──
 async function uploadFileToGemini(
   fileBuffer: Buffer,
   mimeType: string,
-  fileName: string,
+  fileName: string
 ): Promise<string> {
-  // Use multipart upload
   const boundary = "----FormBoundary" + Math.random().toString(36).slice(2);
   const url = `https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=multipart&key=${env.geminiApiKey}`;
 
   const metadata = JSON.stringify({ file: { displayName: fileName } });
   const body = Buffer.concat([
-    Buffer.from(`--${boundary}\r\nContent-Type: application/json\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`),
+    Buffer.from(
+      `--${boundary}\r\nContent-Type: application/json\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`
+    ),
     fileBuffer,
     Buffer.from(`\r\n--${boundary}--\r\n`),
   ]);
@@ -454,29 +478,33 @@ async function uploadFileToGemini(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Gemini File API upload error ${response.status}: ${errorText}`);
+    throw new Error(
+      `Gemini File API upload error ${response.status}: ${errorText}`
+    );
   }
 
-  const data = await response.json() as { file?: { uri?: string; name?: string } };
+  const data = (await response.json()) as {
+    file?: { uri?: string; name?: string };
+  };
   const uri = data.file?.uri;
   if (!uri) {
     throw new Error("Gemini File API upload failed — no URI returned.");
   }
 
-  // Poll for file to become ACTIVE
+  // Poll until file becomes ACTIVE
   const fileNameReturned = data.file?.name;
   if (fileNameReturned) {
     let attempts = 0;
     while (attempts < 30) {
       await new Promise((r) => setTimeout(r, 2000));
       const stateRes = await fetch(
-        `${GEMINI_API_BASE}/${fileNameReturned}?key=${env.geminiApiKey}`,
+        `${GEMINI_API_BASE}/${fileNameReturned}?key=${env.geminiApiKey}`
       );
       if (stateRes.ok) {
-        const stateData = await stateRes.json() as { state?: string };
+        const stateData = (await stateRes.json()) as { state?: string };
         if (stateData.state === "ACTIVE") break;
         if (stateData.state === "FAILED") {
-          throw new Error("Document upload to Gemini failed.");
+          throw new Error("Document upload to Gemini failed during processing.");
         }
       }
       attempts++;
@@ -486,11 +514,11 @@ async function uploadFileToGemini(
   return uri;
 }
 
-// ── Call Gemini REST API directly (no SDK) ─────────────────────────────────
+// ── Call Gemini REST API directly (no SDK) ────────────────────────────────────
 async function callGeminiApi(
   model: string,
   contents: unknown,
-  systemInstruction: string,
+  systemInstruction: string
 ): Promise<string> {
   const url = `${GEMINI_API_BASE}/models/${model}:generateContent?key=${env.geminiApiKey}`;
 
@@ -500,7 +528,6 @@ async function callGeminiApi(
     },
     contents,
     generationConfig: {
-      temperature: 0.1,
       maxOutputTokens: 16384,
     },
   };
@@ -513,98 +540,241 @@ async function callGeminiApi(
 
   if (!response.ok) {
     const errorText = await response.text();
+
+    // Surface helpful user-facing messages for common API errors
+    if (response.status === 400 && errorText.includes("PDF_ENCRYPTED")) {
+      throw new Error(
+        "This PDF is password-protected. Please remove the password and re-upload the document."
+      );
+    }
+    if (response.status === 400 && errorText.includes("UNSUPPORTED_INPUT")) {
+      throw new Error(
+        "Gemini could not read this file. Please try a different format such as PDF, PNG, or a plain text file."
+      );
+    }
+    if (response.status === 429) {
+      throw new Error(
+        "Our AI engine is temporarily busy. Please wait a moment and try again."
+      );
+    }
+    if (response.status === 503) {
+      throw new Error(
+        "Our AI audit engine is temporarily unavailable. Please try again in a moment."
+      );
+    }
+
     throw new Error(`Gemini API error ${response.status}: ${errorText}`);
   }
 
-  const data = await response.json() as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  const data = (await response.json()) as {
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+      finishReason?: string;
+    }>;
+    promptFeedback?: { blockReason?: string };
   };
 
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  // Check for blocked / safety-filtered responses
+  if (data.promptFeedback?.blockReason) {
+    throw new Error(
+      "The document could not be processed. Please ensure it is a valid financial document and try again."
+    );
+  }
+
+  const candidate = data.candidates?.[0];
+  if (candidate?.finishReason === "SAFETY") {
+    throw new Error(
+      "The document could not be processed. Please ensure it is a valid financial document and try again."
+    );
+  }
+
+  const text = candidate?.content?.parts?.[0]?.text;
   if (!text || text.trim().length < 10) {
-    throw new Error("Gemini returned an empty response. Please try again.");
+    throw new Error(
+      "Gemini returned an empty response. The document may be blank, corrupted, or unreadable. Please try a different file."
+    );
   }
 
   return text;
 }
 
-// ── Main Gemini Engine function ────────────────────────────────────────────
+// ── Build the analysis prompt for a given file ────────────────────────────────
+function buildAnalysisPrompt(fileName: string, ext: string): string {
+  return (
+    `Perform a complete forensic financial audit of this ${ext.toUpperCase()} document. ` +
+    `File name: "${fileName}". ` +
+    `If this is a multi-page document, analyze ALL pages and ensure pagesReviewed reflects the complete document. ` +
+    `If this is a scanned document or image, perform OCR to extract all visible text before analysis. ` +
+    `If this document contains tables, extract all rows and columns including headers and independently recalculate every total that can be verified. ` +
+    `Apply the complete mandatory review matrix from the system instruction, including specialist checks relevant to this document type. ` +
+    `Cite the exact page, section, table, clause, or line item for every finding whenever visible. ` +
+    `If the document appears blank or unreadable, note that in executiveSummary.overview and return empty finding arrays. ` +
+    `Return ONLY the JSON audit report. No preamble, no explanation, no markdown — pure JSON only.`
+  );
+}
+
+function decodeRtf(buffer: Buffer): string {
+  return buffer
+    .toString("latin1")
+    .replace(/\\par[d]?\b/g, "\n")
+    .replace(/\\tab\b/g, "\t")
+    .replace(/\\'[0-9a-fA-F]{2}/g, (value) =>
+      String.fromCharCode(Number.parseInt(value.slice(2), 16))
+    )
+    .replace(/\\[a-zA-Z]+-?\d* ?/g, "")
+    .replace(/[{}]/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+async function extractOfficeText(fileBuffer: Buffer, ext: string): Promise<string> {
+  if (ext === "docx") {
+    const mammoth = await import("mammoth");
+    return (await mammoth.extractRawText({ buffer: fileBuffer })).value.trim();
+  }
+
+  if (ext === "doc") {
+    const { default: WordExtractor } = await import("word-extractor");
+    const document = await new WordExtractor().extract(fileBuffer);
+    return document.getBody().trim();
+  }
+
+  if (ext === "xlsx" || ext === "xls") {
+    const XLSX = await import("xlsx");
+    const workbook = XLSX.read(fileBuffer, { type: "buffer", cellDates: true });
+    return workbook.SheetNames.map((sheetName) => {
+      const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName], { blankrows: false });
+      return `Sheet: ${sheetName}\n${csv}`;
+    }).join("\n\n").trim();
+  }
+
+  return decodeRtf(fileBuffer);
+}
+
+// ── Main Gemini Engine function ───────────────────────────────────────────────
 /**
  * Analyzes a document using Google Gemini via direct REST API.
- * Sends the raw file as base64 inline for multimodal processing.
- * Returns a complete structured AuditReport.
+ *
+ * Routing logic:
+ *   - Plain text files (TXT, CSV, MD, HTML): read as UTF-8 and send as a text prompt.
+ *   - All binary files (PDF, images, DOCX, DOC, XLSX, XLS, RTF, BMP, TIFF, WEBP, HEIC):
+ *     read as Buffer, base64-encode, send as inline_data so Gemini handles
+ *     OCR, layout, table extraction, and structure understanding natively.
+ *
+ * Returns a complete structured AuditReport ready for the report generation pipeline.
  */
 export async function analyzeWithGemini(
   filePath: string,
-  fileName: string,
+  fileName: string
 ): Promise<AuditReport> {
   if (!env.geminiApiKey) {
-    throw new Error("GEMINI_API_KEY is not configured. Set it in your .env file.");
+    throw new Error(
+      "GEMINI_API_KEY is not configured. Set it in your .env file."
+    );
   }
 
   const ext = path.extname(fileName).toLowerCase().replace(".", "");
   const mimeType = MIME_TYPE_MAP[ext];
 
   if (!mimeType) {
-    throw new Error(`Unsupported file type: .${ext}`);
+    throw new Error(
+      `Unsupported file type: .${ext}. Please upload a PDF, image (PNG/JPG/WEBP/TIFF/HEIC/BMP), ` +
+        `Word document (DOCX/DOC), spreadsheet (XLSX/XLS/CSV), or text file (TXT/RTF).`
+    );
   }
 
-  const isTextFile = ["txt", "md", "html", "htm", "csv"].includes(ext);
-  // Office documents (DOCX, XLSX) — extract text locally and send as text
-  const isOfficeDoc = ["docx", "xlsx"].includes(ext);
+  const isPlainText = PLAIN_TEXT_EXTENSIONS.has(ext);
+  const shouldExtractText = EXTRACT_TO_TEXT_EXTENSIONS.has(ext);
 
-  console.log(`[Gemini Engine] File: ${fileName}, ext: ${ext}, mimeType: ${mimeType}, isTextFile: ${isTextFile}, isOfficeDoc: ${isOfficeDoc}`);
+  console.log(
+    `[Gemini Engine] Processing: "${fileName}" | ext: .${ext} | ` +
+      `mime: ${mimeType} | mode: ${isPlainText ? "text" : "binary/multimodal"}`
+  );
 
   try {
     let contents: unknown;
 
-    if (isTextFile || isOfficeDoc) {
-      // Read as text (or extract text from office docs) and send inline
+    if (isPlainText || shouldExtractText) {
+      // ── Plain text path: read as UTF-8, send as text prompt ───────────────
       let textContent: string;
-      if (ext === "docx") {
-        textContent = await extractTextFromDocx(filePath);
-        console.log(`[Gemini Engine] Extracted ${textContent.length} chars from DOCX`);
-      } else if (ext === "xlsx") {
-        textContent = await extractTextFromXlsx(filePath);
-        console.log(`[Gemini Engine] Extracted ${textContent.length} chars from XLSX`);
-      } else {
-        textContent = await fs.readFile(filePath, "utf-8");
+      try {
+        if (shouldExtractText) {
+          const fileBuffer = await fs.readFile(filePath);
+          textContent = await extractOfficeText(fileBuffer, ext);
+        } else {
+          textContent = await fs.readFile(filePath, "utf-8");
+        }
+      } catch {
+        throw new Error(
+          "Could not read the uploaded file. Please try uploading again."
+        );
       }
 
       if (!textContent || textContent.trim().length < 10) {
-        throw new Error(`Could not extract text from .${ext} file. Please try a different format (PDF, TXT, or image).`);
+        throw new Error(
+          "The document appears to be empty. Please upload a document with content."
+        );
       }
 
-      const prompt = `Analyze this ${ext} financial document and generate a complete forensic audit report.
+      // Truncate very large text files to stay within token limits
+      const MAX_TEXT_CHARS = 80000;
+      const truncated = textContent.length > MAX_TEXT_CHARS;
+      const truncatedContent = textContent.slice(0, MAX_TEXT_CHARS);
+      const truncationNote = truncated
+        ? `\n\n[Note: Document truncated at ${MAX_TEXT_CHARS.toLocaleString()} characters for processing. ` +
+          `The remaining ${(textContent.length - MAX_TEXT_CHARS).toLocaleString()} characters were not analyzed.]`
+        : "";
 
-File: ${fileName}
-Content:
----
-${textContent.slice(0, 80000)}
----${textContent.length > 80000 ? "\n[Document truncated at 80,000 characters for processing]" : ""}
-
-Return ONLY the JSON audit report. No other text.`;
+      const prompt =
+        `${buildAnalysisPrompt(fileName, ext)}\n\n` +
+        `Document content:\n---\n${truncatedContent}${truncationNote}\n---`;
 
       contents = {
         role: "user",
         parts: [{ text: prompt }],
       };
     } else {
-      // Read binary file (PDF, images), base64 encode, send as inline_data
-      const fileBuffer = await fs.readFile(filePath);
-      const base64Content = fileBuffer.toString("base64");
+      // ── Binary/multimodal path: base64-encode and send as inline_data ─────
+      // This covers: PDF, images (PNG/JPG/WEBP/TIFF/BMP/HEIC/GIF),
+      // Office docs (DOCX/DOC/XLSX/XLS), and RTF.
+      // Gemini reads all of these natively — no pre-processing required.
+      let fileBuffer: Buffer;
+      try {
+        fileBuffer = await fs.readFile(filePath);
+      } catch {
+        throw new Error(
+          "Could not read the uploaded file. Please try uploading again."
+        );
+      }
+
+      if (fileBuffer.length === 0) {
+        throw new Error(
+          "The uploaded file is empty. Please upload a valid document."
+        );
+      }
+
+      let normalizedBuffer = fileBuffer;
+      let normalizedMimeType = mimeType;
+
+      if (CONVERT_TO_PNG_EXTENSIONS.has(ext)) {
+        const { default: sharp } = await import("sharp");
+        normalizedBuffer = await sharp(fileBuffer, { animated: false }).png().toBuffer();
+        normalizedMimeType = "image/png";
+      }
+
+      const base64Content = normalizedBuffer.toString("base64");
 
       contents = {
         role: "user",
         parts: [
           {
             inline_data: {
-              mime_type: mimeType,
+              mime_type: normalizedMimeType,
               data: base64Content,
             },
           },
           {
-            text: `Analyze this financial document. File: ${fileName}. Return ONLY the JSON audit report. No other text.`,
+            text: buildAnalysisPrompt(fileName, ext),
           },
         ],
       };
@@ -613,16 +783,21 @@ Return ONLY the JSON audit report. No other text.`;
     const responseText = await callGeminiApi(
       env.geminiModel,
       contents,
-      FORENSIC_SYSTEM_INSTRUCTION,
+      FORENSIC_SYSTEM_INSTRUCTION
     );
 
     const report = parseGeminiResponse(responseText, fileName);
     report.documentMetadata.fileName = fileName;
     report.documentMetadata.fileType = ext;
 
+    console.log(
+      `[Gemini Engine] Analysis complete for "${fileName}" | ` +
+        `risk: ${report.overallRiskScore} | findings: ${report.allFindings.length}`
+    );
+
     return report;
   } finally {
-    // Always clean up the temp file
+    // Always clean up the temp file regardless of success or failure
     await fs.unlink(filePath).catch(() => {});
   }
 }

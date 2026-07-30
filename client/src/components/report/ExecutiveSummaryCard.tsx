@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Lightbulb, ArrowRight, FileSearch, MessageSquare, AlertTriangle, Target } from "lucide-react";
+import { Lightbulb, ArrowRight, FileSearch, AlertTriangle, Target } from "lucide-react";
 import type { HiddenFee } from "@/types/audit";
 
 interface ExecutiveSummaryCardProps {
@@ -39,8 +39,8 @@ export function ExecutiveSummaryCard({
               <Lightbulb className="h-7 w-7 text-intel-300" />
             </div>
             <div>
-              <h2 className="text-2xl sm:text-3xl font-black text-premium-primary tracking-[-0.02em]">Executive Summary</h2>
-              <p className="text-base text-premium-tertiary mt-0.5">Intelligence briefing from our analysis of your document</p>
+              <h2 className="text-2xl sm:text-3xl font-black text-premium-primary tracking-[-0.02em]">What We Found</h2>
+              <p className="text-base text-premium-tertiary mt-0.5">The biggest concerns, what they mean, and what to do next</p>
             </div>
           </div>
 
@@ -62,7 +62,7 @@ export function ExecutiveSummaryCard({
               <div className="rounded-xl border border-red-500/10 bg-red-500/[0.04] p-5">
                 <div className="flex items-center gap-2 mb-2">
                   <AlertTriangle className="h-4 w-4 text-red-400/60" />
-                  <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-red-400/60">Critical Findings</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-red-400/60">Needs Attention Now</p>
                 </div>
                 <p className="text-[16px] leading-relaxed text-premium-secondary">{criticalFindings}</p>
               </div>
@@ -70,7 +70,7 @@ export function ExecutiveSummaryCard({
                 <div className="rounded-xl border border-savings-500/10 bg-savings-500/[0.04] p-5">
                   <div className="flex items-center gap-2 mb-2">
                     <Target className="h-4 w-4 text-savings-400/60" />
-                    <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-savings-400/60">Immediate Action</p>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-savings-400/60">What to Do First</p>
                   </div>
                   <p className="text-[16px] leading-relaxed text-premium-secondary">{immediateActions}</p>
                 </div>
@@ -82,7 +82,7 @@ export function ExecutiveSummaryCard({
 
       {topConcerns.length > 0 && (
         <div className="px-8 sm:px-12 pb-8 sm:pb-12 mt-8 space-y-6">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-premium-muted">Top Concerns</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-premium-muted">Charges and Terms Worth Reviewing</p>
           {topConcerns.slice(0, 3).map((f, i) => {
             const cfg = severityConfig[f.severity] ?? severityConfig.Medium;
             return (
@@ -98,10 +98,10 @@ export function ExecutiveSummaryCard({
                     {String(i + 1).padStart(2, "0")}
                   </span>
                   <span className={`rounded-full px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider ${cfg.badge}`}>
-                    {f.severity === "Critical" ? "CRITICAL RISK" : f.severity === "High" ? "HIGH SEVERITY" : f.severity === "Medium" ? "REVIEW NEEDED" : "INFO"}
+                    {f.severity === "Critical" ? "URGENT REVIEW" : f.severity === "High" ? "HIGH PRIORITY" : f.severity === "Medium" ? "REVIEW NEEDED" : "LOWER PRIORITY"}
                   </span>
                   {f.pageNumber && (
-                    <span className="text-[13px] text-premium-muted font-mono">PG {f.pageNumber}</span>
+                    <span className="text-[13px] text-premium-muted font-mono">Page {f.pageNumber}</span>
                   )}
                 </div>
 
@@ -135,7 +135,7 @@ export function ExecutiveSummaryCard({
                     <div className="rounded-xl border-l-[3px] border-intel-400/30 bg-gradient-to-r from-intel-400/[0.04] to-transparent p-5">
                       <div className="flex items-center gap-2 mb-3">
                         <FileSearch className="h-4 w-4 text-intel-400/60" />
-                        <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-intel-400/60">Evidence Found in Document</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-intel-400/60">Where This Appears</p>
                       </div>
                       <p className="text-[15px] leading-relaxed text-premium-secondary italic">
                         &ldquo;{f.evidence.length > 200 ? f.evidence.slice(0, 200) + "..." : f.evidence}&rdquo;

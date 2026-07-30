@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ClipboardCheck, Search, FileText, MessageSquare, CheckCircle2, AlertTriangle, Clock, ArrowRight } from "lucide-react";
+import { ClipboardCheck, Search, FileText, MessageSquare, CheckCircle2, AlertTriangle } from "lucide-react";
 import type { RecommendedAction } from "@/types/audit";
 
 interface ActionPlanSectionProps {
@@ -55,7 +55,7 @@ export function ActionPlanSection({
           <div>
             <h2 className="text-2xl sm:text-3xl font-black text-white tracking-[-0.02em]">Action Plan</h2>
             <p className="text-base text-white/60 mt-0.5">
-              Your personalized roadmap for reviewing findings and taking the next best steps.
+              What to question first, what to ask, and how to follow up.
             </p>
           </div>
         </div>
@@ -73,7 +73,7 @@ export function ActionPlanSection({
                 <AlertTriangle className="h-5 w-5 text-red-300" />
               </div>
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-red-400/60 mb-2">Immediate Priority</p>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-red-400/60 mb-2">Review Before You Pay or Sign</p>
                 <p className="text-lg leading-relaxed text-white/90 max-w-3xl">
                   {criticalCount} action{criticalCount > 1 ? "s" : ""} require immediate attention. Address these before signing, paying, or proceeding.
                 </p>

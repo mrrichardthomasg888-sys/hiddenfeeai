@@ -3,18 +3,32 @@ import multer from "multer";
 import path from "node:path";
 import os from "node:os";
 import { v4 as uuid } from "uuid";
-import { env } from "@/config/env.js";
-import { createJob, updateJob } from "@/services/jobStore.js";
-import { Errors } from "@/utils/AppError.js";
+import { env } from "../config/env.js";
+import { createJob, updateJob } from "../services/jobStore.js";
+import { Errors } from "../utils/AppError.js";
 
 // ── Supported file types ───────────────────────────────────────────────────
+// All formats Gemini can natively process — PDF, images, Office docs, and text.
+// Gemini handles OCR, table extraction, and layout understanding for all of these.
 const ACCEPTED_EXTENSIONS = [
+  // PDF — digital, scanned, image-only, mixed
   ".pdf",
-  ".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif", ".tiff", ".tif", ".gif",
+
+  // Images — Gemini performs native OCR
+  ".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif",
+  ".tiff", ".tif", ".bmp", ".gif",
+
+  // Microsoft Office — Gemini reads natively (text + tables + structure)
   ".docx", ".doc",
   ".xlsx", ".xls",
-  ".csv",
-  ".txt", ".md",
+
+  // Rich Text
+  ".rtf",
+
+  // Plain text / data
+  ".csv", ".txt", ".md",
+
+  // Web markup
   ".html", ".htm",
 ];
 

@@ -1,4 +1,5 @@
-import type { Job } from "@/types/audit.js";
+import type { Job } from "../types/audit.js";
+import { unlink } from "node:fs/promises";
 
 // Ephemeral in-memory job store.
 // Per the privacy-first architecture: NO user accounts, NO document history.
@@ -34,6 +35,8 @@ export function updateJob(auditId: string, patch: Partial<Job>): Job | undefined
 }
 
 export function deleteJob(auditId: string): void {
+  const job = jobs.get(auditId);
+  if (job?.filePath) void unlink(job.filePath).catch(() => undefined);
   jobs.delete(auditId);
 }
 
@@ -41,6 +44,7 @@ function purgeExpiredJobs() {
   const now = Date.now();
   for (const [id, job] of jobs.entries()) {
     if (now - job.createdAt > JOB_TTL_MS) {
+      if (job.filePath) void unlink(job.filePath).catch(() => undefined);
       jobs.delete(id);
     }
   }

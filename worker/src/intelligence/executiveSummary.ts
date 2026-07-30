@@ -1,4 +1,4 @@
-import type { VerifiedFinding, ExecutiveSummary as ExistingSummary, StructuredDocument } from "../types.js";
+import type { VerifiedFinding, ExecutiveSummary as ExistingSummary, StructuredDocument, AuditReport, Finding } from "../types.js";
 import { lookupFee } from "../knowledge/feeDatabase.js";
 
 /**
@@ -232,4 +232,54 @@ function buildKeyTakeaways(
   }
 
   return takeaways.length > 0 ? takeaways : ['No significant issues identified. The document appears standard.'];
+}
+
+/**
+ * Adapter wrapper for analyze.ts — accepts an AuditReport and returns
+ * an EnhancedExecutiveSummary by converting Findings to VerifiedFindings.
+ */
+export function generateExecutiveSummary(report: AuditReport): EnhancedExecutiveSummary {
+  const verified: VerifiedFinding[] = (report.findings ?? []).map((f: Finding) => ({
+    id: f.id,
+    title: f.title,
+    category: f.category,
+    severity: f.severity,
+    confidenceScore: f.confidence_score,
+    confidenceTier: 'high' as const,
+    amount: f.amount,
+    page: f.page,
+    sectionHeading: null,
+    evidenceQuote: f.evidence,
+    explanation: f.explanation,
+    whyItMatters: f.why_it_matters,
+    recommendedAction: f.recommended_action,
+    negotiationMessage: f.negotiation_message,
+    negotiationStrategy: f.negotiation_strategy,
+    sourceAnalyzer: 'legacy',
+    evidencePresent: !!f.evidence,
+    evidenceMatchScore: 1,
+    verificationNotes: '',
+    suppressed: false,
+  }));
+
+  const docStub: StructuredDocument = {
+    fileName: 'document',
+    fileFormat: 'txt',
+    pageCount: report.document_meta.pages_reviewed ?? 1,
+    markdown: '',
+    elements: [],
+    tables: [],
+    metadata: { pageCount: report.document_meta.pages_reviewed ?? 1, language: 'en' },
+    routeResult: {
+      fileFormat: 'txt', mimeType: 'text/plain', isDigital: true, isScanned: false,
+      needsOcr: false, detectedLanguage: 'en', pageCount: report.document_meta.pages_reviewed ?? 1,
+      hasTables: false, hasImages: false, hasForms: false, hasSignatures: false,
+      hasHandwriting: false, documentQuality: 'good', warnings: [],
+    },
+    extractionMethod: 'native',
+    extractionConfidence: report.confidence_level ?? 80,
+    warnings: [],
+  };
+
+  return generateEnhancedSummary(verified, docStub, 'review');
 }

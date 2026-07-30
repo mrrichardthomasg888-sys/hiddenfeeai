@@ -11,7 +11,7 @@ export function DocumentTypes() {
     <section className="border-t border-violet-500/5 bg-midnight-900 py-14">
       <Container>
         <p className="mb-6 text-center text-sm font-semibold uppercase tracking-wide text-violet-400/60">
-          Analyze documents like:
+          Check documents like:
         </p>
         <motion.div
           initial={{ opacity: 0, y: 16 }}

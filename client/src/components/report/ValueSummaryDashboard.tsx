@@ -18,10 +18,10 @@ function formatCurrency(value: number): string | null {
 }
 
 const metrics = [
-  { key: "issues" as const, icon: AlertCircle, label: "Issues Detected", color: "text-red-400" },
-  { key: "fees" as const, icon: Eye, label: "Hidden Fees Found", color: "text-amber-400" },
+  { key: "issues" as const, icon: AlertCircle, label: "Items to Review", color: "text-red-400" },
+  { key: "fees" as const, icon: Eye, label: "Possible Hidden Fees", color: "text-amber-400" },
   { key: "savings" as const, icon: PiggyBank, label: "Potential Savings", color: "text-savings-400" },
-  { key: "confidence" as const, icon: ShieldCheck, label: "AI Confidence", color: "text-trust-400" },
+  { key: "confidence" as const, icon: ShieldCheck, label: "Evidence Confidence", color: "text-trust-400" },
 ];
 
 export function ValueSummaryDashboard({
@@ -48,25 +48,25 @@ export function ValueSummaryDashboard({
         switch (m.key) {
           case "issues":
             displayValue = String(totalIssues);
-            subtext = totalIssues === 0 ? "No issues found" : "across document";
+            subtext = totalIssues === 0 ? "No major concerns found" : "across your document";
             break;
           case "fees":
             displayValue = String(hiddenFeesCount);
-            subtext = hiddenFeesCount === 0 ? "None detected" : "identified";
+            subtext = hiddenFeesCount === 0 ? "None found" : "worth checking";
             break;
           case "savings":
             if (hasExactSavings && formattedSavings) {
               displayValue = formattedSavings;
               subtext = "estimated savings";
             } else {
-              displayValue = "Unknown";
+              displayValue = "Negotiable";
               isMuted = true;
-              subtext = "requires negotiation";
+              subtext = "amount not yet quantified";
             }
             break;
           case "confidence":
             displayValue = `${Math.round(confidenceLevel)}%`;
-            subtext = "AI certainty";
+            subtext = "based on available evidence";
             break;
           default:
             displayValue = "—";

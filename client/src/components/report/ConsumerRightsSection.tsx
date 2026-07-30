@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Scale, BookOpen, ExternalLink } from "lucide-react";
+import { Scale, BookOpen } from "lucide-react";
 import type { ConsumerRight } from "@/types/audit";
 
 interface ConsumerRightsSectionProps {

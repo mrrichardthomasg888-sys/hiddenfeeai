@@ -185,6 +185,10 @@ export interface Env {
   USE_V2_PIPELINE?: string;
   DOCLING_SERVICE_URL?: string;
   DOCLING_API_KEY?: string;
+  GEMINI_API_KEY?: string;
+  GOOGLE_API_KEY?: string;
+  GEMINI_MODEL?: string;
+  GEMINI_PRO_MODEL?: string;
   ANALYSIS_KV?: KVNamespace;
   AI: {
     run: (model: string, inputs: Record<string, unknown>) => Promise<Record<string, unknown>>;

@@ -56,10 +56,10 @@ export function PaymentGate({ auditId, onPaymentComplete }: PaymentGateProps) {
         </div>
 
         <h2 className="mt-5 text-xl font-semibold text-ink-900">
-          Your AI audit is ready to begin
+          Your document is ready for a full review
         </h2>
         <p className="mt-2 text-sm text-mist-500">
-          Your document has been received. Unlock the full forensic analysis for a one-time fee.
+          Get a complete report showing what deserves attention, where it appears, and what you can ask next.
         </p>
 
         <div className="mt-6 w-full rounded-2xl bg-mist-50 p-5">
@@ -70,9 +70,9 @@ export function PaymentGate({ auditId, onPaymentComplete }: PaymentGateProps) {
         <div className="mt-5 space-y-2.5 text-left">
           {[
             "No subscription — pay once, get the full report",
-            "No account required — completely anonymous",
-            "Private processing — document auto-deleted after analysis",
-            "Detailed findings with evidence and negotiation scripts",
+            "No account required",
+            "Private processing — document deleted after the review",
+            "Every finding includes evidence and a clear next step",
           ].map((point) => (
             <div key={point} className="flex items-start gap-2.5">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-savings-500" strokeWidth={2.5} />
@@ -100,15 +100,15 @@ export function PaymentGate({ auditId, onPaymentComplete }: PaymentGateProps) {
               Processing...
             </>
           ) : (
-            "Pay & Start Audit"
+            "Get My Full Audit Report — $15"
           )}
         </Button>
 
         <div className="mt-4 flex items-start justify-center gap-2 text-sm text-mist-500">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-savings-500" />
           <span>
-            <span className="font-medium text-ink-900">Your document is not stored.</span>{" "}
-            After analysis, it is permanently deleted. We never sell or share your data.
+            <span className="font-medium text-ink-900">Your original file is temporary.</span>{" "}
+            It is deleted after analysis completes or fails. See the Privacy Policy for processor and retention details.
           </span>
         </div>
       </div>

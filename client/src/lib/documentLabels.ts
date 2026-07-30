@@ -19,20 +19,6 @@ function categorizeDocumentType(raw: string): DocTypeCategory {
   return "unknown";
 }
 
-const documentVerbs: Record<DocTypeCategory, string> = {
-  contract: "Analyzed",
-  invoice: "Audited",
-  bill: "Reviewed",
-  lease: "Examined",
-  agreement: "Analyzed",
-  loan: "Reviewed",
-  insurance: "Examined",
-  subscription: "Reviewed",
-  receipt: "Checked",
-  statement: "Analyzed",
-  unknown: "Analyzed",
-};
-
 const documentNouns: Record<DocTypeCategory, string> = {
   contract: "Contract",
   invoice: "Invoice",
@@ -50,8 +36,7 @@ const documentNouns: Record<DocTypeCategory, string> = {
 export function getReportTitle(documentType: string): string {
   const cat = categorizeDocumentType(documentType);
   const noun = documentNouns[cat];
-  const verb = documentVerbs[cat];
-  return `We ${verb} Your ${noun}`;
+  return `Your ${noun} Audit Report`;
 }
 
 export function getReportActionLine(documentType: string, totalIssues: number): string {
@@ -66,17 +51,17 @@ export function getAnalysisDescription(documentType: string, issuer?: string): s
   const cat = categorizeDocumentType(documentType);
   const lower = documentType.toLowerCase();
   const baseAction: Record<DocTypeCategory, string> = {
-    contract: "We analyzed your agreement for hidden fees, risky clauses, pricing uncertainty, and negotiation opportunities.",
-    invoice: "We examined every line item in your bill for overcharges, hidden fees, math errors, and duplicate charges.",
-    bill: "We reviewed your bill for hidden fees, overcharges, math errors, and pricing issues.",
-    lease: "We examined your lease agreement for hidden fees, escalating clauses, and unfavorable terms.",
-    agreement: "We analyzed your agreement for hidden fees, risky clauses, pricing uncertainty, and negotiation opportunities.",
-    loan: "We reviewed your loan document for hidden fees, prepayment penalties, and unfavorable interest terms.",
-    insurance: "We examined your policy for hidden fees, coverage gaps, and unusual exclusions.",
-    subscription: "We reviewed your subscription for hidden charges, auto-renewal traps, and price increases.",
+    contract: "We checked your agreement for hidden fees, costly clauses, unclear pricing, and terms worth negotiating.",
+    invoice: "We checked every line item for overcharges, hidden fees, math errors, and duplicate charges.",
+    bill: "We checked your bill for hidden fees, overcharges, math errors, and unexpected price changes.",
+    lease: "We checked your lease for hidden fees, automatic increases, and terms that could cost you later.",
+    agreement: "We checked your agreement for hidden fees, costly clauses, unclear pricing, and terms worth negotiating.",
+    loan: "We checked your loan document for hidden fees, prepayment penalties, and costly interest terms.",
+    insurance: "We checked your policy for hidden fees, coverage gaps, and unusual exclusions.",
+    subscription: "We checked your subscription for hidden charges, automatic renewals, and price increases.",
     receipt: "We checked your receipt for overcharges, math errors, and duplicate items.",
-    statement: "We analyzed your statement for hidden fees, math errors, and unusual charges.",
-    unknown: `We analyzed your ${lower} for hidden fees, risky clauses, pricing uncertainty, and negotiation opportunities.`,
+    statement: "We checked your statement for hidden fees, math errors, and unusual charges.",
+    unknown: `We checked your ${lower} for hidden fees, costly clauses, unclear pricing, and charges worth questioning.`,
   };
   const issuerSuffix = issuer ? ` (with ${issuer})` : "";
   return `${baseAction[cat]}${issuerSuffix}`;

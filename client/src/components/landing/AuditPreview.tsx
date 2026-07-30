@@ -27,27 +27,33 @@ export function AuditPreview() {
             </div>
             <div>
               <p className="text-sm font-medium uppercase tracking-wide text-violet-400/60">
-                AI Audit Preview
+                Professional Audit Report Preview
               </p>
               <p className="text-base font-semibold text-violet-100">
-                Document analyzed: Auto Purchase Agreement
+                Document reviewed: Auto Purchase Agreement
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4 rounded-2xl bg-midnight-800 p-6 text-center">
             <div>
-              <p className="text-3xl font-semibold text-violet-100">{charges}</p>
+              <p className="text-3xl font-semibold text-violet-100" aria-label="47 charges reviewed">
+                {active ? charges : 47}
+              </p>
               <p className="mt-1 text-xs text-violet-400/60">Charges reviewed</p>
             </div>
             <div>
-              <p className="text-3xl font-semibold text-risk-high">{flagged}</p>
+              <p className="text-3xl font-semibold text-risk-high" aria-label="5 items flagged">
+                {active ? flagged : 5}
+              </p>
               <p className="mt-1 text-xs text-violet-400/60">Items flagged</p>
             </div>
             <div>
               <div className="flex items-center justify-center gap-1">
                 <TrendingDown className="h-5 w-5 text-savings-500" />
-                <p className="text-3xl font-semibold text-savings-400">${savings}</p>
+                <p className="text-3xl font-semibold text-savings-400" aria-label="742 dollars potential savings">
+                  ${active ? savings : 742}
+                </p>
               </div>
               <p className="mt-1 text-xs text-violet-400/60">Potential savings</p>
             </div>

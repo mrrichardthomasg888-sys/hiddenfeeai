@@ -1,89 +1,139 @@
 import { motion } from "framer-motion";
-import { Gauge, TrendingDown, AlertTriangle } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  CheckCircle2,
+  FileDown,
+  FileSearch,
+  FileText,
+  Gauge,
+  MessageSquareQuote,
+  ShieldCheck,
+  TrendingDown,
+} from "lucide-react";
 import { Container } from "@/components/layout/Container";
-import { Badge } from "@/components/ui/badge";
+
+const reportValue = [
+  "A plain-English summary",
+  "The exact page or line behind each finding",
+  "Charges ranked by urgency",
+  "Questions, scripts, and next steps",
+];
 
 export function ReportShowcase() {
   return (
-    <section className="bg-midnight-900 py-16">
-      <Container>
-        <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-wide text-violet-400/60">
-            What you receive
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-violet-100 sm:text-3xl">
-            A professional audit report — not just AI text
-          </h2>
-          <p className="mt-4 text-sm leading-relaxed text-violet-300/70 sm:text-base">
-            Your report documents each questionable charge with supporting evidence and clear explanations — giving you negotiation leverage when speaking with billing departments, service providers, contractors, dealerships, or medical offices. Actionable next steps show you exactly how to challenge or question each finding with confidence.
-          </p>
+    <section id="sample-report" className="relative scroll-mt-24 overflow-hidden bg-[#edf3f8] py-24 sm:py-28">
+      <div className="pointer-events-none absolute -right-32 -top-40 h-[520px] w-[520px] rounded-full bg-[#4da3ff]/10 blur-[130px]" />
+      <Container className="relative max-w-[1240px]">
+        <div className="grid gap-12 lg:grid-cols-[.68fr_1.32fr] lg:items-start lg:gap-16 xl:gap-20">
+          <div className="lg:sticky lg:top-28">
+            <p className="inline-flex items-center gap-2 text-sm font-extrabold uppercase tracking-[0.2em] text-[#1769aa]"><CheckCircle2 className="h-4 w-4 shrink-0" /> Hidden costs become obvious.</p>
+            <h2 className="mt-5 text-4xl font-black tracking-[-0.05em] text-[#07111f] sm:text-6xl">
+              See exactly what deserves a second look.
+            </h2>
+            <p className="mt-6 text-lg font-semibold leading-[1.72] text-[#334155]">
+              Your Professional Audit Report shows where a charge appears, why it matters, what it could cost, and what to ask before you pay or sign.
+            </p>
+
+            <div className="mt-8 space-y-3">
+              {reportValue.map((item) => (
+                <div key={item} className="flex items-center gap-3 rounded-2xl border border-[#cbd7e2] bg-white px-4 py-3.5 shadow-[0_10px_28px_rgba(15,23,42,.06)]">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-[#13865f]" />
+                  <span className="text-sm font-extrabold text-[#172033]">{item}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 flex items-center gap-3 text-sm font-extrabold text-[#334155]">
+              <FileDown className="h-5 w-5 text-[#1769aa]" /> Browser report + downloadable PDF
+            </div>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.15 }}
+            className="relative"
+          >
+            <div className="pointer-events-none absolute -inset-4 rounded-[42px] bg-[#07111f]/[0.08] blur-2xl" />
+            <div className="relative overflow-hidden rounded-[32px] border border-[#1b2a3d] bg-[#091321] shadow-[0_38px_100px_rgba(15,23,42,.3)]">
+              <div className="flex flex-col gap-4 border-b border-white/[0.09] bg-[#111e31] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+                <div className="flex min-w-0 items-center gap-4">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#4da3ff]/25 bg-[#4da3ff]/10">
+                    <FileText className="h-6 w-6 text-[#82c7ff]" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-extrabold uppercase tracking-[.16em] text-[#f8d96e]">HiddenFeeAI Professional Audit Report</p>
+                    <p className="mt-1 truncate text-base font-extrabold text-white">Auto Purchase Agreement · Demo</p>
+                  </div>
+                </div>
+                <span className="w-fit rounded-full border border-[#36d399]/25 bg-[#36d399]/10 px-3 py-1.5 text-xs font-extrabold text-[#76ecba]">Report ready</span>
+              </div>
+
+              <div className="p-5 sm:p-7 lg:p-8">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="text-xs font-extrabold uppercase tracking-[.18em] text-[#73b8ff]">At a glance</p>
+                    <h3 className="mt-2 text-2xl font-black text-white sm:text-3xl">Charges and terms worth reviewing</h3>
+                  </div>
+                  <span className="w-fit rounded-full border border-orange-300/25 bg-orange-300/[0.08] px-3 py-1.5 text-xs font-extrabold text-orange-200">Elevated attention</span>
+                </div>
+
+                <div className="mt-7 grid grid-cols-3 gap-3">
+                  {[
+                    { icon: TrendingDown, value: "$347", label: "Potential savings", color: "text-[#55dfaa]" },
+                    { icon: Gauge, value: "87", label: "Risk score", color: "text-orange-200" },
+                    { icon: AlertTriangle, value: "6", label: "Issues found", color: "text-[#f8d96e]" },
+                  ].map(({ icon: Icon, value, label, color }) => (
+                    <div key={label} className="rounded-2xl border border-white/[0.1] bg-[#101d30] p-4 sm:p-5">
+                      <Icon className={`h-5 w-5 ${color}`} />
+                      <p className={`mt-4 text-2xl font-black tracking-tight sm:text-3xl ${color}`}>{value}</p>
+                      <p className="mt-2 text-xs font-bold leading-5 text-[#c8d3df] sm:text-sm">{label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <article className="mt-6 overflow-hidden rounded-[22px] border border-orange-300/20 bg-orange-300/[0.055]">
+                  <div className="grid gap-4 p-5 sm:grid-cols-[1fr_auto] sm:items-start sm:p-6">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-md bg-orange-300/15 px-2 py-1 text-[10px] font-black uppercase tracking-[.12em] text-orange-200">High priority</span>
+                        <span className="text-xs font-bold text-[#c8d3df]">Page 2 · Line 14 · 96% confidence</span>
+                      </div>
+                      <h4 className="mt-3 text-xl font-black text-white">Administrative processing fee</h4>
+                      <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-[#dce4ec]">Appears separate from required registration costs and may be negotiable.</p>
+                    </div>
+                    <p className="text-2xl font-black text-white">$125.00</p>
+                  </div>
+                  <div className="grid gap-px border-t border-white/[0.09] bg-white/[0.08] md:grid-cols-2">
+                    <div className="bg-[#0d192a] p-5">
+                      <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[.14em] text-[#73b8ff]"><FileSearch className="h-4 w-4" /> Why it matters</div>
+                      <p className="mt-3 text-sm font-semibold leading-6 text-[#dce4ec]">The fee is not identified as a government charge. Ask for its basis, authorization, and whether it can be removed.</p>
+                    </div>
+                    <div className="bg-[#0b1b22] p-5">
+                      <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[.14em] text-[#72eaba]"><MessageSquareQuote className="h-4 w-4" /> Negotiation script</div>
+                      <p className="mt-3 text-sm font-bold leading-6 text-white">“Please explain what this fee covers and whether it can be waived or reduced.”</p>
+                    </div>
+                  </div>
+                </article>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-[20px] border border-white/[0.1] bg-[#101d30] p-5">
+                    <div className="flex items-center justify-between"><p className="text-xs font-extrabold uppercase tracking-[.14em] text-[#c8d3df]">Next finding</p><ArrowUpRight className="h-4 w-4 text-[#73b8ff]" /></div>
+                    <p className="mt-3 text-base font-black text-white">Duplicate service line item</p>
+                    <p className="mt-2 text-sm font-bold text-red-200">$89.00 · Critical</p>
+                  </div>
+                  <div className="rounded-[20px] border border-[#36d399]/20 bg-[#36d399]/[0.055] p-5">
+                    <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-[#60e2ad]" /><p className="text-xs font-extrabold uppercase tracking-[.14em] text-[#72eaba]">What to do next</p></div>
+                    <p className="mt-3 text-base font-black text-white">Your 3 most important next steps</p>
+                    <p className="mt-2 text-sm font-semibold text-[#dce4ec]">Ordered by evidence, urgency, and possible cost.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p className="mt-5 text-center text-sm font-semibold text-[#526477]">Demonstration data only. Actual findings depend on the evidence in the uploaded document.</p>
+          </motion.div>
         </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.5 }}
-          className="mx-auto mt-10 max-w-2xl rounded-3xl border border-violet-500/10 bg-midnight-800/80 p-6 glow-purple sm:p-8"
-        >
-          <div className="mb-6 grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-savings-500/15">
-                <TrendingDown className="h-4 w-4 text-savings-400" />
-              </div>
-              <p className="text-2xl font-semibold text-savings-400">$347</p>
-              <p className="text-xs text-violet-400/60">Potential Savings</p>
-            </div>
-            <div>
-              <div className="mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-risk-high/15">
-                <Gauge className="h-4 w-4 text-risk-high" />
-              </div>
-              <p className="text-2xl font-semibold text-violet-100">87/100</p>
-              <p className="text-xs text-violet-400/60">Risk Score</p>
-            </div>
-            <div>
-              <div className="mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-violet-500/15">
-                <AlertTriangle className="h-4 w-4 text-violet-400" />
-              </div>
-              <p className="text-2xl font-semibold text-violet-100">6</p>
-              <p className="text-xs text-violet-400/60">Issues Detected</p>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-4 rounded-xl border border-violet-500/10 bg-midnight-900/60 p-4">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-violet-100">
-                  Administrative Processing Fee
-                </p>
-                <p className="text-xs text-violet-400/60">
-                  Evidence: line 14, page 2 · Confidence 96%
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <Badge variant="high">high</Badge>
-                <span className="text-sm font-semibold text-violet-100">$125.00</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between gap-4 rounded-xl border border-violet-500/10 bg-midnight-900/60 p-4">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-violet-100">
-                  Duplicate Line Item
-                </p>
-                <p className="text-xs text-violet-400/60">
-                  Same service billed twice · Confidence 99%
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <Badge variant="critical">critical</Badge>
-                <span className="text-sm font-semibold text-violet-100">$89.00</span>
-              </div>
-            </div>
-          </div>
-          <p className="mt-4 text-center text-xs text-violet-400/40">
-            Sample data shown for illustration.
-          </p>
-        </motion.div>
       </Container>
     </section>
   );

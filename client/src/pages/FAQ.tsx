@@ -5,31 +5,31 @@ import { Container } from "@/components/layout/Container";
 const faqs = [
   {
     q: "How does HiddenFeeAI work?",
-    a: "HiddenFeeAI uses artificial intelligence to analyze your uploaded documents — contracts, bills, invoices, medical statements, and more. It scans for hidden fees, billing errors, duplicate charges, and contract risks, then generates a detailed audit report with findings, severity ratings, and negotiation recommendations.",
+    a: "Upload one document. HiddenFeeAI reads every page, looks for hidden fees, duplicate charges, billing mistakes, and costly clauses, then shows where each concern appears, why it matters, and what you can ask next.",
   },
   {
     q: "What document types are supported?",
-    a: "HiddenFeeAI supports PDF, PNG, JPG, WEBP, TIFF, DOCX, TXT, CSV, and XLSX files. Whether you have a scanned contract, a digital invoice, a medical bill PDF, or a spreadsheet of charges, we can process it.",
+    a: "You can upload PDFs, common image files, Word documents, spreadsheets, CSV files, and text files up to 25 MB. Clear scans and phone photos are also supported.",
   },
   {
-    q: "How accurate is the AI analysis?",
-    a: "HiddenFeeAI's AI is highly effective at identifying common hidden fee patterns, billing errors, and contract risks. However, no AI is perfect. Accuracy depends on document quality, formatting, and complexity. We recommend reviewing the original documents alongside our report.",
+    q: "How reliable is the report?",
+    a: "Results depend on the document's quality, formatting, context, and detail. Each finding includes a confidence label and evidence when available, but HiddenFeeAI can miss or misread information. Always compare the report with the original document.",
   },
   {
-    q: "What kinds of hidden fees can HiddenFeeAI detect?",
-    a: "HiddenFeeAI detects a wide range of issues including vague additional fees, unilateral fee change clauses, automatic renewal traps, minimum usage penalties, processing and service fees not clearly disclosed, duplicate charges, billing errors, and contract terms that favor the provider.",
+    q: "What kinds of hidden fees can HiddenFeeAI find?",
+    a: "It looks for vague fees, hidden markups, duplicate charges, billing mistakes, missing credits, automatic renewals, cancellation costs, minimum-use penalties, unexpected price changes, and other terms worth questioning.",
   },
   {
     q: "Can HiddenFeeAI review my medical bills?",
-    a: "Yes. HiddenFeeAI can analyze medical bills, explanation of benefits (EOB) documents, and insurance statements to identify questionable charges, billing codes that may not match services rendered, and potential overcharges.",
+    a: "Yes. It can compare charges, dates, codes, payments, adjustments, and patient responsibility shown in medical bills, explanations of benefits, and insurance statements. A flagged item is a reason to ask for clarification, not proof of an error.",
   },
   {
     q: "Can HiddenFeeAI review car purchase agreements?",
-    a: "Yes. HiddenFeeAI is excellent at analyzing car purchase agreements and financing contracts to spot dealer-added markups, hidden fees, unnecessary add-ons, and unfavorable financing terms.",
+    a: "Yes. It checks car purchase agreements and financing documents for dealer-added fees, optional products, markups, duplicate charges, and financing terms that may increase the total cost.",
   },
   {
     q: "Can HiddenFeeAI review contracts before I sign?",
-    a: "Absolutely. HiddenFeeAI is a powerful tool for pre-signature contract review. Upload any contract — service agreements, subscription terms, vendor contracts — and get a risk assessment highlighting problematic clauses.",
+    a: "Yes. Upload a service agreement, subscription, lease, or other contract to find automatic renewals, price changes, cancellation charges, minimum commitments, and confusing clauses before you sign.",
   },
   {
     q: "Does HiddenFeeAI provide legal advice?",
@@ -40,24 +40,24 @@ const faqs = [
     a: "No. HiddenFeeAI's audit reports are informational tools. We do not provide financial, accounting, or tax advice. Consult a qualified financial professional for financial decisions.",
   },
   {
-    q: "How long does an analysis take?",
-    a: "Most documents are analyzed within seconds to a few minutes. Processing time depends on document length, complexity, and current server load.",
+    q: "How long does the review take?",
+    a: "Most documents are reviewed within seconds to a few minutes. Larger documents and files with many images can take longer.",
   },
   {
     q: "Can I download my audit report?",
-    a: "Yes. After analysis, you can view the full audit report in your browser and download it as a PDF. The PDF report includes all findings, severity ratings, financial impact analysis, and negotiation recommendations.",
+    a: "Yes. You can view your Professional Audit Report in the browser and download it as a PDF. It includes the findings, evidence, priorities, possible cost, questions, and scripts available for your document.",
   },
   {
     q: "Is my document data private?",
-    a: "Yes. Your documents are processed temporarily and automatically deleted from our servers after analysis is complete. We do not retain copies, sell your data, or use your documents to train AI models.",
+    a: "Your original document is kept temporarily for the review and deleted after processing completes or fails. HiddenFeeAI does not sell document contents or add uploaded files to its own training dataset.",
   },
   {
     q: "Are documents automatically deleted?",
-    a: "Yes. Uploaded documents and extracted text are permanently deleted from our servers immediately after the analysis finishes. Only the generated audit report is retained for your access.",
+    a: "The original file is deleted after the review completes or fails. Your report remains available temporarily through the private link so you can review and download it.",
   },
   {
     q: "How do you handle payments?",
-    a: "Payments are processed securely through our third-party payment processor. We do not store credit card numbers or payment credentials on our servers.",
+    a: "Payment is completed on Stripe-hosted checkout. HiddenFeeAI does not receive or store your full card details.",
   },
   {
     q: "What is your refund policy?",
@@ -65,19 +65,19 @@ const faqs = [
   },
   {
     q: "Is my information shared with third parties?",
-    a: "No. We do not sell or share your personal information or document contents with third parties. Anonymous usage analytics may be collected to improve our service, but this data cannot identify you personally.",
+    a: "We do not sell document contents. Google Gemini processes the document to generate the requested audit, and Stripe processes payment on its hosted checkout. See the Privacy Policy for current processor and retention details.",
   },
   {
     q: "What security measures are in place?",
-    a: "HiddenFeeAI uses encryption in transit and at rest, secure temporary document processing, and follows security best practices. We regularly assess our systems for vulnerabilities.",
+    a: "Uploads and reports use HTTPS-protected connections. Files are processed in temporary storage and deleted after analysis or when the temporary session expires. No internet service can guarantee absolute security.",
   },
   {
-    q: "What happens if the analysis fails?",
-    a: "If the analysis cannot complete — due to an unreadable document, corrupt file, or system error — you will receive a clear error message. If you were charged, contact us for assistance.",
+    q: "What happens if the review fails?",
+    a: "If the review cannot finish because the document is unreadable, corrupted, or interrupted by an error, you will see what went wrong. If you were charged, contact us for assistance.",
   },
   {
     q: "Can I use HiddenFeeAI on mobile?",
-    a: "Yes. HiddenFeeAI is fully responsive and works on mobile browsers, tablets, and desktop devices. You can upload documents directly from your phone or tablet.",
+    a: "Yes. You can use HiddenFeeAI on a phone, tablet, or desktop and upload a document or clear photo directly from your device.",
   },
   {
     q: "How do I get support?",
@@ -97,27 +97,28 @@ const faqs = [
   },
   {
     q: "Does HiddenFeeAI support multiple languages?",
-    a: "The AI is primarily trained on English-language documents. Analysis of non-English documents may be less accurate.",
+    a: "HiddenFeeAI works best with English-language documents. Results for other languages may be less complete or accurate.",
   },
   {
-    q: "Is there a free trial?",
-    a: "Check our pricing page for current offers. We regularly offer free trials so you can experience the power of AI-driven document analysis.",
+    q: "Is there a subscription or free trial?",
+    a: "There is no subscription. A complete audit costs $15 as a one-time payment. The site does not currently advertise a free trial.",
   },
 ];
 
 export function FAQ() {
   return (
-    <div className="min-h-screen bg-midnight-950">
+    <div className="premium-page min-h-screen bg-[#050911]">
       <Nav />
-      <main className="py-16">
+      <main className="py-20 sm:py-24">
         <Container className="max-w-4xl">
-          <header className="text-center mb-12 space-y-4">
+          <header className="mb-14 space-y-5 text-center">
+            <p className="text-sm font-extrabold uppercase tracking-[.2em] text-[#f4c542]">Questions before you upload</p>
             <h1 className="text-4xl font-bold tracking-tight text-white text-glow">
-              Frequently Asked Questions
+              Know exactly what you're paying for.
             </h1>
             <p className="text-violet-300/80 max-w-2xl mx-auto text-lg">
               Everything you need to know about HiddenFeeAI. Can't find what you're looking for? 
-              Email us at <a href="mailto:support@hiddenfeehub.com" className="text-violet-400 hover:text-violet-300 underline">support@hiddenfeehub.com</a>.
+              Email us at <a href="mailto:support@hiddenfeehub.com" className="inline-flex min-h-11 items-center font-semibold text-violet-400 underline hover:text-violet-300">support@hiddenfeehub.com</a>.
             </p>
           </header>
 
@@ -125,14 +126,14 @@ export function FAQ() {
             {faqs.map((faq, i) => (
               <div
                 key={i}
-                className="glass-panel rounded-xl overflow-hidden"
+                className="glass-panel overflow-hidden rounded-2xl"
                 itemScope
                 itemProp="mainEntity"
                 itemType="https://schema.org/Question"
               >
                 <details className="group">
-                  <summary className="flex items-center justify-between p-5 cursor-pointer list-none hover:bg-violet-500/5 transition-colors">
-                    <h3 className="text-base font-semibold text-white pr-4" itemProp="name">
+                  <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between p-6 transition-colors hover:bg-violet-500/5">
+                    <h3 className="pr-4 text-[17px] font-extrabold leading-7 text-white" itemProp="name">
                       {faq.q}
                     </h3>
                     <span className="text-violet-400 shrink-0 transition-transform duration-200 group-open:rotate-180">
@@ -142,7 +143,7 @@ export function FAQ() {
                     </span>
                   </summary>
                   <div
-                    className="px-5 pb-5 text-violet-200/80 leading-relaxed text-sm"
+                    className="px-6 pb-6 text-base font-medium leading-[1.7] text-violet-200/80"
                     itemScope
                     itemProp="acceptedAnswer"
                     itemType="https://schema.org/Answer"

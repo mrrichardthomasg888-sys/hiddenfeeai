@@ -252,7 +252,6 @@ async function callGemini(messages: DeepSeekMessage[], env: Env, model: string):
     contents,
     generationConfig: {
       maxOutputTokens: 8192,
-      temperature: 0.1,
       responseMimeType: "application/json"
     }
   };
@@ -295,7 +294,7 @@ export async function runAudit(input: AuditInput, env: Env): Promise<AuditReport
     { role: "user", content: buildUserMessage(input) },
   ];
 
-  const model = env.GEMINI_PRO_MODEL || env.GEMINI_MODEL || "gemini-1.5-pro";
+  const model = env.GEMINI_PRO_MODEL || env.GEMINI_MODEL || "gemini-3.5-flash-lite";
   const rawResponse = await callGemini(messages, env, model);
   const parsed = parseAuditResponse(rawResponse);
   const validated = validateAuditReport(parsed);

@@ -1,8 +1,8 @@
 import { Router } from "express";
 import Stripe from "stripe";
-import { env } from "@/config/env.js";
-import { getJob, updateJob } from "@/services/jobStore.js";
-import { AppError, Errors } from "@/utils/AppError.js";
+import { env } from "../config/env.js";
+import { getJob, updateJob } from "../services/jobStore.js";
+import { AppError, Errors } from "../utils/AppError.js";
 
 export const checkoutRouter = Router();
 
@@ -26,6 +26,18 @@ checkoutRouter.post("/create-session", async (req, res, next) => {
     // Use provided origin (from mobile app) or fallback to env.clientOrigin
     const redirectOrigin = origin || env.clientOrigin;
 
+    // Test mode bypass for local testing
+    if (env.testModeSkipPayment) {
+      console.log(`[Checkout] TEST_MODE_SKIP_PAYMENT is enabled — skipping Stripe for audit ${auditId}`);
+      updateJob(auditId, { paid: true, status: "paid" });
+      return res.json({
+        url: `${redirectOrigin}/report/${auditId}?paid=true`,
+        sessionId: "test-mode-skip-payment",
+        auditId,
+        testMode: true,
+      });
+    }
+
     if (!env.stripeSecretKey || env.stripeSecretKey === "sk_test_your_stripe_secret_key") {
       return next(
         new AppError(
@@ -35,9 +47,7 @@ checkoutRouter.post("/create-session", async (req, res, next) => {
       );
     }
 
-    const stripe = new Stripe(env.stripeSecretKey, {
-      apiVersion: "2025-03-31.basil" as any,
-    });
+    const stripe = new Stripe(env.stripeSecretKey);
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -47,7 +57,7 @@ checkoutRouter.post("/create-session", async (req, res, next) => {
             currency: "usd",
             product_data: {
               name: "HiddenFeeAI Document Audit",
-              description: "AI-powered forensic audit of your financial document",
+              description: "Professional document review with clear findings, evidence, and next steps",
             },
             unit_amount: env.stripePriceCents,
           },
@@ -68,7 +78,7 @@ checkoutRouter.post("/create-session", async (req, res, next) => {
     });
   } catch (err) {
     console.error("[Checkout Error]", err);
-    return next(Errors.generic());
+    return next(new AppError(500, err instanceof Error ? err.message : "Payment processing failed. Please try again."));
   }
 });
 
@@ -95,9 +105,7 @@ checkoutRouter.get("/verify/:auditId", async (req, res, next) => {
     // Try to verify via Stripe API if session_id provided
     if (session_id && typeof session_id === "string" && env.stripeSecretKey && env.stripeSecretKey !== "sk_test_your_stripe_secret_key") {
       try {
-        const stripe = new Stripe(env.stripeSecretKey, {
-          apiVersion: "2025-03-31.basil" as any,
-        });
+        const stripe = new Stripe(env.stripeSecretKey);
         const session = await stripe.checkout.sessions.retrieve(session_id);
         if (session.payment_status === "paid") {
           updateJob(auditId, { paid: true, status: "paid" });
@@ -108,10 +116,9 @@ checkoutRouter.get("/verify/:auditId", async (req, res, next) => {
       }
     }
 
-    // If we can't verify but the user returned, mark as paid anyway
-    // (In production the webhook handles this, but for local dev we need it)
-    updateJob(auditId, { paid: true, status: "paid" });
-    return res.json({ paid: true, auditId, note: "Payment confirmed on return." });
+    // Never unlock an audit based only on a return URL. The signed Stripe
+    // webhook or a verified Checkout Session must confirm payment first.
+    return next(new AppError(402, "Payment has not been confirmed. If you completed checkout, wait a moment and refresh this page."));
   } catch (err) {
     console.error("[Verify Error]", err);
     return next(Errors.generic());
@@ -130,9 +137,7 @@ checkoutRouter.post("/webhook", async (req, res) => {
   }
 
   try {
-    const stripe = new Stripe(env.stripeSecretKey, {
-      apiVersion: "2025-03-31.basil" as any,
-    });
+    const stripe = new Stripe(env.stripeSecretKey);
 
     const event = stripe.webhooks.constructEvent(
       req.body,

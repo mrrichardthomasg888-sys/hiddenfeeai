@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Shield, FileCheck, Hash, Brain, Lock, CheckCircle2, Fingerprint, Scan } from "lucide-react";
+import { Shield, Hash, BadgeCheck, Lock, CheckCircle2, Fingerprint, Scan } from "lucide-react";
 
 interface TrustPanelProps {
   confidenceScore?: number;
@@ -11,28 +11,28 @@ interface TrustPanelProps {
 const trustItems = [
   {
     icon: Scan,
-    label: "Every Finding Cross-Referenced",
-    description: "Each claim is verified against specific locations in your original document — not AI hallucination.",
+    label: "Evidence Connected",
+    description: "Findings point to the page, clause, line item, table, or calculation available in the uploaded document.",
   },
   {
     icon: Hash,
-    label: "Exact Page & Line References",
-    description: "All findings include precise page numbers and line references so you can verify in the original.",
+    label: "Source References",
+    description: "When the source exposes page or line detail, the report includes it so you can check the original context.",
   },
   {
-    icon: Brain,
-    label: "AI Confidence Scoring",
-    description: "Every finding has a confidence score. We show certainty and flag uncertainty transparently.",
+    icon: BadgeCheck,
+    label: "Confidence and Limitations",
+    description: "Confidence labels help separate stronger evidence from items that need additional verification.",
   },
   {
     icon: Fingerprint,
-    label: "Cryptographic Report ID",
-    description: "Your report has a unique identifier for verification. The data trail is preserved end-to-end.",
+    label: "Unique Report Reference",
+    description: "A unique report ID helps you identify the audit when reviewing or discussing its findings.",
   },
   {
     icon: Lock,
-    label: "Zero Data Retention",
-    description: "Your document is encrypted in transit and at rest. We never store, share, or train on your data.",
+    label: "Temporary File Handling",
+    description: "The original file is sent over an HTTPS-protected connection and deleted from temporary storage when the review completes or fails.",
   },
 ];
 
@@ -54,10 +54,10 @@ export function TrustPanel({ pagesReviewed, lineItemsReviewed, reportId }: Trust
             <Shield className="h-7 w-7 text-savings-400" />
           </div>
           <div>
-            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-[-0.02em]">Why You Can Trust This Analysis</h2>
+            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-[-0.02em]">How to Check Every Finding</h2>
             <p className="text-base text-white/50 mt-0.5">
               <span className="font-semibold text-white/70">{pagesReviewed.toLocaleString()}</span> pages reviewed ·{' '}
-              <span className="font-semibold text-white/70">{lineItemsReviewed.toLocaleString()}</span> line items analyzed ·{' '}
+              <span className="font-semibold text-white/70">{lineItemsReviewed.toLocaleString()}</span> line items checked ·{' '}
               Report <span className="font-mono text-intel-400/70">#{reportId.slice(0, 8)}</span>
             </p>
           </div>
@@ -89,7 +89,7 @@ export function TrustPanel({ pagesReviewed, lineItemsReviewed, reportId }: Trust
         {/* Footer */}
         <div className="mt-8 flex items-center justify-center border-t border-white/[0.04] pt-6">
           <p className="text-[12px] text-white/20 tracking-wide">
-            HiddenFeeAI · Independent Consumer Protection Intelligence · © {new Date().getFullYear()}
+            HiddenFeeAI · Professional Audit Report · © {new Date().getFullYear()}
           </p>
         </div>
       </div>

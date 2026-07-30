@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { apiUrl } from "@/config/api";
 import {
@@ -9,13 +9,26 @@ import {
   Loader2,
   CheckCircle2,
   ShieldCheck,
+  CreditCard,
+  FileCheck2,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const ACCEPTED_EXTENSIONS = [
-  "pdf", "png", "jpg", "jpeg", "heic", "webp", "tiff", "tif",
-  "docx", "doc", "txt", "csv", "xlsx", "xls", "xlsm",
+  // PDF
+  "pdf",
+  // Images — Gemini performs native OCR on all of these
+  "png", "jpg", "jpeg", "webp", "heic", "heif", "tiff", "tif", "bmp", "gif",
+  // Microsoft Office — Gemini reads natively (text + tables + structure)
+  "docx", "doc", "xlsx", "xls",
+  // Rich Text
+  "rtf",
+  // Plain text / data
+  "csv", "txt", "md",
+  // Web markup
+  "html", "htm",
 ];
 const MAX_SIZE_MB = 25;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
@@ -43,7 +56,6 @@ const ANALYSIS_STEPS = [
 ];
 
 export function UploadCard() {
-  const navigate = useNavigate();
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [state, setState] = useState<CardState>("idle");
@@ -62,7 +74,7 @@ export function UploadCard() {
 
     const ext = getExtension(selected.name);
     if (!ACCEPTED_EXTENSIONS.includes(ext)) {
-      setFileError("Unsupported file type. Please upload a PDF, image (PNG/JPG), DOCX, TXT, CSV, or spreadsheet.");
+      setFileError("Unsupported file type. Please upload a PDF, image (PNG/JPG/WEBP/TIFF/HEIC/BMP), Word document (DOCX/DOC), spreadsheet (XLSX/XLS/CSV), or text file (TXT/RTF).");
       return;
     }
 
@@ -155,34 +167,6 @@ export function UploadCard() {
     }
   };
 
-  const startRealAnalysis = async () => {
-    if (!auditId) return;
-    setState("analyzing");
-    setAnalyzeStep(0);
-
-    // Animate analysis steps
-    const stepTimer = setInterval(() => {
-      setAnalyzeStep((prev) => Math.min(prev + 1, ANALYSIS_STEPS.length - 1));
-    }, 2000);
-
-    try {
-      const res = await fetch(apiUrl(`/analyze/${auditId}/start`), { method: "POST" });
-      clearInterval(stepTimer);
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to start analysis.");
-      }
-
-      setState("complete");
-      setTimeout(() => navigate(`/report/${auditId}`), 1500);
-    } catch (err) {
-      clearInterval(stepTimer);
-      setState("error");
-      setErrorMessage(err instanceof Error ? err.message : "Analysis failed.");
-    }
-  };
-
   const reset = () => {
     setFile(null); setState("idle"); setUploadProgress(0);
     setFileError(null); setErrorMessage(null); setAuditId(null);
@@ -193,12 +177,13 @@ export function UploadCard() {
     <div
       id="upload"
       className={cn(
-        "w-full max-w-xl rounded-3xl transition-all duration-500",
+        "w-full max-w-none rounded-3xl transition-all duration-500",
         state === "idle" || state === "uploading" || state === "extracting" || state === "error"
-          ? "bg-midnight-800/80 p-7 sm:p-9 border border-violet-500/10 glow-purple scan-border"
+          ? "bg-[linear-gradient(145deg,#162239,#101a2d)] p-7 sm:p-10 border border-white/[0.14] shadow-[0_34px_90px_rgba(0,0,0,.38),0_0_34px_rgba(77,163,255,.09)] scan-border"
           : "",
-        state === "awaiting_payment" ? "bg-midnight-800/80 p-7 sm:p-9 border border-violet-500/10 glow-purple" : "",
-        state === "analyzing" || state === "complete" ? "bg-midnight-800/80 p-7 sm:p-9 border border-violet-500/10 glow-purple" : ""
+        state === "awaiting_payment" ? "bg-[#131c2f] p-7 sm:p-9 border border-white/[0.1] shadow-[0_30px_80px_rgba(0,0,0,.34)]" : "",
+        state === "analyzing" || state === "complete" ? "bg-[#131c2f] p-7 sm:p-9 border border-white/[0.1] shadow-[0_30px_80px_rgba(0,0,0,.34)]" : "",
+        isDragging && state === "idle" ? "ring-2 ring-[#4da3ff] ring-offset-4 ring-offset-[#050911]" : ""
       )}
       onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
       onDragLeave={() => setIsDragging(false)}
@@ -211,19 +196,19 @@ export function UploadCard() {
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="flex w-full flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-violet-500/20 px-6 py-12 text-center transition-colors hover:border-violet-400/40 hover:bg-violet-500/5"
+              className="flex min-h-[280px] w-full flex-col items-center justify-center gap-5 rounded-[22px] border border-dashed border-[#73b8ff]/55 bg-[#4da3ff]/[0.055] px-6 py-11 text-center transition-all duration-300 hover:border-[#73b8ff]/85 hover:bg-[#4da3ff]/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4da3ff]"
             >
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/10">
-                <UploadCloud className="h-7 w-7 text-violet-400" strokeWidth={1.75} />
+              <div className="flex h-20 w-20 items-center justify-center rounded-[22px] border border-violet-300/30 bg-gradient-to-br from-violet-500/20 to-cyan-400/10 shadow-[0_0_26px_rgba(77,163,255,.14),inset_0_1px_rgba(255,255,255,.1)]">
+                <UploadCloud className="h-10 w-10 text-violet-200" strokeWidth={1.75} />
               </div>
               <div>
-                <p className="text-lg font-semibold text-violet-100">Upload your document</p>
-                <p className="mt-1 text-base text-violet-300/60">Drag and drop or click to upload</p>
+                <p className="text-2xl font-extrabold tracking-tight text-white">Upload your document</p>
+                <p className="mt-2 text-base font-semibold leading-7 text-[#dce4ec]">Drag and drop, tap, or choose a photo</p>
               </div>
             </button>
 
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs font-medium text-violet-400/60">
-              {["PDF", "Images (PNG/JPG)", "DOCX", "TXT", "CSV", "XLSX", "Bills", "Receipts", "Contracts"].map(
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-xs font-semibold text-[#c8d3df]">
+              {["PDF", "PNG / JPG / WEBP", "HEIC / TIFF", "DOCX / DOC", "XLSX / XLS", "CSV", "TXT / RTF"].map(
                 (t, i, arr) => (
                   <span key={t} className="flex items-center gap-2">
                     {t}
@@ -233,18 +218,20 @@ export function UploadCard() {
               )}
             </div>
 
+            <p className="mt-4 text-center text-sm font-semibold leading-6 text-[#c8d3df]">PDFs, documents, spreadsheets, clear scans, and phone photos supported</p>
+
             {fileError && (
-              <div className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-risk-critical/10 px-4 py-3 text-sm font-medium text-risk-critical">
+              <div role="alert" aria-live="polite" className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-risk-critical/10 px-4 py-3 text-sm font-medium text-risk-critical">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 {fileError}
               </div>
             )}
 
-            <div className="mt-6 flex items-start justify-center gap-2 border-t border-violet-500/10 pt-5 text-center text-sm text-violet-300/50">
+            <div className="mt-7 flex items-start justify-center gap-2 border-t border-white/[0.1] pt-6 text-center text-sm leading-6 text-[#c8d3df]">
               <Lock className="mt-0.5 h-4 w-4 shrink-0 text-violet-400" />
               <span>
-                <span className="font-medium text-violet-200">Private AI Analysis.</span>{" "}
-                Your document is analyzed securely and automatically deleted after processing. No account required. No data stored.
+                <span className="font-bold text-white">Private document review.</span>{" "}
+                Your file is kept temporarily and deleted when the review finishes. No account or subscription required.
               </span>
             </div>
           </motion.div>
@@ -271,7 +258,7 @@ export function UploadCard() {
             className="flex flex-col items-center gap-4 py-6 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
             <p className="text-lg font-semibold text-violet-100">Reading document...</p>
-            <p className="text-sm text-violet-300/60">Extracting text and financial information</p>
+            <p className="text-sm text-violet-300/60">Reading charges, totals, tables, and terms</p>
           </motion.div>
         )}
 
@@ -279,38 +266,52 @@ export function UploadCard() {
         {state === "awaiting_payment" && (
           <motion.div key="awaiting_payment" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="flex flex-col items-center text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-500/15">
-              <Lock className="h-8 w-8 text-violet-400" strokeWidth={1.75} />
+            <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-violet-300/30 bg-gradient-to-br from-violet-500/25 to-cyan-400/10 shadow-[0_0_35px_rgba(139,92,246,.22)]">
+              <Lock className="h-8 w-8 text-violet-100" strokeWidth={1.75} />
+              <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-cyan-300 shadow-[0_0_14px_rgba(103,232,249,.9)]" />
             </div>
 
-            <h2 className="mt-5 text-xl font-semibold text-violet-100">
-              Your AI audit is ready to begin
+            <h2 className="mt-5 text-2xl font-extrabold text-white">
+              Your document is ready for clear answers
             </h2>
-            <p className="mt-2 text-sm text-violet-400/60 max-w-sm">
-              Your document has been received. Unlock the full forensic analysis for a one-time fee.
+            <p className="mt-3 max-w-md text-base leading-7 text-[#dce4ec]">
+              Get the full report: hidden fees, duplicate charges, billing mistakes, costly clauses, exact evidence, and questions you can use.
             </p>
 
-            <div className="mt-6 w-full rounded-2xl bg-violet-500/10 p-5">
-              <p className="text-3xl font-bold text-violet-100">$15</p>
-              <p className="text-sm text-violet-400/60">one-time payment</p>
+            {file && (
+              <div className="mt-5 flex w-full items-center gap-3 rounded-2xl border border-violet-400/15 bg-midnight-950/50 p-4 text-left">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500/15">
+                  <FileCheck2 className="h-5 w-5 text-violet-300" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-violet-100">{file.name}</p>
+                  <p className="mt-1 text-xs font-semibold text-[#c8d3df]">{formatFileSize(file.size)} · Ready for private review</p>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 w-full rounded-2xl border border-violet-300/20 bg-gradient-to-r from-violet-500/15 via-indigo-500/10 to-cyan-400/[0.07] p-5 shadow-[inset_0_1px_rgba(255,255,255,.06)]">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-300">Clarity, evidence, and next steps</p>
+              <div className="mt-1 flex items-end justify-center gap-2"><p className="text-4xl font-extrabold text-white">$15</p><p className="pb-1 text-sm font-semibold text-[#bfc6d9]">one time</p></div>
+              <p className="mt-2 text-sm font-medium text-violet-200">No subscription · No account · Full report included</p>
             </div>
 
-            <div className="mt-5 space-y-2.5 text-left w-full">
+            <div className="mt-5 w-full space-y-3 text-left">
               {[
                 "No subscription — pay once, get the full report",
-                "No account required — completely anonymous",
-                "Private processing — document auto-deleted after analysis",
-                "Detailed findings with evidence and negotiation scripts",
+                "No account required",
+                "Private review — original file deleted afterward",
+                "Every finding includes evidence and a clear next step",
               ].map((point) => (
-                <div key={point} className="flex items-start gap-2.5">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-savings-500" strokeWidth={2.5} />
-                  <span className="text-sm text-violet-300">{point}</span>
+                <div key={point} className="flex items-start gap-3 rounded-xl border border-white/[0.07] bg-white/[0.035] px-4 py-3 shadow-[inset_0_1px_rgba(255,255,255,.04)]">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-cyan-300 drop-shadow-[0_0_8px_rgba(103,232,249,.5)]" strokeWidth={2.5} />
+                  <span className="text-base font-bold leading-6 text-white">{point}</span>
                 </div>
               ))}
             </div>
 
             {payError && (
-              <div className="mt-4 w-full rounded-xl bg-risk-critical/10 border border-risk-critical/20 px-4 py-3 text-sm font-medium text-risk-critical">
+              <div role="alert" aria-live="polite" className="mt-4 w-full rounded-xl bg-risk-critical/10 border border-risk-critical/20 px-4 py-3 text-sm font-medium text-risk-critical">
                 {payError}
               </div>
             )}
@@ -318,23 +319,30 @@ export function UploadCard() {
             <Button
               variant="violet"
               size="lg"
-              className="mt-6 w-full"
+              className="mt-6 h-[68px] w-full border border-white/25 text-base font-extrabold shadow-[0_14px_48px_rgba(139,92,246,.55),0_0_26px_rgba(76,201,255,.15)]"
               onClick={handlePayment}
               disabled={paying}
             >
               {paying ? (
-                <><Loader2 className="h-5 w-5 animate-spin" /> Processing...</>
+                <><Loader2 className="h-5 w-5 animate-spin" /> Opening secure checkout...</>
               ) : (
-                <><Lock className="h-5 w-5" /> Pay $15 & Start Audit</>
+                <><Lock className="h-5 w-5" /> Get My Complete Report · $15</>
               )}
             </Button>
+
+            <p className="mt-4 text-sm leading-6 text-[#c8d3df]">Stripe-hosted checkout · Review our <Link to="/refund" className="font-semibold text-[#7cc4ff] underline underline-offset-4">Refund Policy</Link> and <Link to="/privacy" className="font-semibold text-[#7cc4ff] underline underline-offset-4">Privacy Policy</Link>.</p>
 
             <div className="mt-4 flex items-start justify-center gap-2 text-sm text-violet-400/50">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-savings-500" />
               <span>
-                <span className="font-medium text-violet-200">Your document is not stored.</span>{" "}
-                After analysis, it is permanently deleted.
+                <span className="font-medium text-violet-200">Your original file is temporary.</span>{" "}
+                It is deleted when the review completes or fails.
               </span>
+            </div>
+            <div className="mt-4 grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
+              <div className="flex items-center justify-center gap-1.5 rounded-xl bg-white/[0.025] px-3 py-2 text-[11px] text-violet-300/60"><CreditCard className="h-3.5 w-3.5 text-savings-400" /> Stripe-hosted checkout</div>
+              <div className="flex items-center justify-center gap-1.5 rounded-xl bg-white/[0.025] px-3 py-2 text-[11px] text-violet-300/60"><ShieldCheck className="h-3.5 w-3.5 text-savings-400" /> Full card details stay with Stripe</div>
+              <div className="flex items-center justify-center gap-1.5 rounded-xl bg-white/[0.025] px-3 py-2 text-[11px] text-violet-300/60"><Trash2 className="h-3.5 w-3.5 text-savings-400" /> File auto-deleted</div>
             </div>
           </motion.div>
         )}
@@ -346,7 +354,7 @@ export function UploadCard() {
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-500/15">
               <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
             </div>
-            <p className="text-lg font-semibold text-violet-100">AI Analysis in Progress</p>
+            <p className="text-lg font-semibold text-violet-100">Your Document Review Is Underway</p>
             <div className="w-full max-w-xs space-y-2 text-left">
               {ANALYSIS_STEPS.map((step, i) => (
                 <div key={step} className="flex items-center gap-2.5 text-sm transition-colors">

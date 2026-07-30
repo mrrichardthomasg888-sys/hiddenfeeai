@@ -38,33 +38,33 @@ export function PriorityActionCenter({ findings }: PriorityActionCenterProps) {
 
   const timelineItems = [
     {
-      label: "Immediate Attention",
-      description: "Critical issues requiring urgent action",
+      label: "Review Before You Pay",
+      description: "The most urgent items in your document",
       count: critical.length,
       severity: "Critical" as const,
     },
     {
       label: "Negotiation Opportunities",
-      description: "High severity items to address with provider",
+      description: "Charges or terms worth questioning with the provider",
       count: high.length,
       severity: "High" as const,
     },
     {
       label: "Review Carefully",
-      description: "Medium priority items needing evaluation",
+      description: "Items that need more context or verification",
       count: medium.length,
       severity: "Medium" as const,
     },
     {
       label: "Minor Items",
-      description: "Low priority — information only",
+      description: "Lower-priority details to keep in mind",
       count: low.length,
       severity: "Low" as const,
     },
   ].filter((t) => t.count > 0);
 
   const getIcon = (label: string) => {
-    if (label === "Immediate Attention") return AlertTriangle;
+    if (label === "Review Before You Pay") return AlertTriangle;
     if (label === "Negotiation Opportunities") return Gavel;
     if (label === "Review Carefully") return Eye;
     return Shield;
@@ -87,8 +87,8 @@ export function PriorityActionCenter({ findings }: PriorityActionCenterProps) {
             <Zap className="h-7 w-7 text-amber-400" />
           </div>
           <div>
-            <h2 className="text-2xl sm:text-3xl font-black text-premium-primary tracking-[-0.02em]">Your Risk Map</h2>
-            <p className="text-base text-premium-tertiary mt-0.5">Visual overview of what needs your attention</p>
+            <h2 className="text-2xl sm:text-3xl font-black text-premium-primary tracking-[-0.02em]">What Needs Your Attention</h2>
+            <p className="text-base text-premium-tertiary mt-0.5">See what to review first and what can wait</p>
           </div>
         </div>
 
@@ -138,7 +138,7 @@ export function PriorityActionCenter({ findings }: PriorityActionCenterProps) {
                     }}
                     className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white/[0.04] border border-white/[0.06] px-4 py-2.5 text-[12px] font-semibold text-premium-tertiary hover:text-premium-primary hover:bg-white/[0.08] transition-all"
                   >
-                    View Items <ArrowRight className="h-3.5 w-3.5" />
+                    See Findings <ArrowRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </motion.div>
@@ -148,7 +148,7 @@ export function PriorityActionCenter({ findings }: PriorityActionCenterProps) {
 
         <div className="mt-8 flex items-center justify-center gap-6 p-4 rounded-xl bg-white/[0.015] border border-white/[0.04]">
           <span className="text-sm text-premium-tertiary">
-            <span className="font-bold text-premium-primary">{findings.length}</span> total findings
+            <span className="font-bold text-premium-primary">{findings.length}</span> items to review
           </span>
           <span className="h-4 w-px bg-white/[0.06]" />
           <span className="text-sm text-premium-tertiary">

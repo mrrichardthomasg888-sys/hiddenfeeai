@@ -33,7 +33,7 @@ stderr.txt
 stdout.txt
 test_contract.docx
 test_invoice.xlsx
-10}
+
 
 # Python cache
 __pycache__/
@@ -41,3 +41,17 @@ __pycache__/
 
 # Agent configs
 .agents/
+
+# Wrangler temp files
+worker/.wrangler/
+worker/.dev.vars
+
+# Dev artifacts
+dev-client.err
+
+# Output directories
+output/
+tmp/
+
+# Windows/Microsoft artifacts
+Microsoft/

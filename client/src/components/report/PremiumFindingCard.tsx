@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
-  FileSearch, Lightbulb, MessageSquare, Copy, Check,
-  BookOpen, Target, Scale, DollarSign, TrendingDown, ExternalLink,
+  FileSearch, Lightbulb, Copy, Check,
+  BookOpen, Target, Scale, DollarSign,
 } from "lucide-react";
 import type { HiddenFee, QuestionableCharge } from "@/types/audit";
 
@@ -119,7 +119,7 @@ export function PremiumFindingCard({ finding, index }: PremiumFindingCardProps) 
         <div className="mb-6">
           <div className="flex items-center gap-2.5 mb-2">
             <Lightbulb className="h-4 w-4 text-amber-400/60" />
-            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-amber-400/60">Why This Matters</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-amber-400/60">Why This Charge Matters</p>
           </div>
           <p className="text-[17px] leading-relaxed text-premium-secondary">
             {finding.explanation}
@@ -131,7 +131,7 @@ export function PremiumFindingCard({ finding, index }: PremiumFindingCardProps) 
           <div className="mb-6">
             <div className="flex items-center gap-2.5 mb-2">
               <BookOpen className="h-4 w-4 text-intel-400/60" />
-              <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-intel-400/60">Impact on You</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-intel-400/60">What It Could Cost You</p>
             </div>
             <p className="text-[17px] leading-relaxed text-premium-secondary">{finding.whyItMatters}</p>
           </div>
@@ -142,7 +142,7 @@ export function PremiumFindingCard({ finding, index }: PremiumFindingCardProps) 
           <div className="mb-6 rounded-xl border border-savings-500/10 bg-savings-500/[0.04] p-5">
             <div className="flex items-center gap-2.5 mb-2">
               <Target className="h-4 w-4 text-savings-400/60" />
-              <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-savings-400/60">Your Move — Recommended Action</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-savings-400/60">What to Do Next</p>
             </div>
             <p className="text-[17px] leading-relaxed text-premium-secondary mb-3">{finding.recommendedAction}</p>
             <button
@@ -159,7 +159,7 @@ export function PremiumFindingCard({ finding, index }: PremiumFindingCardProps) 
           <div className="mb-6 rounded-xl border border-trust-400/10 bg-trust-400/[0.03] p-5">
             <div className="flex items-center gap-2.5 mb-3">
               <Scale className="h-4 w-4 text-trust-400/60" />
-              <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-trust-400/60">Negotiation Strategy</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-trust-400/60">How to Question It</p>
             </div>
 
             <div className="flex flex-wrap gap-2 mb-4">
@@ -172,7 +172,7 @@ export function PremiumFindingCard({ finding, index }: PremiumFindingCardProps) 
               </span>
               {ns.successProbability && (
                 <span className="rounded-full bg-white/[0.04] px-3 py-1 text-[11px] font-medium text-premium-tertiary border border-white/[0.06]">
-                  {ns.successProbability}% success probability
+                  {ns.successProbability}% estimated chance
                 </span>
               )}
               {ns.estimatedSavings && ns.estimatedSavings > 0 && (
@@ -198,7 +198,7 @@ export function PremiumFindingCard({ finding, index }: PremiumFindingCardProps) 
 
             {ns.escalationPath && (
               <div className="mt-4 pt-4 border-t border-white/[0.04]">
-                <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-premium-muted mb-1">Escalation Path</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-premium-muted mb-1">If You Need to Escalate</p>
                 <p className="text-[14px] text-premium-secondary">{ns.escalationPath}</p>
               </div>
             )}
@@ -229,7 +229,7 @@ export function PremiumFindingCard({ finding, index }: PremiumFindingCardProps) 
               className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.15em] text-premium-muted hover:text-premium-secondary transition-colors"
             >
               <FileSearch className="h-4 w-4" />
-              {showFullEvidence ? "Hide Document Evidence" : "Show Document Evidence"}
+              {showFullEvidence ? "Hide Where This Appears" : "Show Where This Appears"}
             </button>
             {showFullEvidence && (
               <div className="mt-3 rounded-xl border-l-[3px] border-intel-400/30 bg-gradient-to-r from-intel-400/[0.04] to-transparent p-5">

@@ -10,12 +10,12 @@ const supportTopics = [
     description: "Problems uploading PDFs, images, or other supported file formats.",
   },
   {
-    title: "Analysis Results",
-    description: "Questions about your audit report findings or how to interpret them.",
+    title: "Questions About a Finding",
+    description: "Questions about what appears in your audit report or what it means.",
   },
   {
-    title: "Account & Billing",
-    description: "Account setup, payment issues, or subscription questions.",
+    title: "Payment & Report Access",
+    description: "Payment questions or trouble opening your private report link.",
   },
   {
     title: "Technical Support",
@@ -33,13 +33,13 @@ const supportTopics = [
 
 export function Contact() {
   return (
-    <div className="min-h-screen bg-midnight-950">
+    <div className="premium-page min-h-screen bg-[#050911]">
       <Nav />
-      <main className="py-16">
+      <main className="py-20 sm:py-24">
         <Container className="max-w-4xl">
-          <header className="text-center mb-12 space-y-4">
+          <header className="mb-14 space-y-5 text-center">
             <h1 className="text-4xl font-bold tracking-tight text-white text-glow">
-              Contact Us
+              Need help with an upload, payment, or report?
             </h1>
             <p className="text-violet-300/80 max-w-2xl mx-auto text-lg">
               We're here to help. Whether you have a question about your audit report, 
@@ -48,26 +48,26 @@ export function Contact() {
           </header>
 
           <section className="grid md:grid-cols-3 gap-6 mb-12">
-            <div className="glass-panel p-6 rounded-xl text-center space-y-3">
+            <div className="glass-panel space-y-3 rounded-2xl p-7 text-center">
               <Mail className="h-8 w-8 text-violet-400 mx-auto" />
               <h3 className="font-semibold text-white">Email Us</h3>
-              <a href="mailto:support@hiddenfeehub.com" className="text-violet-400 hover:text-violet-300 transition-colors text-sm">
+              <a href="mailto:support@hiddenfeehub.com" className="inline-flex min-h-11 items-center text-sm font-semibold text-violet-400 transition-colors hover:text-violet-300">
                 support@hiddenfeehub.com
               </a>
             </div>
-            <div className="glass-panel p-6 rounded-xl text-center space-y-3">
+            <div className="glass-panel space-y-3 rounded-2xl p-7 text-center">
               <Clock className="h-8 w-8 text-violet-400 mx-auto" />
               <h3 className="font-semibold text-white">Response Time</h3>
               <p className="text-violet-300/70 text-sm">We typically respond within 24 hours during business days</p>
             </div>
-            <div className="glass-panel p-6 rounded-xl text-center space-y-3">
+            <div className="glass-panel space-y-3 rounded-2xl p-7 text-center">
               <MessageSquare className="h-8 w-8 text-violet-400 mx-auto" />
               <h3 className="font-semibold text-white">Support Hours</h3>
               <p className="text-violet-300/70 text-sm">Monday - Friday, 9:00 AM - 6:00 PM EST</p>
             </div>
           </section>
 
-          <section className="glass-panel p-8 rounded-xl mb-12">
+          <section className="glass-panel mb-14 rounded-2xl p-7 sm:p-9">
             <h2 className="text-2xl font-bold text-white mb-6">Send Us a Message</h2>
             <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
               <div className="grid md:grid-cols-2 gap-5">
@@ -77,7 +77,7 @@ export function Contact() {
                     id="name"
                     type="text"
                     placeholder="Your name"
-                    className="w-full px-4 py-2.5 rounded-xl bg-midnight-800 border border-violet-500/20 text-violet-100 placeholder-violet-400/40 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    className="min-h-12 w-full rounded-xl border border-violet-500/25 bg-midnight-800 px-4 py-3 text-violet-100 placeholder:text-[#c8d3df] focus:outline-none focus:ring-2 focus:ring-violet-500"
                   />
                 </div>
                 <div className="space-y-2">
@@ -86,7 +86,7 @@ export function Contact() {
                     id="email"
                     type="email"
                     placeholder="your@email.com"
-                    className="w-full px-4 py-2.5 rounded-xl bg-midnight-800 border border-violet-500/20 text-violet-100 placeholder-violet-400/40 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    className="min-h-12 w-full rounded-xl border border-violet-500/25 bg-midnight-800 px-4 py-3 text-violet-100 placeholder:text-[#c8d3df] focus:outline-none focus:ring-2 focus:ring-violet-500"
                   />
                 </div>
               </div>
@@ -94,7 +94,7 @@ export function Contact() {
                 <label htmlFor="subject" className="text-sm font-medium text-violet-300">Subject</label>
                 <select
                   id="subject"
-                  className="w-full px-4 py-2.5 rounded-xl bg-midnight-800 border border-violet-500/20 text-violet-100 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  className="min-h-12 w-full rounded-xl border border-violet-500/25 bg-midnight-800 px-4 py-3 text-violet-100 focus:outline-none focus:ring-2 focus:ring-violet-500"
                 >
                   <option value="" className="bg-midnight-800">Select a topic</option>
                   <option value="general" className="bg-midnight-800">General Inquiry</option>
@@ -110,7 +110,7 @@ export function Contact() {
                   id="message"
                   rows={5}
                   placeholder="How can we help you?"
-                  className="w-full px-4 py-2.5 rounded-xl bg-midnight-800 border border-violet-500/20 text-violet-100 placeholder-violet-400/40 focus:outline-none focus:ring-2 focus:ring-violet-500 resize-y"
+                  className="w-full resize-y rounded-xl border border-violet-500/25 bg-midnight-800 px-4 py-3 text-violet-100 placeholder:text-[#c8d3df] focus:outline-none focus:ring-2 focus:ring-violet-500"
                 />
               </div>
               <Button variant="violet" size="lg" className="w-full">

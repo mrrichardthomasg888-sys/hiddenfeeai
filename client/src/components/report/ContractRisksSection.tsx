@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { FileWarning, AlertTriangle, FileSearch, Scale } from "lucide-react";
+import { FileWarning, AlertTriangle, Scale } from "lucide-react";
 import type { ContractRisk } from "@/types/audit";
 
 interface ContractRisksSectionProps {
@@ -22,7 +22,7 @@ export function ContractRisksSection({ risks }: ContractRisksSectionProps) {
         <div className="h-10 w-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
           <FileWarning className="h-5 w-5 text-amber-400" />
         </div>
-        <h2 className="text-2xl sm:text-3xl font-black text-white tracking-[-0.02em]">Contract Risks</h2>
+        <h2 className="text-2xl sm:text-3xl font-black text-white tracking-[-0.02em]">Clauses That Could Cost You</h2>
         <span className="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/20 text-sm font-semibold text-amber-300">
           {risks.length}
         </span>
@@ -67,7 +67,7 @@ export function ContractRisksSection({ risks }: ContractRisksSectionProps) {
                 <div className="mb-4">
                   <div className="flex items-center gap-2 mb-2">
                     <AlertTriangle className="h-4 w-4 text-amber-400/60" />
-                    <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-amber-400/60">Why This Is Risky</p>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-amber-400/60">How This Could Affect You</p>
                   </div>
                   <p className="text-[16px] leading-relaxed text-premium-secondary">{risk.explanation}</p>
                 </div>
@@ -79,7 +79,7 @@ export function ContractRisksSection({ risks }: ContractRisksSectionProps) {
 
               {risk.recommendedAction && (
                 <div className="rounded-xl border border-savings-500/10 bg-savings-500/[0.04] p-4">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-savings-400/60 mb-1">Recommended Action</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-savings-400/60 mb-1">What to Do Next</p>
                   <p className="text-[15px] text-premium-secondary">{risk.recommendedAction}</p>
                 </div>
               )}

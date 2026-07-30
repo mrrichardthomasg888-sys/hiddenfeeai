@@ -1,7 +1,7 @@
 import { Lock, Ban, Trash2 } from "lucide-react";
 
 const items = [
-  { icon: Lock, label: "Encrypted processing" },
+  { icon: Lock, label: "HTTPS-protected connection" },
   { icon: Ban, label: "Never used for AI training" },
   { icon: Trash2, label: "Automatically deleted after analysis" },
 ];

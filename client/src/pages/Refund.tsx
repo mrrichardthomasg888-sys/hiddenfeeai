@@ -4,17 +4,17 @@ import { Container } from "@/components/layout/Container";
 
 export function Refund() {
   return (
-    <div className="min-h-screen bg-midnight-950">
+    <div className="premium-page min-h-screen bg-[#050911]">
       <Nav />
-      <main className="py-16">
+      <main className="py-20 sm:py-24">
         <Container className="max-w-4xl">
-          <article className="space-y-8">
+          <article className="space-y-10">
             <header className="space-y-4">
               <h1 className="text-4xl font-bold tracking-tight text-white text-glow">
                 Refund Policy
               </h1>
               <p className="text-violet-400/70 text-sm">
-                Last updated: {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+                Last updated: July 29, 2026
               </p>
             </header>
 
@@ -22,15 +22,15 @@ export function Refund() {
               <div className="glass-panel p-6 rounded-xl space-y-4">
                 <h2 className="text-2xl font-bold text-white">Overview</h2>
                 <p className="text-violet-200/80 leading-relaxed">
-                  HiddenFeeAI provides AI-powered document analysis as a digital service. Because each analysis requires 
-                  computational resources and AI processing, we maintain a limited refund policy as described below.
+                  HiddenFeeAI provides a one-time digital document audit. Because the review begins after purchase and the
+                  report is delivered digitally, refunds are limited to the circumstances described below.
                 </p>
               </div>
 
               <div className="glass-panel p-6 rounded-xl space-y-4">
                 <h2 className="text-2xl font-bold text-white">Digital Service Refunds</h2>
                 <p className="text-violet-200/80 leading-relaxed">
-                  HiddenFeeAI delivers digital audit reports based on AI analysis of uploaded documents. Due to the 
+                  HiddenFeeAI delivers a digital audit report for the document you upload. Due to the
                   immediate nature of the service, all completed analyses are generally non-refundable.
                 </p>
               </div>
@@ -51,7 +51,7 @@ export function Refund() {
                 <h2 className="text-2xl font-bold text-white">When Refunds Are Not Available</h2>
                 <ul className="list-disc pl-6 space-y-2 text-violet-200/80">
                   <li>You are dissatisfied with the analysis results</li>
-                  <li>The AI did not detect issues you expected it to find</li>
+                  <li>The report did not include issues you expected it to find</li>
                   <li>You uploaded the wrong document</li>
                   <li>You changed your mind after the analysis was completed</li>
                   <li>Your document was in an unsupported format</li>

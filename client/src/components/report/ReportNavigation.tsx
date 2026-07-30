@@ -4,11 +4,11 @@ import { LayoutDashboard, Search, FileText, MessageSquare, Shield, ListChecks } 
 
 const sections = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "discoveries", label: "Biggest Risks", icon: Search },
+  { id: "discoveries", label: "Top Concerns", icon: Search },
   { id: "action-plan", label: "Action Plan", icon: ListChecks },
-  { id: "playbook", label: "Negotiation", icon: MessageSquare },
+  { id: "playbook", label: "What to Say", icon: MessageSquare },
   { id: "findings-section", label: "Findings", icon: FileText },
-  { id: "trust", label: "Trust", icon: Shield },
+  { id: "trust", label: "Check Evidence", icon: Shield },
 ];
 
 export function ReportNavigation() {
@@ -45,7 +45,7 @@ export function ReportNavigation() {
         <motion.div
           initial={{ opacity: 0, x: -12 }}
           animate={{ opacity: 1, x: 0 }}
-          className="space-y-1"
+          className="space-y-1 rounded-2xl border border-white/[0.09] bg-[#0e1625]/90 p-2 shadow-[0_18px_45px_rgba(0,0,0,.28)] backdrop-blur-xl"
         >
           {sections.map((s) => (
             <button
@@ -53,14 +53,14 @@ export function ReportNavigation() {
               onClick={() => scrollTo(s.id)}
               className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium transition-all w-full text-left ${
                 active === s.id
-                  ? "bg-white/[0.06] text-white"
-                  : "text-white/30 hover:text-white/60 hover:bg-white/[0.03]"
+                  ? "border border-[#f4c542]/20 bg-[#f4c542]/[0.08] text-white"
+                  : "border border-transparent text-[#c8d3df] hover:bg-white/[0.05] hover:text-white"
               }`}
             >
-              <s.icon className={`h-3.5 w-3.5 ${active === s.id ? "text-violet-400" : ""}`} />
+              <s.icon className={`h-3.5 w-3.5 ${active === s.id ? "text-[#f4c542]" : ""}`} />
               <span>{s.label}</span>
               {active === s.id && (
-                <motion.span layoutId="nav-dot" className="ml-auto h-1.5 w-1.5 rounded-full bg-violet-400" />
+                <motion.span layoutId="nav-dot" className="ml-auto h-1.5 w-1.5 rounded-full bg-[#f4c542] shadow-[0_0_10px_rgba(244,197,66,.7)]" />
               )}
             </button>
           ))}
@@ -68,14 +68,14 @@ export function ReportNavigation() {
       </nav>
 
       {/* Mobile bottom nav */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 border-t border-white/[0.06] bg-midnight-950/90 backdrop-blur-xl print:hidden">
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 border-t border-white/[0.09] bg-[#0e1625]/95 shadow-[0_-12px_40px_rgba(0,0,0,.28)] backdrop-blur-xl print:hidden">
         <div className="flex items-center justify-around px-2 py-2">
           {sections.slice(0, 5).map((s) => (
             <button
               key={s.id}
               onClick={() => scrollTo(s.id)}
               className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors min-w-0 ${
-                active === s.id ? "text-violet-400" : "text-white/25"
+                active === s.id ? "bg-[#f4c542]/10 text-[#f4c542]" : "text-[#c8d3df]"
               }`}
             >
               <s.icon className="h-4 w-4" />

@@ -6,13 +6,6 @@ interface MathErrorsSectionProps {
   errors: MathematicalError[];
 }
 
-const severityColor = {
-  Critical: "text-red-400",
-  High: "text-amber-400",
-  Medium: "text-yellow-400",
-  Low: "text-blue-400",
-};
-
 const severityBadge = {
   Critical: "bg-red-500/20 text-red-300",
   High: "bg-amber-500/20 text-amber-300",
@@ -29,7 +22,7 @@ export function MathErrorsSection({ errors }: MathErrorsSectionProps) {
         <div className="h-10 w-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
           <Calculator className="h-5 w-5 text-red-400" />
         </div>
-        <h2 className="text-2xl sm:text-3xl font-black text-white tracking-[-0.02em]">Mathematical Errors</h2>
+        <h2 className="text-2xl sm:text-3xl font-black text-white tracking-[-0.02em]">Possible Math and Billing Errors</h2>
         <span className="px-3 py-1 rounded-full bg-red-500/15 border border-red-500/20 text-sm font-semibold text-red-300">
           {errors.length}
         </span>
@@ -37,7 +30,6 @@ export function MathErrorsSection({ errors }: MathErrorsSectionProps) {
 
       <div className="space-y-4">
         {errors.map((err, i) => {
-          const scol = severityColor[err.severity] ?? "text-amber-400";
           const sbadge = severityBadge[err.severity] ?? severityBadge.Medium;
           return (
             <motion.div
@@ -99,7 +91,7 @@ export function MathErrorsSection({ errors }: MathErrorsSectionProps) {
 
               {err.recommendedAction && (
                 <div className="rounded-xl border border-savings-500/10 bg-savings-500/[0.04] p-4">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-savings-400/60 mb-1">Recommended Action</p>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-savings-400/60 mb-1">What to Do Next</p>
                   <p className="text-[15px] text-premium-secondary">{err.recommendedAction}</p>
                 </div>
               )}

@@ -1,1 +1,9 @@
-²ø1šYì
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs><radialGradient id="sun"><stop stop-color="#FFF7B0"/><stop offset="1" stop-color="#F4C542"/></radialGradient></defs>
+  <rect width="64" height="64" rx="16" fill="#070B14"/>
+  <g stroke="#F4C542" stroke-width="3" stroke-linecap="round"><path d="M32 4v7"/><path d="M32 53v7"/><path d="M4 32h7"/><path d="M53 32h7"/><path d="m12 12 5 5"/><path d="m47 47 5 5"/><path d="m52 12-5 5"/><path d="m17 47-5 5"/></g>
+  <circle cx="32" cy="32" r="18" fill="url(#sun)" stroke="#D9A916" stroke-width="2"/>
+  <path d="M23 26h18M23 32h13M23 38h18" stroke="#131C2F" stroke-width="3" stroke-linecap="round"/>
+  <path d="M23 38h18" stroke="#4DA3FF" stroke-width="4" stroke-linecap="round"/>
+  <path d="m42 20 1.2 2.8L46 24l-2.8 1.2L42 28l-1.2-2.8L38 24l2.8-1.2L42 20Z" fill="#FFFFFF"/>
+</svg>

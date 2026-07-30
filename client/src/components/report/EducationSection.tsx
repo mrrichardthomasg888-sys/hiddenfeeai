@@ -25,11 +25,11 @@ export function EducationSection({ topics }: EducationSectionProps) {
     >
       <div className="flex items-center gap-2 mb-4">
         <Book className="h-4 w-4 text-violet-400" />
-        <h2 className="text-sm font-semibold text-violet-100">Consumer Education</h2>
+        <h2 className="text-sm font-semibold text-violet-100">Understand the Charges and Terms</h2>
       </div>
 
       <p className="text-xs text-violet-400/60 mb-4">
-        Understanding the fees and terms in your document.
+        Plain-English context for the fees and terms in your document.
       </p>
 
       <div className="space-y-3">

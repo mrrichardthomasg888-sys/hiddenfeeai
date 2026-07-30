@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { FileText, Sparkles, Zap, TrendingDown, UploadCloud, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -26,7 +25,7 @@ export function AiScanDemo({ onStartUpload }: AiScanDemoProps) {
             <Sparkles className="h-4 w-4 text-amber-400" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-violet-100">Example AI Audit Preview</p>
+            <p className="text-sm font-semibold text-violet-100">Example Audit Report</p>
             <p className="text-xs text-violet-400/60">Sample demonstration — not your document</p>
           </div>
         </div>
@@ -61,7 +60,7 @@ export function AiScanDemo({ onStartUpload }: AiScanDemoProps) {
           <div className="rounded-2xl border border-violet-500/10 bg-midnight-900/80 p-4">
             <div className="flex items-center gap-2 mb-3">
               <Zap className="h-4 w-4 text-violet-400" />
-              <span className="text-xs font-medium text-violet-400/80 uppercase tracking-wider">DeepSeek AI Processing</span>
+              <span className="text-xs font-medium text-violet-400/80 uppercase tracking-wider">What HiddenFeeAI checks</span>
             </div>
             <div className="space-y-2">
               {SCAN_STEPS.map((step, i) => (
@@ -105,7 +104,7 @@ export function AiScanDemo({ onStartUpload }: AiScanDemoProps) {
         {/* CTA */}
         <div className="mt-5 text-center">
           <p className="text-xs text-violet-400/40 mb-3">
-            This is an example showing what AI can detect. Upload your own document for a real analysis.
+            This is demonstration data. Upload your document to see what deserves a closer look.
           </p>
           <Button
             variant="violet"
@@ -114,7 +113,7 @@ export function AiScanDemo({ onStartUpload }: AiScanDemoProps) {
             onClick={onStartUpload}
           >
             <UploadCloud className="h-5 w-5" />
-            Upload Your Document
+            Check My Document — $15
           </Button>
         </div>
       </div>

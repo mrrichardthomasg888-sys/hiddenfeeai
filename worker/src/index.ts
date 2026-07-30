@@ -148,13 +148,15 @@ app.use("/api/analyze/*", analyzeRateLimiter);
 
 // ── Error handler ──
 app.onError((err, c) => {
+  console.error("[Worker Error Caught]:", err);
+  const message = err instanceof Error ? err.message : String(err);
+  
   if (err instanceof HTTPException) {
     return c.json({ error: err.message }, err.status);
   }
-  // Production: don't leak stack traces
-  console.error("[Error]", err instanceof Error ? err.message : String(err));
+  
   return c.json({
-    error: "Something went wrong. Please try again.",
+    error: message || "Something went wrong. Please try again.",
     requestId: crypto.randomUUID(),
   }, 500);
 });

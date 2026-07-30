@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { Env } from "../types.js";
+import type { Env, AuditReport, Finding } from "../types.js";
 import { getJob, updateJob } from "../jobStore.js";
 import { runAudit as runAuditLegacy } from "../services/ai.legacy.js";
 import { AIAnalyzer } from "../services/aiAnalyzer.js";
@@ -38,7 +38,9 @@ analyzeRoute.get("/:auditId", async (c) => {
 
   // Don't expose extracted text or full document structure to the client
   const { extractedText, extractedDocument, ...safeJob } = job;
-  return c.json({ ...safeJob, status: safeStatus });
+  // Normalize legacy snake_case report to camelCase frontend format
+  const report = safeJob.report ? normalizeReportForFrontend(safeJob.report) : undefined;
+  return c.json({ ...safeJob, report, status: safeStatus });
 });
 
 /**
@@ -158,17 +160,25 @@ analyzeRoute.get("/:auditId/pdf", async (c) => {
     // ── Assemble Full, Premium Report Data ──
     // This is where we call all the intelligence modules to create a rich dataset
     // for the premium PDF report, ensuring it's complete and impressive.
+    // Safely generate intelligence modules — each is optional for PDF
+    let executiveSummary, prioritizedFindings, trustScore, negotiationAdvice, educationTopics, actionPlan, savingsEstimates;
+    try { executiveSummary = generateExecutiveSummary(job.report); } catch { console.warn("[PDF] failed to generate executiveSummary"); }
+    try { prioritizedFindings = prioritizeFindings(job.report.findings); } catch { console.warn("[PDF] failed to generate prioritizedFindings"); }
+    try { trustScore = calculateTrustScore(job.report); } catch { console.warn("[PDF] failed to generate trustScore"); }
+    try { negotiationAdvice = generateNegotiationAdvice(job.report.findings); } catch { console.warn("[PDF] failed to generate negotiationAdvice"); }
+    try { educationTopics = generateEducationTopics(job.report.findings); } catch { console.warn("[PDF] failed to generate educationTopics"); }
+    try { actionPlan = generateActionPlan(job.report.findings); } catch { console.warn("[PDF] failed to generate actionPlan"); }
+    try { savingsEstimates = estimateSavings(job.report.findings); } catch { console.warn("[PDF] failed to generate savingsEstimates"); }
+
     const enhancedData: EnhancedReportData = {
       auditReport: job.report,
-      // Generate all the rich components for a professional report
-      executiveSummary: generateExecutiveSummary(job.report),
-      prioritizedFindings: prioritizeFindings(job.report.findings),
-      trustScore: calculateTrustScore(job.report),
-      negotiationAdvice: generateNegotiationAdvice(job.report.findings),
-      educationTopics: generateEducationTopics(job.report.findings),
-      actionPlan: generateActionPlan(job.report.findings),
-      savingsEstimates: estimateSavings(job.report.findings),
-      // The 'explanations' map can be added here if that engine is developed
+      executiveSummary,
+      prioritizedFindings,
+      trustScore,
+      negotiationAdvice,
+      educationTopics,
+      actionPlan,
+      savingsEstimates,
     };
 
     const pdfGenerationPromise = generateEnhancedPdf(enhancedData);
@@ -195,3 +205,113 @@ analyzeRoute.get("/:auditId/pdf", async (c) => {
     throw errors.generic("Failed to generate PDF report.");
   }
 });
+
+function buildEmailTemplate(r: AuditReport): string[] {
+  const findings = r.findings ?? [];
+  if (findings.length === 0) return [];
+  const top = findings.slice(0, 3).map((f: Finding) => f.title).join(", ");
+  return [
+    `Subject: Request for Fee Clarification — ${r.document_meta?.document_type || "Document"} Review`,
+    ``,
+    `Dear Customer Service,`,
+    ``,
+    `I recently reviewed my ${(r.document_meta?.document_type || "document").toLowerCase()} and noticed several charges I'd like clarified: ${top}.`,
+    ``,
+    `I request a detailed explanation of these charges and ask if any can be reduced or waived. Please respond in writing within 5 business days.`,
+    ``,
+    `Thank you for your prompt attention.`,
+  ];
+}
+
+// ── Report normalization: convert legacy snake_case to frontend camelCase ──
+function normalizeReportForFrontend(r: AuditReport): any {
+  const findings = r.findings ?? [];
+  const hiddenFees = r.hidden_fees ?? [];
+  const mathErrors = r.math_errors ?? [];
+  const contractRisks = r.contract_risks ?? [];
+
+  return {
+    documentMetadata: {
+      documentType: r.document_meta.document_type ?? "Other",
+      issuer: r.document_meta.issuer,
+      payer: r.document_meta.payer,
+      analysisDate: r.document_meta.analysis_date ?? new Date().toISOString(),
+      pagesReviewed: r.document_meta.pages_reviewed ?? 0,
+      lineItemsReviewed: r.document_meta.line_items_reviewed ?? 0,
+      reportId: r.document_meta.report_id ?? "",
+    },
+    executiveSummary: {
+      headline: r.risk_level ?? "Review Recommended",
+      overview: `This document contains ${findings.length} findings with a risk score of ${r.risk_score ?? 0}/100.`,
+      criticalFindings: findings.filter((f:Finding) => f.severity === "Critical").map((f:Finding) => f.title).join("; ") || "None",
+      immediateActions: findings.slice(0, 3).map((f:Finding) => f.recommended_action).join("; ") || "Review findings carefully.",
+      totalFindings: findings.length,
+    },
+    overallRiskScore: r.risk_score ?? 0,
+    riskCategory: r.risk_level ?? "Low",
+    financialImpact: {
+      originalTotal: r.financial_impact.original_total ?? 0,
+      questionableChargesTotal: r.financial_impact.questionable_charges_total ?? 0,
+      correctedTotal: r.financial_impact.corrected_total ?? 0,
+      potentialOvercharge: r.financial_impact.questionable_charges_total ?? 0,
+      description: "Based on identified hidden fees and questionable charges.",
+    },
+    estimatedSavings: {
+      conservative: Math.round((r.potential_savings ?? 0) * 0.5),
+      optimistic: Math.round((r.potential_savings ?? 0) * 1.5),
+      mostLikely: r.potential_savings ?? 0,
+      description: "Potential savings from addressing flagged charges.",
+    },
+    hiddenFees: hiddenFees.map((f: Finding) => ({
+      id: f.id, title: f.title, severity: f.severity, status: f.status ?? "confirmed",
+      confidenceScore: f.confidence_score ?? 0, amount: f.amount, pageNumber: f.page,
+      lineReference: f.line_reference, evidence: f.evidence, explanation: f.explanation,
+      whyItMatters: f.why_it_matters, recommendedAction: f.recommended_action,
+      negotiationMessage: f.negotiation_message,
+      negotiationStrategy: f.negotiation_strategy ? {
+        difficulty: f.negotiation_strategy.difficulty ?? "Medium", successProbability: 60,
+        priority: "High", estimatedSavings: f.amount ?? 0,
+        steps: f.negotiation_strategy.steps ?? [], script: f.negotiation_strategy.script ?? "",
+        keyPoints: f.negotiation_strategy.key_points ?? [],
+      } : undefined,
+    })),
+    questionableCharges: findings.filter((f: Finding) => f.category === "Hidden Fee").map((f: Finding) => ({
+      id: f.id, title: f.title, severity: f.severity, status: f.status ?? "confirmed",
+      confidenceScore: f.confidence_score ?? 0, amount: f.amount, pageNumber: f.page,
+      lineReference: f.line_reference, evidence: f.evidence, explanation: f.explanation,
+      whyItMatters: f.why_it_matters, recommendedAction: f.recommended_action,
+    })),
+    lineItemFindings: [],
+    contractRisks: contractRisks.map((f: Finding) => ({
+      id: f.id, title: f.title, severity: f.severity, status: f.status ?? "confirmed",
+      confidenceScore: f.confidence_score ?? 0, pageNumber: f.page,
+      clauseText: f.evidence, evidence: f.evidence,
+      explanation: f.explanation, whyItMatters: f.why_it_matters, recommendedAction: f.recommended_action,
+    })),
+    mathematicalErrors: mathErrors.map((f: Finding) => ({
+      id: f.id, title: f.title, severity: f.severity,
+      pageNumber: f.page, expectedValue: null, actualValue: f.amount, discrepancy: null,
+      evidence: f.evidence, explanation: f.explanation, recommendedAction: f.recommended_action,
+    })),
+    negotiationLeverage: [],
+    consumerRights: [],
+    recommendedActions: findings.slice(0, 5).map((f: Finding, i: number) => ({
+      id: `action-${i}`, priority: i + 1, action: f.recommended_action,
+      timeframe: "This Week" as const, estimatedSavings: f.amount ?? 0,
+      difficulty: "Easy" as const, phase: "Before Contact" as const, details: f.explanation,
+    })),
+    questionsToAsk: findings.map((f: Finding) => `Why is this "${f.title}" fee being charged? Is it negotiable?`),
+    phoneNegotiationScript: findings
+      .filter((f: Finding) => f.negotiation_message)
+      .map((f: Finding) => f.negotiation_message!)
+      .slice(0, 5),
+    emailNegotiationTemplate: buildEmailTemplate(r),
+    confidence: r.confidence_level ?? 0,
+    allFindings: findings.map((f: Finding) => ({
+      id: f.id, title: f.title, severity: f.severity, status: f.status ?? "confirmed",
+      confidenceScore: f.confidence_score ?? 0, amount: f.amount, pageNumber: f.page,
+      lineReference: f.line_reference, evidence: f.evidence, explanation: f.explanation,
+      whyItMatters: f.why_it_matters, recommendedAction: f.recommended_action,
+    })),
+  };
+}

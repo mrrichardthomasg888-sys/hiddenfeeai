@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
-import { ShieldCheck, BrainCircuit, ListChecks } from "lucide-react";
+import { ShieldCheck, BrainCircuit, ListChecks, CreditCard } from "lucide-react";
 import { Container } from "@/components/layout/Container";
 
 const cards = [
   { icon: ShieldCheck, title: "Privacy First", desc: "Your documents are automatically deleted after processing." },
-  { icon: BrainCircuit, title: "AI Analysis", desc: "Advanced AI reviews every line item like a forensic auditor." },
-  { icon: ListChecks, title: "Actionable Results", desc: "Receive a detailed financial audit with evidence, negotiation leverage, and clear next steps to help you challenge hidden fees with confidence." },
+  { icon: BrainCircuit, title: "Every Page Checked", desc: "HiddenFeeAI reviews charges, totals, tables, and clauses for possible problems." },
+  { icon: ListChecks, title: "Clear Next Steps", desc: "See the evidence, questions, and scripts you can use to challenge a charge with confidence." },
+  { icon: CreditCard, title: "Secure Checkout", desc: "Payment is completed on Stripe's hosted checkout. HiddenFeeAI does not receive or store your card details." },
 ];
 
 export function TrustSection() {
@@ -13,9 +14,9 @@ export function TrustSection() {
     <section className="bg-midnight-900 py-16">
       <Container>
         <h2 className="mb-10 text-center text-2xl font-semibold tracking-tight text-violet-100 sm:text-3xl">
-          Why people trust HiddenFeeAI
+          Built for private, confident action
         </h2>
-        <div className="grid gap-6 sm:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {cards.map(({ icon: Icon, title, desc }, i) => (
             <motion.div
               key={title}

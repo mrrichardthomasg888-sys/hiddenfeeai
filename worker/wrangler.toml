@@ -25,6 +25,8 @@ STRIPE_PRICE_USD_CENTS = "1500"
 TEST_MODE_SKIP_PAYMENT = "false"
 USE_NEW_PIPELINE = "false"
 USE_V2_PIPELINE = "true"
+# Google Gemini model for AI analysis (must be a valid model name)
+GEMINI_MODEL = "gemini-3.5-flash-lite"
 # ── IBM Docling Service Endpoint ──
 # ACTIVE: Quick Tunnel to local Docling service.
 # Deploy with: npx wrangler deploy

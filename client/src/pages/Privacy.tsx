@@ -2,139 +2,26 @@ import { Nav } from "@/components/layout/Nav";
 import { Footer } from "@/components/layout/Footer";
 import { Container } from "@/components/layout/Container";
 
+const sections = [
+  ["What we process", "HiddenFeeAI processes the document you choose to upload, basic technical request information needed to operate the service, payment status, and the audit report generated from the document. No account is required."],
+  ["Why we process it", "The document is processed only to complete the review you requested, create the report and PDF, verify payment, prevent abuse, and keep the service working."],
+  ["Document retention and deletion", "Uploaded files are held in temporary server storage. The original file is removed after analysis completes or fails. If an upload is abandoned before analysis, the temporary audit session and associated file are purged after approximately one hour. Audit report data is held in temporary in-memory session storage for approximately one hour so you can review and download it."],
+  ["Document and payment providers", "Google Gemini reads document content to create the requested audit. Stripe processes checkout and payment details on its hosted payment pages. HiddenFeeAI does not receive or store your full payment-card number."],
+  ["Model training and sale of data", "HiddenFeeAI does not add uploaded documents to its own model-training dataset and does not sell document contents. Third-party processors handle data under their own service terms and privacy commitments."],
+  ["Security", "Uploads and reports are transmitted over HTTPS-protected connections. Temporary storage and restricted processing reduce retention risk, but no internet service can guarantee absolute security."],
+  ["What not to upload", "Do not upload passwords, authentication codes, full payment-card numbers, private keys, or information unrelated to the audit. Redact unnecessary personal information when practical."],
+  ["Your choices and rights", "You may stop before uploading, cancel Stripe checkout, close the report session, or contact us about a privacy request. Applicable access, correction, deletion, or objection rights depend on your jurisdiction."],
+  ["Contact", "For privacy questions or requests, contact support@hiddenfeehub.com."],
+] as const;
+
 export function Privacy() {
   return (
-    <div className="min-h-screen bg-midnight-950">
+    <div className="premium-page min-h-screen bg-[#050911]">
       <Nav />
-      <main className="py-16">
+      <main className="py-20 sm:py-24">
         <Container className="max-w-4xl">
-          <article className="space-y-8">
-            <header className="space-y-4">
-              <h1 className="text-4xl font-bold tracking-tight text-white text-glow">
-                Privacy Policy
-              </h1>
-              <p className="text-violet-400/70 text-sm">
-                Last updated: {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
-              </p>
-            </header>
-
-            <section className="space-y-6">
-              <div className="glass-panel p-6 rounded-xl space-y-4">
-                <h2 className="text-2xl font-bold text-white">Overview</h2>
-                <p className="text-violet-200/80 leading-relaxed">
-                  HiddenFeeAI provides AI-powered document analysis to identify hidden fees, billing errors, and contract risks. 
-                  We take your privacy seriously. This policy describes what information we collect, how we use it, and how we protect it.
-                </p>
-                <p className="text-violet-200/80 leading-relaxed">
-                  By using HiddenFeeAI, you agree to the data practices described in this policy.
-                </p>
-              </div>
-
-              <div className="glass-panel p-6 rounded-xl space-y-4">
-                <h2 className="text-2xl font-bold text-white">Information We Collect</h2>
-                <h3 className="text-lg font-semibold text-violet-300">Account Information</h3>
-                <p className="text-violet-200/80 leading-relaxed">
-                  When you use HiddenFeeAI, we may collect an email address and basic account information if you choose to create an account. 
-                  Payment processing information is handled by our third-party payment processor and is not stored on our servers.
-                </p>
-                <h3 className="text-lg font-semibold text-violet-300">Uploaded Documents</h3>
-                <p className="text-violet-200/80 leading-relaxed">
-                  HiddenFeeAI processes the documents you upload (PDFs, images, DOCX, TXT, CSV, XLSX files) solely for the purpose of 
-                  analyzing them for hidden fees, billing errors, and contract risks. Your documents are processed temporarily and are 
-                  automatically deleted after analysis is complete.
-                </p>
-                <h3 className="text-lg font-semibold text-violet-300">Usage Data</h3>
-                <p className="text-violet-200/80 leading-relaxed">
-                  We may collect anonymous usage statistics such as page views, feature usage, and performance metrics to improve our service. 
-                  This data cannot be used to identify you personally.
-                </p>
-              </div>
-
-              <div className="glass-panel p-6 rounded-xl space-y-4">
-                <h2 className="text-2xl font-bold text-white">How We Use Your Information</h2>
-                <ul className="list-disc pl-6 space-y-2 text-violet-200/80">
-                  <li>To analyze uploaded documents for hidden fees, billing errors, and contract risks</li>
-                  <li>To generate audit reports based on document analysis</li>
-                  <li>To improve the accuracy and performance of our AI analysis</li>
-                  <li>To communicate with you about your account and our service</li>
-                  <li>To process payments through our third-party payment processor</li>
-                </ul>
-              </div>
-
-              <div className="glass-panel p-6 rounded-xl space-y-4">
-                <h2 className="text-2xl font-bold text-white">Document Processing and Deletion</h2>
-                <p className="text-violet-200/80 leading-relaxed">
-                  Uploaded documents are processed in temporary storage during analysis. The extracted text is analyzed by our AI system, 
-                  and both the original files and extracted text are permanently deleted from our servers after the analysis is complete. 
-                  We do not retain copies of your uploaded documents.
-                </p>
-                <p className="text-violet-200/80 leading-relaxed">
-                  Audit reports generated from your documents are stored temporarily and can be downloaded as PDF. You control the 
-                  retention of these reports.
-                </p>
-              </div>
-
-              <div className="glass-panel p-6 rounded-xl space-y-4">
-                <h2 className="text-2xl font-bold text-white">Cookies</h2>
-                <p className="text-violet-200/80 leading-relaxed">
-                  HiddenFeeAI uses essential cookies for basic functionality such as session management. We may use analytics cookies 
-                  to understand how our website is used. You can control cookie preferences through your browser settings.
-                </p>
-              </div>
-
-              <div className="glass-panel p-6 rounded-xl space-y-4">
-                <h2 className="text-2xl font-bold text-white">Analytics</h2>
-                <p className="text-violet-200/80 leading-relaxed">
-                  We use anonymous analytics to understand usage patterns and improve our service. These analytics do not include 
-                  personal information or document contents. No document data is ever shared with analytics providers.
-                </p>
-              </div>
-
-              <div className="glass-panel p-6 rounded-xl space-y-4">
-                <h2 className="text-2xl font-bold text-white">Payment Processing</h2>
-                <p className="text-violet-200/80 leading-relaxed">
-                  Payments are processed securely through our third-party payment processor. HiddenFeeAI does not store credit card 
-                  numbers, bank account details, or other payment credentials. All payment data is handled by our payment processor 
-                  in accordance with their security standards.
-                </p>
-              </div>
-
-              <div className="glass-panel p-6 rounded-xl space-y-4">
-                <h2 className="text-2xl font-bold text-white">Security</h2>
-                <p className="text-violet-200/80 leading-relaxed">
-                  We implement industry-standard security measures including encryption in transit and at rest, secure temporary 
-                  storage for document processing, and regular security assessments. However, no method of electronic storage or 
-                  transmission is 100% secure, and we cannot guarantee absolute security.
-                </p>
-              </div>
-
-              <div className="glass-panel p-6 rounded-xl space-y-4">
-                <h2 className="text-2xl font-bold text-white">Your Rights</h2>
-                <p className="text-violet-200/80 leading-relaxed">
-                  Depending on your jurisdiction, you may have the right to:
-                </p>
-                <ul className="list-disc pl-6 space-y-2 text-violet-200/80">
-                  <li>Access personal information we hold about you</li>
-                  <li>Request deletion of your data</li>
-                  <li>Object to processing of your data</li>
-                  <li>Request correction of inaccurate data</li>
-                  <li>Withdraw consent at any time</li>
-                  <li>Lodge a complaint with a data protection authority</li>
-                </ul>
-                <p className="text-violet-200/80 leading-relaxed mt-4">
-                  To exercise any of these rights, please contact us at support@hiddenfeehub.com.
-                </p>
-              </div>
-
-              <div className="glass-panel p-6 rounded-xl space-y-4">
-                <h2 className="text-2xl font-bold text-white">Contact</h2>
-                <p className="text-violet-200/80 leading-relaxed">
-                  For questions about this privacy policy or our data practices, please contact us at:
-                </p>
-                <p className="text-violet-400 font-medium">support@hiddenfeehub.com</p>
-              </div>
-            </section>
-          </article>
+          <header className="max-w-3xl"><p className="text-sm font-extrabold uppercase tracking-[.18em] text-[#4da3ff]">Privacy and data handling</p><h1 className="mt-4 text-4xl font-black tracking-[-.04em] text-white sm:text-6xl">See exactly how your file is handled.</h1><p className="mt-6 text-lg font-medium leading-[1.72] text-[#dce4ec]">Last updated July 29, 2026. This policy explains the current no-account, temporary-file process.</p></header>
+          <div className="mt-14 space-y-5">{sections.map(([title, text]) => <section key={title} className="rounded-[22px] border border-white/[0.11] bg-[#111d30] p-7 shadow-[0_18px_48px_rgba(0,0,0,.2)] sm:p-8"><h2 className="text-2xl font-extrabold text-white">{title}</h2><p className="mt-4 text-base font-medium leading-[1.7] text-[#dce4ec]">{text}</p></section>)}</div>
         </Container>
       </main>
       <Footer />

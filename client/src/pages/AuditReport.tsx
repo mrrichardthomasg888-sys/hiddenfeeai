@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { apiUrl } from "@/config/api";
-import { motion } from "framer-motion";
-import { Loader2, AlertCircle, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Loader2, AlertCircle, ArrowLeft, CheckCircle2, FileCheck2, LockKeyhole, ShieldCheck, Sparkles } from "lucide-react";
 import { Container } from "@/components/layout/Container";
 import { ReportActions } from "@/components/report/ReportActions";
 import { Button } from "@/components/ui/button";
@@ -23,6 +22,8 @@ import { ContractRisksSection } from "@/components/report/ContractRisksSection";
 import { MathErrorsSection } from "@/components/report/MathErrorsSection";
 import { ConsumerRightsSection } from "@/components/report/ConsumerRightsSection";
 import { NegotiationScriptsSection } from "@/components/report/NegotiationScriptsSection";
+import { AuditDeliverables } from "@/components/report/AuditDeliverables";
+import { BrandIdentity } from "@/components/brand/BrandIdentity";
 
 interface JobState {
   auditId: string;
@@ -41,15 +42,41 @@ const ANALYSIS_STEPS = [
   "Understanding financial structure",
   "Reviewing every charge",
   "Detecting hidden fees",
-  "Building negotiation strategy",
-  "Generating executive report",
+  "Preparing questions and scripts",
+  "Building your Professional Audit Report",
   "Preparing downloadable PDF",
   "Finalizing results",
 ];
 
+function getDocumentAwareSteps(fileName?: string): string[] {
+  const extension = fileName?.split(".").pop()?.toLowerCase();
+  const readingStep = extension === "pdf"
+    ? "Reading every PDF page"
+    : ["png", "jpg", "jpeg", "webp", "heic", "heif", "tiff", "tif", "bmp", "gif"].includes(extension ?? "")
+      ? "Enhancing the image and reading visible text"
+      : ["docx", "doc"].includes(extension ?? "")
+        ? "Extracting paragraphs, clauses, and tables"
+        : ["xlsx", "xls", "csv"].includes(extension ?? "")
+          ? "Reading worksheets, rows, and totals"
+          : "Reading the complete document";
+  return [
+    readingStep,
+    "Mapping charges, terms, and how they affect what you pay",
+    "Checking calculations and duplicate line items",
+    "Detecting hidden fees and disclosure gaps",
+    "Evaluating contract and renewal risk",
+    "Linking each finding to document evidence",
+    "Building your prioritized action plan",
+    "Writing negotiation scripts and counter-responses",
+    "Preparing your Professional Audit Report",
+  ];
+}
+
 export function AuditReport() {
   const { auditId } = useParams<{ auditId: string }>();
   const [searchParams] = useSearchParams();
+  const sessionId = searchParams.get("session_id");
+  const paidParam = searchParams.get("paid");
   const [pageState, setPageState] = useState<PageState>("loading");
   const [job, setJob] = useState<JobState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -63,9 +90,6 @@ export function AuditReport() {
     const MAX_START_RETRIES = 10;
 
     const initialize = async () => {
-      const sessionId = searchParams.get("session_id");
-      const paidParam = searchParams.get("paid");
-
       if (paidParam === "true" || sessionId) {
         setPageState("verifying_payment");
         try {
@@ -152,62 +176,80 @@ export function AuditReport() {
       setAnalysisAnimStep((prev) => (prev < ANALYSIS_STEPS.length - 1 ? prev + 1 : prev));
     }, 2200);
     return () => clearInterval(animInterval);
-  }, [auditId]);
+  }, [auditId, paidParam, sessionId]);
 
   // ── Loading / analyzing state ──────────────────────────────────────────────
   if (pageState === "loading" || pageState === "verifying_payment" || pageState === "analyzing") {
     const isVerifying = pageState === "verifying_payment";
     const steps = isVerifying
-      ? ["Processing payment", "Verifying your purchase", "Starting AI analysis", "Preparing your report"]
-      : ANALYSIS_STEPS;
+      ? ["Processing payment", "Verifying your purchase", "Starting your document review", "Preparing your report"]
+      : getDocumentAwareSteps(job?.fileName);
+    const activeFileName = job?.fileName;
 
     const currentStep = isVerifying
       ? Math.min(Math.floor(Date.now() / 1000) % 4, 3)
       : analysisAnimStep;
 
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-midnight-950 px-6">
-        <div className="w-full max-w-sm text-center">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-violet-500/20">
-            <Loader2 className="h-10 w-10 animate-spin text-violet-300" strokeWidth={2.5} />
+      <div className="premium-page relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#070b14] px-5 py-12">
+        <div className="pointer-events-none absolute left-1/2 top-[-220px] h-[520px] w-[720px] -translate-x-1/2 rounded-full bg-[#4da3ff]/[0.07] blur-[120px]" />
+        <div className="glass-command relative w-full max-w-xl rounded-[28px] p-6 text-center sm:p-10">
+          <BrandIdentity className="mb-8 justify-center" />
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl border border-[#f4c542]/25 bg-[#f4c542]/10 shadow-[0_0_34px_rgba(244,197,66,.1)]">
+            <Loader2 className="h-10 w-10 animate-spin text-[#f4c542]" strokeWidth={2.5} />
           </div>
-          <h1 className="mt-6 text-2xl font-bold text-violet-100">
-            {isVerifying ? "Processing Payment" : "AI Audit in Progress"}
+          <h1 className="mt-6 text-3xl font-black tracking-[-.03em] text-white sm:text-4xl">
+            {isVerifying ? "Processing Payment" : "Your Audit Is Underway"}
           </h1>
-          <p className="mt-2 text-base font-medium text-violet-300/80">
+          <p className="mt-4 text-base font-semibold leading-[1.7] text-[#dce4ec] sm:text-lg">
             {isVerifying
-              ? "Confirming your payment and preparing analysis."
-              : "Our AI is analyzing every charge, clause, and line item."}
+              ? "Confirming your payment and preparing your document review."
+              : "We're checking every charge, clause, calculation, and line item."}
           </p>
 
-          <div className="mt-8 space-y-3 text-left">
+          {activeFileName && !isVerifying && (
+            <div className="mt-7 flex items-center gap-3 rounded-2xl border border-[#4da3ff]/20 bg-[#4da3ff]/[0.06] p-4 text-left">
+              <FileCheck2 className="h-5 w-5 shrink-0 text-[#73b8ff]" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-extrabold text-white">{activeFileName}</p>
+                <p className="mt-1 text-xs font-semibold text-[#c8d3df]">Private document audit in progress</p>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-8 space-y-2.5 text-left">
             {steps.map((step, i) => (
               <div
                 key={step}
-                className={`flex items-center gap-3 text-base font-medium transition-colors ${
+                className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-bold transition-colors sm:text-base ${
                   i < currentStep
-                    ? "text-violet-100"
+                    ? "bg-[#36d399]/[0.05] text-white"
                     : i === currentStep
-                    ? "text-violet-200"
-                    : "text-violet-400/60"
+                    ? "bg-[#f4c542]/[0.07] text-white"
+                    : "text-[#c8d3df]"
                 }`}
               >
                 {i < currentStep ? (
                   <CheckCircle2 className="h-5 w-5 shrink-0 text-savings-400" />
                 ) : i === currentStep ? (
-                  <span className="h-5 w-5 shrink-0 animate-pulse rounded-full bg-violet-300" />
+                  <span className="h-5 w-5 shrink-0 animate-pulse rounded-full bg-[#f4c542] shadow-[0_0_14px_rgba(244,197,66,.4)]" />
                 ) : (
-                  <span className="h-5 w-5 shrink-0 rounded-full border-2 border-violet-400/30" />
+                  <span className="h-5 w-5 shrink-0 rounded-full border-2 border-white/15" />
                 )}
                 {step}
               </div>
             ))}
           </div>
 
-          <p className="mt-6 text-sm text-violet-400/60 leading-relaxed">
+          <p className="mt-8 text-sm font-medium leading-[1.7] text-[#c8d3df]">
             This may take a few minutes for larger documents. Keep this page open. If you
             accidentally leave, return to this link — your audit will continue.
           </p>
+          <div className="mt-6 grid grid-cols-3 gap-2 border-t border-white/[0.1] pt-5 text-xs font-bold text-[#dce4ec]">
+            <span className="flex flex-col items-center gap-1.5"><LockKeyhole className="h-4 w-4 text-[#36d399]" /> Secure session</span>
+            <span className="flex flex-col items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-[#36d399]" /> Private processing</span>
+            <span className="flex flex-col items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-[#36d399]" /> Payment verified</span>
+          </div>
         </div>
       </div>
     );
@@ -216,12 +258,12 @@ export function AuditReport() {
   // ── Error state ────────────────────────────────────────────────────────────
   if (pageState === "error") {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-midnight-950 px-6 text-center">
+      <div className="premium-page flex min-h-screen flex-col items-center justify-center bg-[#070b14] px-6 text-center">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-risk-critical/10">
           <AlertCircle className="h-8 w-8 text-risk-critical" strokeWidth={2} />
         </div>
         <h1 className="mt-6 text-xl font-semibold text-violet-100">Something went wrong</h1>
-        <p className="mt-2 max-w-sm text-sm text-violet-400/60">
+        <p className="mt-3 max-w-sm text-base leading-[1.7] text-[#dce4ec]">
           {errorMessage || "We couldn't complete the audit. Please try uploading your document again."}
         </p>
         <Link to="/" className="mt-6">
@@ -248,6 +290,17 @@ export function AuditReport() {
   const hiddenFeesCount = report.hiddenFees?.length ?? 0;
   const potentialSavings = report.estimatedSavings?.mostLikely ?? 0;
   const criticalCount = allFindings.filter((f) => f.severity === "Critical").length;
+  const severityCounts = {
+    Critical: criticalCount,
+    High: allFindings.filter((f) => f.severity === "High").length,
+    Medium: allFindings.filter((f) => f.severity === "Medium").length,
+    Low: allFindings.filter((f) => f.severity === "Low").length,
+  };
+  const evidenceCount = allFindings.filter((f) => Boolean(f.evidence || f.lineReference)).length;
+  const actionCount = report.recommendedActions?.length ?? 0;
+  const scriptCount = (report.phoneNegotiationScript?.length ?? 0) +
+    ((report.emailNegotiationTemplate?.length ?? 0) > 0 ? 1 : 0) +
+    allFindings.filter((f) => Boolean(f.negotiationMessage || f.negotiationStrategy?.script)).length;
 
   const hasNegotiation =
     allFindings.some((f) => f.negotiationMessage || f.negotiationStrategy) ||
@@ -265,7 +318,27 @@ export function AuditReport() {
     .slice(0, 5);
 
   return (
-    <div id="overview" className="min-h-screen bg-midnight-950 print:bg-midnight-950">
+    <div id="overview" className="premium-page audit-report-page relative min-h-screen overflow-hidden bg-[#070b14] print:bg-[#070b14]">
+      <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_18%_5%,rgba(77,163,255,.12),transparent_28%),radial-gradient(circle_at_82%_16%,rgba(244,197,66,.08),transparent_24%),linear-gradient(180deg,#070b14_0%,#09111e_46%,#070b14_100%)]" />
+      <div className="pointer-events-none fixed inset-0 z-0 opacity-[.18] [background-image:linear-gradient(rgba(255,255,255,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] [background-size:72px_72px]" />
+
+      <header className="relative z-40 border-b border-white/[0.08] bg-[#070b14]/85 backdrop-blur-2xl print:hidden">
+        <Container className="flex min-h-20 items-center justify-between gap-4 py-3">
+          <Link to="/" aria-label="HiddenFeeAI home">
+            <BrandIdentity compact />
+          </Link>
+          <div className="hidden items-center gap-3 sm:flex">
+            <div className="flex items-center gap-2 rounded-full border border-[#36d399]/20 bg-[#36d399]/[0.07] px-3.5 py-2 text-xs font-extrabold text-[#b8f7df]">
+              <ShieldCheck className="h-4 w-4 text-[#36d399]" />
+              Private report link
+            </div>
+            <div className="flex items-center gap-2 rounded-full border border-[#f4c542]/20 bg-[#f4c542]/[0.07] px-3.5 py-2 text-xs font-extrabold text-[#f8d96e]">
+              <Sparkles className="h-4 w-4" />
+              Professional Audit Report
+            </div>
+          </div>
+        </Container>
+      </header>
       {/* Sticky summary bar */}
       <ReportStickySummary
         riskScore={report.overallRiskScore}
@@ -278,11 +351,11 @@ export function AuditReport() {
       <ReportNavigation />
 
       {/* Back to home */}
-      <div className="hidden sm:block border-b border-white/[0.04] bg-midnight-950/60">
+      <div className="relative z-10 hidden border-b border-white/[0.08] bg-[#0e1625]/70 sm:block">
         <Container className="flex h-12 items-center">
           <Link
             to="/"
-            className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors"
+            className="flex min-h-11 items-center gap-1.5 text-sm font-bold text-[#dce4ec] transition-colors hover:text-white"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to home
@@ -290,8 +363,8 @@ export function AuditReport() {
         </Container>
       </div>
 
-      <Container className="py-6 sm:py-10 pb-24 lg:pb-10">
-        <div className="mx-auto max-w-5xl space-y-8">
+      <Container className="relative z-10 pb-24 pt-7 sm:pt-10 lg:pb-10">
+        <div className="mx-auto max-w-5xl space-y-10 sm:space-y-12">
 
           {/* ── PREMIUM REPORT HERO ── */}
           <PremiumReportHero
@@ -306,6 +379,14 @@ export function AuditReport() {
             ).length}
             criticalCount={criticalCount}
             hiddenFeesCount={hiddenFeesCount}
+            severityCounts={severityCounts}
+          />
+
+          <AuditDeliverables
+            evidenceCount={evidenceCount}
+            actionCount={actionCount}
+            scriptCount={scriptCount}
+            pagesReviewed={meta.pagesReviewed}
           />
 
           {/* ── VALUE SUMMARY DASHBOARD ── */}
@@ -406,9 +487,9 @@ export function AuditReport() {
           {totalIssues === 0 && (
             <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-12 text-center">
               <CheckCircle2 className="mx-auto h-12 w-12 text-savings-500" />
-              <p className="mt-4 text-xl font-bold text-white">No major issues found</p>
-              <p className="mt-2 text-sm text-white/40 max-w-md mx-auto">
-                All charges in your document appear to be correct and properly documented.
+              <p className="mt-4 text-xl font-bold text-white">No major concerns found</p>
+              <p className="mx-auto mt-3 max-w-md text-base leading-[1.7] text-[#dce4ec]">
+                We did not find major problems in the available document. This does not guarantee every charge is correct, so compare the report with the original.
                 {exec.overview && (
                   <span className="block mt-2">{exec.overview}</span>
                 )}

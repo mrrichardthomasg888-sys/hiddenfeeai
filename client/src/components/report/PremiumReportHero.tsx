@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Shield, FileCheck, Lock, Brain, TrendingUp, Search, Scale, Gavel, AlertTriangle, DollarSign } from "lucide-react";
+import { Shield, FileCheck, Lock, BadgeCheck, TrendingUp, Search, Gavel, AlertTriangle, DollarSign } from "lucide-react";
 import { getReportTitle, getReportActionLine, getAnalysisDescription } from "@/lib/documentLabels";
 
 interface PremiumReportHeroProps {
@@ -13,27 +13,28 @@ interface PremiumReportHeroProps {
   negotiationOpportunities: number;
   criticalCount: number;
   hiddenFeesCount?: number;
+  severityCounts: { Critical: number; High: number; Medium: number; Low: number };
 }
 
 const riskConfig: Record<string, { color: string; bg: string; border: string; label: string; gradient: string; grade: string; gradeColor: string; dot: string; meterColor: string }> = {
   High: {
     color: "text-red-400", bg: "bg-red-500/8", border: "border-red-500/25",
-    label: "HIGH RISK — IMMEDIATE ACTION REQUIRED", gradient: "from-red-500/12 via-red-500/5 to-transparent",
+    label: "HIGH PRIORITY — REVIEW BEFORE PAYING", gradient: "from-red-500/12 via-red-500/5 to-transparent",
     grade: "D", gradeColor: "text-red-300 bg-red-500/20 border-red-500/35", dot: "bg-red-400", meterColor: "#ef4444",
   },
   Elevated: {
     color: "text-amber-400", bg: "bg-amber-500/8", border: "border-amber-500/25",
-    label: "ELEVATED RISK — ATTENTION NEEDED", gradient: "from-amber-500/12 via-amber-500/5 to-transparent",
+    label: "NEEDS ATTENTION — REVIEW CLOSELY", gradient: "from-amber-500/12 via-amber-500/5 to-transparent",
     grade: "C", gradeColor: "text-amber-300 bg-amber-500/20 border-amber-500/35", dot: "bg-amber-400", meterColor: "#f97316",
   },
   "Review Recommended": {
     color: "text-yellow-400", bg: "bg-yellow-500/8", border: "border-yellow-500/25",
-    label: "REVIEW RECOMMENDED", gradient: "from-yellow-500/12 via-yellow-500/5 to-transparent",
+    label: "SOME ITEMS DESERVE A CLOSER LOOK", gradient: "from-yellow-500/12 via-yellow-500/5 to-transparent",
     grade: "B", gradeColor: "text-yellow-300 bg-yellow-500/20 border-yellow-500/35", dot: "bg-yellow-400", meterColor: "#fbbf24",
   },
   Low: {
     color: "text-emerald-400", bg: "bg-emerald-500/8", border: "border-emerald-500/25",
-    label: "LOW RISK — CONSUMER-FRIENDLY", gradient: "from-emerald-500/12 via-emerald-500/5 to-transparent",
+    label: "FEW CONCERNS FOUND — VERIFY BEFORE ACTING", gradient: "from-emerald-500/12 via-emerald-500/5 to-transparent",
     grade: "A", gradeColor: "text-emerald-300 bg-emerald-500/20 border-emerald-500/35", dot: "bg-emerald-400", meterColor: "#34d399",
   },
 };
@@ -87,7 +88,7 @@ function RiskMeter({ score, level }: { score: number; level: string }) {
         <span className="text-5xl sm:text-6xl font-black tabular-nums leading-none" style={{ color: cfg.meterColor }}>
           {animatedVal}
         </span>
-        <span className="text-[11px] font-bold uppercase tracking-widest text-premium-muted mt-1">Risk Score</span>
+        <span className="text-[11px] font-bold uppercase tracking-widest text-premium-muted mt-1">Attention Score</span>
       </div>
     </div>
   );
@@ -122,7 +123,7 @@ function KpiCard({
 }
 
 export function PremiumReportHero({
-  documentType, issuer, riskScore, riskLevel, totalIssues, potentialExposure, negotiationOpportunities, criticalCount, hiddenFeesCount,
+  documentType, issuer, riskScore, riskLevel, totalIssues, potentialExposure, negotiationOpportunities, criticalCount, hiddenFeesCount, severityCounts,
 }: PremiumReportHeroProps) {
   const cfg = riskConfig[riskLevel] ?? riskConfig["Review Recommended"];
 
@@ -136,9 +137,9 @@ export function PremiumReportHero({
   const exposureDisplay = showExposure ? formatExposure(potentialExposure) : null;
 
   const kpiItems = useMemo(() => [
-    { value: riskScore, label: "Risk Score", explanation: "Overall document risk assessment", icon: AlertTriangle, color: cfg.color },
-    { value: totalIssues, label: "Issues Found", explanation: "Potential problems requiring attention", icon: Search, color: "text-intel-400" },
-    { value: hiddenFeesCount ?? 0, label: "Hidden Fees", explanation: `${negotiationOpportunities} require action`, icon: DollarSign, color: cfg.color },
+    { value: riskScore, label: "Attention Score", explanation: "How urgently this document deserves review", icon: AlertTriangle, color: cfg.color },
+    { value: totalIssues, label: "Items to Review", explanation: "Possible problems worth a closer look", icon: Search, color: "text-intel-400" },
+    { value: hiddenFeesCount ?? 0, label: "Possible Hidden Fees", explanation: `${negotiationOpportunities} may be worth questioning`, icon: DollarSign, color: cfg.color },
   ], [riskScore, totalIssues, hiddenFeesCount, negotiationOpportunities, cfg.color]);
 
   return (
@@ -163,13 +164,13 @@ export function PremiumReportHero({
         >
           <div className="inline-flex items-center gap-3 rounded-full border border-white/[0.06] bg-white/[0.03] px-5 py-2">
             <Shield className="h-4 w-4 text-intel-400/60" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-premium-tertiary">CONFIDENTIAL AI DOCUMENT INTELLIGENCE REPORT</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-premium-tertiary">PRIVATE PROFESSIONAL AUDIT REPORT</span>
           </div>
           <div className="flex items-center gap-5">
             {[
-              { icon: FileCheck, label: "Evidence Verified" },
-              { icon: Brain, label: "AI Confidence Scored" },
-              { icon: Lock, label: "Privacy Protected" },
+              { icon: FileCheck, label: "Evidence Linked" },
+              { icon: BadgeCheck, label: "Evidence Confidence" },
+              { icon: Lock, label: "Original File Deleted" },
             ].map((b) => (
               <span key={b.label} className="hidden sm:inline-flex items-center gap-1.5 text-[12px] font-medium text-premium-tertiary">
                 <b.icon className="h-3.5 w-3.5 text-intel-400/50" />
@@ -193,7 +194,7 @@ export function PremiumReportHero({
               <span className="text-6xl sm:text-7xl lg:text-8xl font-black leading-none tracking-[-0.04em]">{cfg.grade}</span>
               <div className="border-l border-white/[0.1] pl-5">
                 <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-premium-secondary">HiddenFeeAI</p>
-                <p className="text-sm font-bold text-premium-primary mt-0.5">Risk Rating</p>
+                <p className="text-sm font-bold text-premium-primary mt-0.5">Needs Attention</p>
               </div>
             </div>
 
@@ -212,17 +213,18 @@ export function PremiumReportHero({
             {/* Risk distribution bar */}
             {totalIssues > 0 && (
               <div className="w-full max-w-xs">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-premium-muted mb-2">Risk Distribution</p>
-                <div className="flex gap-1 h-2">
-                  <div className="h-full rounded-full bg-red-500" style={{ width: `${Math.min(100, (criticalCount / totalIssues) * 100)}%` }} title="Critical" />
-                  <div className="h-full rounded-full bg-orange-500" style={{ width: `${Math.min(100, 30)}%` }} title="High" />
-                  <div className="h-full rounded-full bg-yellow-500" style={{ width: `${Math.min(100, 25)}%` }} title="Medium" />
-                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.max(5, 20)}%` }} title="Low" />
+                <p className="text-[11px] font-bold uppercase tracking-widest text-premium-muted mb-2">Findings by Priority</p>
+                <div className="flex gap-1 h-2 overflow-hidden rounded-full bg-white/[0.04]">
+                  <div className="h-full bg-red-500" style={{ width: `${(severityCounts.Critical / totalIssues) * 100}%` }} title="Critical" />
+                  <div className="h-full bg-orange-500" style={{ width: `${(severityCounts.High / totalIssues) * 100}%` }} title="High" />
+                  <div className="h-full bg-yellow-500" style={{ width: `${(severityCounts.Medium / totalIssues) * 100}%` }} title="Medium" />
+                  <div className="h-full bg-emerald-500" style={{ width: `${(severityCounts.Low / totalIssues) * 100}%` }} title="Low" />
                 </div>
-                <div className="flex justify-between mt-1 text-[10px] font-semibold text-premium-muted">
-                  <span>Critical: {criticalCount}</span>
-                  <span>Medium</span>
-                  <span>Low</span>
+                <div className="grid grid-cols-4 gap-2 mt-2 text-[10px] font-semibold text-premium-muted">
+                  <span>Critical {severityCounts.Critical}</span>
+                  <span>High {severityCounts.High}</span>
+                  <span>Medium {severityCounts.Medium}</span>
+                  <span>Low {severityCounts.Low}</span>
                 </div>
               </div>
             )}
@@ -236,7 +238,7 @@ export function PremiumReportHero({
             className="lg:pt-8"
           >
             <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-intel-400/70 mb-6">
-              CONFIDENTIAL ANALYSIS — {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+              PRIVATE AUDIT — {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
             </p>
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-premium-primary tracking-[-0.03em] leading-[1.05]">
               {reportTitle}
@@ -253,7 +255,7 @@ export function PremiumReportHero({
               </div>
             ) : (
               <div className="mt-4">
-                <span className="text-3xl sm:text-4xl font-bold text-savings-400">Document Appears Clean</span>
+                <span className="text-3xl sm:text-4xl font-bold text-savings-400">No Major Concerns Found</span>
               </div>
             )}
 
@@ -268,24 +270,24 @@ export function PremiumReportHero({
             <div className="mt-8 flex flex-wrap gap-6">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-premium-primary">{riskScore}</span>
-                <span className="text-sm text-premium-tertiary">risk score</span>
+                <span className="text-sm text-premium-tertiary">attention score</span>
               </div>
               {totalIssues > 0 && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-premium-primary">{totalIssues}</span>
-                  <span className="text-sm text-premium-tertiary">issues</span>
+                  <span className="text-sm text-premium-tertiary">items to review</span>
                 </div>
               )}
               {criticalCount > 0 && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-risk-critical">{criticalCount}</span>
-                  <span className="text-sm text-premium-tertiary">critical</span>
+                  <span className="text-sm text-premium-tertiary">urgent</span>
                 </div>
               )}
               {!showExposure && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-intel-400">—</span>
-                  <span className="text-sm text-premium-tertiary">requires disclosure</span>
+                  <span className="text-sm text-premium-tertiary">price details needed</span>
                 </div>
               )}
             </div>
@@ -312,7 +314,7 @@ export function PremiumReportHero({
         >
           <div className={`absolute inset-0 ${showExposure ? "bg-[radial-gradient(ellipse_60%_60%_at_30%_50%,rgba(52,211,153,0.04),transparent)]" : "bg-[radial-gradient(ellipse_60%_60%_at_30%_50%,rgba(122,92,245,0.03),transparent)]"} pointer-events-none`} />
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-premium-muted mb-4">
-            {showExposure ? "FINANCIAL EXPOSURE IDENTIFIED" : "FINANCIAL EXPOSURE"}
+            {showExposure ? "CHARGES WORTH REVIEWING" : "POSSIBLE COST OR SAVINGS"}
           </p>
           <div className="relative">
             {showExposure && exposureDisplay ? (
@@ -324,20 +326,20 @@ export function PremiumReportHero({
                   <span className="text-sm font-semibold text-premium-tertiary">in identified charges</span>
                 </div>
                 <p className="mt-2 text-[16px] text-premium-tertiary max-w-2xl leading-relaxed">
-                  These are the specific charges, fees, and financial provisions in your document that may require negotiation or correction.
+                  These charges, fees, and terms may be worth questioning, negotiating, or asking to have corrected.
                 </p>
               </>
             ) : (
               <>
                 <span className="text-4xl sm:text-5xl lg:text-6xl font-black text-intel-300 tracking-[-0.03em]">
-                  Not Yet Quantifiable
+                  Amount Not Clear Yet
                 </span>
                 <div className="mt-4 space-y-2">
                   <p className="text-[16px] text-premium-tertiary leading-relaxed">
-                    <span className="font-semibold text-premium-secondary">Reason:</span> Pricing information required from the provider
+                    <span className="font-semibold text-premium-secondary">Why:</span> The document does not include enough pricing detail to calculate an amount.
                   </p>
                   <p className="text-[16px] text-premium-tertiary leading-relaxed">
-                    <span className="font-semibold text-premium-secondary">Action:</span> Review the negotiation targets below for specific financial insights
+                    <span className="font-semibold text-premium-secondary">Next step:</span> Use the questions below to ask the provider for the missing price details.
                   </p>
                 </div>
               </>
