@@ -13,11 +13,12 @@ if (!sitemap.includes("<urlset") || !sitemap.includes("<lastmod>") || validation
 }
 
 const key = "hiddenfeeai-indexnow-20260730";
-const urlList = [...new Set(allPaths.map((route) => `https://hiddenfeeai.com${route === "/" ? "/" : route}`))];
+const discoveryUrls = ["/sitemap.xml", "/rss.xml"];
+const urlList = [...new Set([...allPaths, ...discoveryUrls].map((route) => `https://hiddenfeeai.com${route === "/" ? "/" : route}`))];
 const response = await fetch("https://api.indexnow.org/indexnow", {
   method: "POST",
   headers: { "Content-Type": "application/json; charset=utf-8" },
   body: JSON.stringify({ host: "hiddenfeeai.com", key, keyLocation: `https://hiddenfeeai.com/${key}.txt`, urlList }),
 });
 if (!response.ok && response.status !== 202) throw new Error(`IndexNow returned HTTP ${response.status}`);
-console.log(`Validated sitemap and submitted ${urlList.length} current/deleted URLs to IndexNow.`);
+console.log(`Validated sitemap and submitted ${urlList.length} current/deleted/discovery URLs to IndexNow.`);
