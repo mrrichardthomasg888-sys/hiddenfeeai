@@ -59,15 +59,34 @@ export function ReportActions({ auditId }: ReportActionsProps) {
         throw new Error(payload?.error || "Could not generate the PDF report.");
       }
       const blob = await response.blob();
+      const fileName = `hiddenfeeai-audit-${auditId.slice(0, 8)}.pdf`;
+      const file = new File([blob], fileName, { type: "application/pdf" });
+
+      // iOS Safari and modern mobile browsers offer a native share sheet for
+      // files. It provides the expected Save to Files action instead of trying
+      // to hand a blob URL to another app.
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          title: "My HiddenFeeAI Professional Audit Report",
+          text: "Save or share your HiddenFeeAI PDF report.",
+          files: [file],
+        });
+        showFeedback("success", "Choose Save to Files or share your PDF.");
+        return;
+      }
+
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `hiddenfeeai-audit-${auditId.slice(0, 8)}.pdf`;
+      link.download = fileName;
+      link.target = "_blank";
+      link.rel = "noopener";
       document.body.appendChild(link);
       link.click();
       link.remove();
-      URL.revokeObjectURL(url);
-      showFeedback("success", "PDF download started!");
+      // Mobile browsers may start reading the blob after click returns.
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      showFeedback("success", "Your PDF is ready. Save it from the browser menu.");
     } catch (error) {
       showFeedback("error", error instanceof Error ? error.message : "Could not download PDF. Try again.");
     } finally {

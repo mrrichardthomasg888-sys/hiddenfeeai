@@ -52,6 +52,29 @@ const money = (value: number | null | undefined) => value == null
   ? "Not stated"
   : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(value);
 
+function drawBrandMark(page: PDFPage, x: number, y: number, scale = 1): void {
+  const ray = 17 * scale;
+  const inner = 12 * scale;
+  for (let index = 0; index < 8; index += 1) {
+    const angle = (Math.PI * 2 * index) / 8;
+    page.drawLine({
+      start: { x: x + Math.cos(angle) * inner, y: y + Math.sin(angle) * inner },
+      end: { x: x + Math.cos(angle) * ray, y: y + Math.sin(angle) * ray },
+      thickness: 1.5 * scale,
+      color: rgb(...GOLD),
+    });
+  }
+  page.drawCircle({ x, y, size: 11 * scale, color: rgb(1, 0.84, 0.28), borderColor: rgb(...GOLD), borderWidth: 1.2 * scale });
+  [-4, 0, 4].forEach((offset, index) => {
+    page.drawLine({
+      start: { x: x - 5 * scale, y: y + offset * scale },
+      end: { x: x + (index === 1 ? 2 : 5) * scale, y: y + offset * scale },
+      thickness: index === 2 ? 1.8 * scale : 1.3 * scale,
+      color: index === 2 ? rgb(0.05, 0.56, 0.85) : rgb(0.07, 0.2, 0.36),
+    });
+  });
+}
+
 class Flow {
   private page!: PDFPage;
   private y = PAGE_H - TOP;
@@ -68,8 +91,32 @@ class Flow {
     this.pageNumber += 1;
     this.y = PAGE_H - TOP;
     this.page.drawRectangle({ x: 0, y: 0, width: PAGE_W, height: PAGE_H, color: rgb(...PAPER) });
-    this.page.drawText("HiddenFeeAI Professional Audit Report", { x: MARGIN, y: PAGE_H - 30, size: 8, font: this.regular, color: rgb(...MUTED) });
-    this.page.drawLine({ start: { x: MARGIN, y: PAGE_H - 38 }, end: { x: PAGE_W - MARGIN, y: PAGE_H - 38 }, thickness: 0.6, color: rgb(...BORDER) });
+    this.page.drawRectangle({ x: 0, y: PAGE_H - 46, width: PAGE_W, height: 46, color: rgb(...NAVY) });
+    drawBrandMark(this.page, MARGIN + 12, PAGE_H - 23, 0.7);
+    this.page.drawText("HIDDEN", { x: MARGIN + 31, y: PAGE_H - 28, size: 10, font: this.bold, color: rgb(1, 1, 1) });
+    this.page.drawText("FEE", { x: MARGIN + 70, y: PAGE_H - 28, size: 10, font: this.bold, color: rgb(...GOLD) });
+    this.page.drawText("AI", { x: MARGIN + 94, y: PAGE_H - 27, size: 6, font: this.bold, color: rgb(...GOLD) });
+    this.page.drawText("Professional Audit Report", { x: PAGE_W - MARGIN - 101, y: PAGE_H - 27, size: 8, font: this.regular, color: rgb(0.8, 0.86, 0.93) });
+  }
+
+  cover(report: AuditReport): void {
+    this.ensure(170);
+    const panelHeight = 154;
+    this.page.drawRectangle({ x: MARGIN, y: this.y - panelHeight, width: WIDTH, height: panelHeight, color: rgb(...NAVY) });
+    this.page.drawRectangle({ x: MARGIN, y: this.y - panelHeight, width: 7, height: panelHeight, color: rgb(...GOLD) });
+    drawBrandMark(this.page, MARGIN + 35, this.y - 34, 1.05);
+    this.page.drawText("HIDDEN", { x: MARGIN + 58, y: this.y - 29, size: 15, font: this.bold, color: rgb(1, 1, 1) });
+    this.page.drawText("FEE", { x: MARGIN + 116, y: this.y - 29, size: 15, font: this.bold, color: rgb(...GOLD) });
+    this.page.drawText("AI", { x: MARGIN + 152, y: this.y - 27, size: 8, font: this.bold, color: rgb(...GOLD) });
+    this.page.drawText("YOUR PROFESSIONAL AUDIT", { x: MARGIN + 28, y: this.y - 62, size: 8, font: this.bold, color: rgb(0.5, 0.76, 1) });
+    const documentType = clean(report.document_meta.document_type || "Document review");
+    this.page.drawText(documentType, { x: MARGIN + 28, y: this.y - 91, size: 20, font: this.bold, color: rgb(1, 1, 1) });
+    this.page.drawText("Clear evidence. Better questions. More confident decisions.", { x: MARGIN + 28, y: this.y - 112, size: 9, font: this.regular, color: rgb(0.8, 0.86, 0.93) });
+    const risk = clean(report.risk_level || "Review Recommended");
+    const badgeWidth = this.bold.widthOfTextAtSize(risk, 8) + 18;
+    this.page.drawRectangle({ x: PAGE_W - MARGIN - badgeWidth - 18, y: this.y - 128, width: badgeWidth, height: 18, color: rgb(0.96, 0.68, 0.13) });
+    this.page.drawText(risk, { x: PAGE_W - MARGIN - badgeWidth - 9, y: this.y - 122, size: 8, font: this.bold, color: rgb(...NAVY) });
+    this.y -= panelHeight + 16;
   }
 
   private ensure(height: number): void {
@@ -139,7 +186,8 @@ class Flow {
   metric(label: string, value: string, color: Color = BLUE): void {
     this.ensure(44);
     this.page.drawRectangle({ x: MARGIN, y: this.y - 37, width: WIDTH, height: 37, color: rgb(0.95, 0.97, 0.99), borderColor: rgb(...BORDER), borderWidth: 0.6 });
-    this.page.drawText(clean(label), { x: MARGIN + 10, y: this.y - 14, size: 8.5, font: this.regular, color: rgb(...MUTED) });
+    this.page.drawRectangle({ x: MARGIN, y: this.y - 37, width: 4, height: 37, color: rgb(...color) });
+    this.page.drawText(clean(label), { x: MARGIN + 14, y: this.y - 14, size: 8.5, font: this.regular, color: rgb(...MUTED) });
     const safeValue = clean(value);
     this.page.drawText(safeValue, { x: PAGE_W - MARGIN - 10 - this.bold.widthOfTextAtSize(safeValue, 12), y: this.y - 16, size: 12, font: this.bold, color: rgb(...color) });
     this.y -= 44;
@@ -171,7 +219,8 @@ class Flow {
     this.pdf.getPages().forEach((page, index) => {
       const footer = `Page ${index + 1} of ${count}`;
       page.drawLine({ start: { x: MARGIN, y: 42 }, end: { x: PAGE_W - MARGIN, y: 42 }, thickness: 0.5, color: rgb(...BORDER) });
-      page.drawText(footer, { x: PAGE_W / 2 - this.regular.widthOfTextAtSize(footer, 8) / 2, y: 27, size: 8, font: this.regular, color: rgb(...MUTED) });
+      page.drawText("HiddenFeeAI - Hidden Cost Review", { x: MARGIN, y: 27, size: 7, font: this.regular, color: rgb(...MUTED) });
+      page.drawText(footer, { x: PAGE_W - MARGIN - this.regular.widthOfTextAtSize(footer, 8), y: 27, size: 8, font: this.regular, color: rgb(...MUTED) });
     });
   }
 }
@@ -212,8 +261,8 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
   const flow = new Flow(pdf, regular, bold);
 
   flow.addPage();
-  flow.section("Professional Audit Report", "Complete findings, evidence, financial impact, and next steps");
-  flow.text(report.document_meta.document_type || "Document Analysis", { size: 24, bold: true, color: NAVY, gap: 12 });
+  flow.cover(report);
+  flow.section("Audit at a Glance", "Complete findings, evidence, financial impact, and next steps");
   flow.label("Issuer", report.document_meta.issuer);
   flow.label("Payer", report.document_meta.payer);
   flow.label("Analysis date", report.document_meta.analysis_date);
