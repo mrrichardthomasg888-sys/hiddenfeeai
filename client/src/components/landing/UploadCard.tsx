@@ -115,6 +115,7 @@ export function UploadCard() {
     setState("uploading");
     setUploadProgress(0);
 
+    const stageTimer = window.setInterval(() => setUploadProgress((value) => Math.min(88, value + 8)), 4000);
     try {
       setUploadProgress(20);
       const data = await uploadDocument(fileToUpload);
@@ -150,6 +151,8 @@ export function UploadCard() {
     } catch (err) {
       setState("error");
       setErrorMessage(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      window.clearInterval(stageTimer);
     }
   };
 
@@ -254,7 +257,7 @@ export function UploadCard() {
           <motion.div key="uploading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="flex flex-col items-center gap-4 py-6 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
-            <p className="text-lg font-semibold text-violet-100">Uploading document...</p>
+            <p className="text-lg font-semibold text-violet-100">{uploadProgress < 25 ? "Uploading document..." : uploadProgress < 50 ? "Gemini accepted the complete file..." : uploadProgress < 75 ? "Gemini is reading every page and term..." : "Validating your structured audit..."}</p>
             <div className="w-full max-w-xs">
               <div className="h-2 rounded-full bg-violet-500/10">
                 <div className="h-full rounded-full bg-violet-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />

@@ -76,9 +76,9 @@ app.get("/api/health", (c) => {
     status: "ok",
     timestamp: new Date().toISOString(),
     environment: c.env.ENVIRONMENT || "unknown",
-    version: "2.0.0-hardened",
+    version: "3.0.0-direct-gemini",
     pipelines: {
-      legacy: true,
+      legacy: false,
       new: c.env.USE_NEW_PIPELINE === "true",
       v2: c.env.USE_V2_PIPELINE === "true",
     },

@@ -77,7 +77,7 @@ analyzeRoute.get("/:auditId", async (c) => {
   // Don't expose extracted text or full document structure to the client
   const { extractedText, extractedDocument, ...safeJob } = job;
   // Normalize legacy snake_case report to camelCase frontend format
-  const report = safeJob.report ? normalizeReportForFrontend(safeJob.report) : undefined;
+  const report = safeStatus === "complete" && safeJob.report ? normalizeReportForFrontend(safeJob.report) : undefined;
   return c.json({ ...safeJob, report, status: safeStatus });
 });
 
@@ -104,9 +104,15 @@ analyzeRoute.post("/:auditId/start", async (c) => {
     throw errors.notPaid();
   }
 
-  if (!job.extractedText) {
-    throw errors.badFile();
+  // The direct pipeline completes the Gemini audit during the upload request
+  // and holds the report behind the payment gate. No extracted-text pass is
+  // needed and no source document is retained by HiddenFeeAI.
+  if (job.report) {
+    await updateJob(auditId, { status: "complete", progress: job.progress ? { ...job.progress, stage: "complete", complete: true } : undefined });
+    console.log(`[PIPELINE] auditId=${auditId} stage=report_displayed findings=${job.report.findings.length}`);
+    return c.json({ auditId, status: "complete" }, 200);
   }
+  if (!job.extractedText) throw errors.badFile("The document analysis is unavailable. Please upload the file again.");
 
   // ── Race condition guard: prevent concurrent analyses ──
   if (job.status === "analyzing") {

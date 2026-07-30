@@ -1,4 +1,4 @@
-const UPLOAD_TIMEOUT_MS = 120_000;
+const UPLOAD_TIMEOUT_MS = 6 * 60_000;
 
 export class UploadError extends Error {
   readonly code: string;
