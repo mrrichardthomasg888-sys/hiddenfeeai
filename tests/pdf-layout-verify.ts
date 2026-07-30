@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { PDFDocument } from "pdf-lib";
 import { generateEnhancedPdf } from "../worker/src/services/enhancedReport.js";
+import type { NegotiationAdvice } from "../worker/src/intelligence/negotiationEngine.js";
 import type { AuditReport, Finding } from "../worker/src/types.js";
 
 const long = "This is deliberately long dynamic report content used to verify wrapping, measured pagination, footer reservation, and preservation of complete evidence. ".repeat(12);
@@ -36,7 +37,20 @@ const report: AuditReport = {
   clean_document_summary: null,
 };
 
-const pdfBytes = await generateEnhancedPdf({ auditReport: report });
+const actionScripts = new Map<string, NegotiationAdvice>(findings.map((finding) => [finding.id, {
+  findingId: finding.id,
+  findingTitle: finding.title,
+  negotiability: "medium",
+  difficulty: "Medium",
+  questions: ["What does this charge cover?", "Can it be adjusted or waived?"],
+  talkingPoints: ["I would appreciate a written explanation."],
+  phoneScript: "Hi, I am calling about this charge on my document.\n\nCan you explain what it covers and whether there is any flexibility?\n\nThank you for your help.",
+  emailTemplate: "Subject: Request for Fee Clarification\n\nDear Customer Service Team,\n\nI would like to understand this charge.\n\n1. What does it cover?\n2. Can it be adjusted?\n\nThank you,\n[Your Name]",
+  alternativeActions: ["Ask for the explanation in writing."],
+  expectedOutcome: "A documented answer and an opportunity to request an adjustment.",
+}]));
+
+const pdfBytes = await generateEnhancedPdf({ auditReport: report, negotiationAdvice: actionScripts });
 await mkdir("tmp/pdfs", { recursive: true });
 await writeFile("tmp/pdfs/hiddenfeeai-layout-verification.pdf", pdfBytes);
 const reopened = await PDFDocument.load(pdfBytes);

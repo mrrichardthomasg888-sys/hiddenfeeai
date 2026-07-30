@@ -248,11 +248,72 @@ class Flow {
     this.y -= 44;
   }
 
-  finding(finding: Finding, index: number): void {
+  private scriptLines(value: string, width: number): string[] {
+    const lines: string[] = [];
+    for (const paragraph of String(value ?? "").replace(/\r/g, "").split("\n")) {
+      if (!paragraph.trim()) {
+        if (lines[lines.length - 1] !== "") lines.push("");
+        continue;
+      }
+      lines.push(...this.wrap(paragraph, this.regular, 10.5, width));
+    }
+    return lines.length ? lines : ["No script was generated for this item."];
+  }
+
+  private drawScriptHeader(continued: boolean): void {
+    this.ensure(43);
+    this.page.drawRectangle({ x: MARGIN, y: this.y - 31, width: WIDTH, height: 31, color: rgb(0.11, 0.17, 0.28), borderColor: rgb(...GOLD), borderWidth: 0.7 });
+    this.page.drawRectangle({ x: MARGIN, y: this.y - 31, width: 6, height: 31, color: rgb(...GOLD) });
+    this.page.drawText(`YOUR ACTION SCRIPTS${continued ? " - CONTINUED" : ""}`, { x: MARGIN + 16, y: this.y - 21, size: 15, font: this.bold, color: rgb(1, 1, 1) });
+    this.y -= 39;
+  }
+
+  actionScripts(advice: NegotiationAdvice): void {
+    const gap = 12;
+    const columnWidth = (WIDTH - gap) / 2;
+    const innerWidth = columnWidth - 28;
+    const phone = this.scriptLines(advice.phoneScript, innerWidth);
+    const email = this.scriptLines(advice.emailTemplate, innerWidth);
+    let offset = 0;
+    const totalLines = Math.max(phone.length, email.length);
+
+    while (offset < totalLines) {
+      this.ensure(100);
+      this.drawScriptHeader(offset > 0);
+      const labelHeight = 30;
+      const lineHeight = 14.2;
+      const available = this.y - BOTTOM - labelHeight - 14;
+      const count = Math.max(1, Math.min(totalLines - offset, Math.floor(available / lineHeight)));
+      const cardHeight = labelHeight + count * lineHeight + 14;
+      const y = this.y - cardHeight;
+      const leftX = MARGIN;
+      const rightX = MARGIN + columnWidth + gap;
+
+      [leftX, rightX].forEach((x, column) => {
+        this.page.drawRectangle({ x, y, width: columnWidth, height: cardHeight, color: rgb(0.055, 0.12, 0.22), borderColor: rgb(0.28, 0.42, 0.62), borderWidth: 0.7 });
+        this.page.drawRectangle({ x, y: y + cardHeight - labelHeight, width: columnWidth, height: labelHeight, color: column === 0 ? rgb(0.08, 0.22, 0.4) : rgb(0.18, 0.15, 0.09) });
+        this.page.drawRectangle({ x, y, width: 3, height: cardHeight, color: column === 0 ? rgb(...BLUE) : rgb(...GOLD) });
+        this.page.drawText(column === 0 ? "PHONE SCRIPT" : "EMAIL TEMPLATE", { x: x + 13, y: y + cardHeight - 20, size: 9.4, font: this.bold, color: column === 0 ? rgb(0.58, 0.8, 1) : rgb(1, 0.84, 0.32) });
+      });
+
+      [phone, email].forEach((script, column) => {
+        const x = column === 0 ? leftX : rightX;
+        for (let lineIndex = 0; lineIndex < count; lineIndex += 1) {
+          const line = script[offset + lineIndex] ?? "";
+          if (line) this.page.drawText(line, { x: x + 13, y: y + cardHeight - labelHeight - 16 - lineIndex * lineHeight, size: 10.5, font: this.regular, color: rgb(0.95, 0.97, 1) });
+        }
+      });
+      this.y = y - 12;
+      offset += count;
+    }
+  }
+
+  finding(finding: Finding, index: number, advice?: NegotiationAdvice): void {
     const severityColor = finding.severity === "Critical" ? RED : finding.severity === "High" ? ORANGE : finding.severity === "Medium" ? GOLD : GREEN;
     this.ensure(40);
     this.text(`${index + 1}. ${finding.title}`, { size: 15, bold: true, color: severityColor, gap: 4 });
     this.text(`${finding.severity} | ${finding.confidence_score}% confidence | ${finding.amount == null ? "Amount not stated" : money(finding.amount)}${finding.page ? ` | Page ${finding.page}` : ""}`, { size: 10.5, color: MUTED, gap: 7 });
+    if (advice) this.actionScripts(advice);
     this.label("Evidence", finding.evidence);
     this.label("Explanation", finding.explanation);
     this.label("Why it matters", finding.why_it_matters);
@@ -373,7 +434,7 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
 
   flow.section(`All Findings (${report.findings.length})`, "Every finding, source excerpt, explanation, risk detail, and recommendation");
   if (!report.findings.length) flow.text("No major findings were identified in the available document.");
-  report.findings.forEach((finding, index) => flow.finding(finding, index));
+  report.findings.forEach((finding, index) => flow.finding(finding, index, data.negotiationAdvice?.get(finding.id)));
 
   if (data.actionPlan) {
     flow.section("Action Plan", "A practical sequence for review, negotiation, and follow-through");
@@ -409,8 +470,7 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
       flow.text(`${index + 1}. ${advice.findingTitle} (${advice.difficulty})`, { size: 12, bold: true, color: BLUE, gap: 3 });
       advice.questions.forEach((question) => flow.text(`Question: ${question}`, { indent: 10, gap: 2 }));
       advice.talkingPoints.forEach((point) => flow.text(`- ${point}`, { indent: 10, gap: 2 }));
-      flow.label("Phone script", advice.phoneScript);
-      flow.label("Email template", advice.emailTemplate);
+      flow.text("The phone and email scripts for this item appear directly beneath its finding.", { size: 10.5, color: MUTED, gap: 4 });
       advice.alternativeActions.forEach((action) => flow.text(`Alternative: ${action}`, { indent: 10, gap: 2 }));
       flow.label("Expected outcome", advice.expectedOutcome);
     });
