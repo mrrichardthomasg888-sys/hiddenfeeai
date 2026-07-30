@@ -7,7 +7,15 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const publicDir = path.join(root, "client", "public");
 const routes = JSON.parse(await readFile(path.join(root, "seo", "routes.json"), "utf8"));
-const deletedUrls = JSON.parse(await readFile(path.join(root, "seo", "deleted-urls.json"), "utf8"));
+const explicitDeletedUrls = JSON.parse(await readFile(path.join(root, "seo", "deleted-urls.json"), "utf8"));
+let previousRoutes = [];
+try {
+  previousRoutes = JSON.parse(execFileSync("git", ["show", "HEAD^:seo/routes.json"], { cwd: root, encoding: "utf8" }));
+} catch {
+  previousRoutes = [];
+}
+const currentPaths = new Set(routes.map(({ path: routePath }) => routePath));
+const deletedUrls = [...new Set([...explicitDeletedUrls, ...previousRoutes.map(({ path: routePath }) => routePath).filter((routePath) => !currentPaths.has(routePath))])];
 const site = "https://hiddenfeeai.com";
 
 function lastmod(source) {
