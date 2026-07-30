@@ -404,14 +404,11 @@ export async function extractImage(
   }
 
   // ── Preprocess ──
-  const preprocessed = await preprocessImage(buffer, detectedMime);
+  // Preserve the original resolution, color and EXIF orientation for Gemini.
 
   // ── OCR Attempt 1: Cloudflare Workers AI ──
   console.log("[OCR_STARTED] provider=gemini");
-  const processedBuffer = preprocessed.preprocessed
-    ? Uint8Array.from(atob(preprocessed.base64), (char) => char.charCodeAt(0)).buffer
-    : buffer;
-  let ocrText = await extractTextWithGemini(processedBuffer, preprocessed.mime, env, TIMEOUTS.ocrMs);
+  let ocrText = await extractTextWithGemini(buffer, detectedMime, env, TIMEOUTS.ocrMs);
 
   // ── OCR Attempt 2: DeepSeek (if CF AI failed) ──
   if (!ocrText) {
@@ -434,6 +431,7 @@ export async function extractImage(
     },
     provider: PROVIDER,
     success: true,
+    coverage: { totalPages: 1, processedPages: 1, totalImages: 1, processedImages: 1, totalWorksheets: 0, processedWorksheets: 0, failedUnits: [], retryAttempts: 0 },
   };
 }
 

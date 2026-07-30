@@ -41,6 +41,11 @@ Your job is to analyze financial documents and generate a structured audit repor
    - Dealer fees, Convenience fees, Technology fees, Compliance fees
    - Regulatory fees, Shipping/Handling markups, Late fees
    - Subscription/Membership fees, "Miscellaneous" charges, Unexplained charges
+   - Automatic renewal, cancellation and early-termination penalties
+   - Interest, collections/default costs, deposits and minimum commitments
+   - Variable prices, percentage charges, taxes, surcharges, add-ons and overages
+   - Arbitration/dispute costs, refund restrictions and non-refundable payments
+   - Obligations hidden in tables, footnotes, definitions or cross-references
 7. Return valid JSON only. No markdown, no code fences, no explanation text.
 
 ## OUTPUT SCHEMA
@@ -74,7 +79,10 @@ Return a JSON object with exactly this structure:
       "status": "confirmed" | "possible" | "needs_review",
       "confidence_score": number 0-100,
       "amount": number or null,
+      "percentage": "exact percentage or null",
       "page": number or null,
+      "source_reference": "page, worksheet/cell range, or image reference",
+      "charge_timing": "mandatory" | "conditional" | "recurring" | "one-time",
       "line_reference": "Line reference if available",
       "evidence": "Direct quote from the document showing the charge",
       "explanation": "Clear explanation of why this is an issue",
@@ -115,13 +123,9 @@ Line items found: ${input.lineItems}
 
 Document content:
 ---
-${input.text.slice(0, 50000)}
+${input.text}
 ---
-${
-  input.text.length > 50000
-    ? "\n[Note: Document was truncated at 50,000 characters for processing]"
-    : ""
-}`;
+Analyze every supplied character. The chunk boundaries include overlap; do not duplicate findings.`;
 }
 
 function parseAuditResponse(raw: string): AuditReport {
@@ -262,20 +266,29 @@ async function callGemini(messages: DeepSeekMessage[], env: Env, model: string):
     };
   }
 
-  const response = await fetch(url, {
+  let response: Response | undefined;
+  let lastError = "Gemini request failed";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(requestBody),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
-    throw new Error(`Gemini API error (${response.status}): ${errorText}`);
+    }).catch((error) => { lastError = error instanceof Error ? error.message : String(error); return undefined; });
+    if (response?.ok) break;
+    if (response) {
+      const detail = await response.text().catch(() => "Unknown error");
+      lastError = `Gemini API error (${response.status}): ${detail}`;
+      if (![408, 429, 500, 502, 503, 504].includes(response.status)) break;
+    }
   }
 
+  if (!response?.ok) throw new Error(lastError);
+
   const data = (await response.json()) as any;
+  const finishReason = data.candidates?.[0]?.finishReason;
+  if (finishReason === "SAFETY" || finishReason === "MAX_TOKENS") throw new Error(`Gemini response was incomplete (${finishReason}).`);
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) {
     throw new Error("Gemini returned empty response.");
@@ -289,15 +302,33 @@ async function callGemini(messages: DeepSeekMessage[], env: Env, model: string):
  * No hardcoded examples or demo data.
  */
 export async function runAudit(input: AuditInput, env: Env): Promise<AuditReport> {
-  const messages: DeepSeekMessage[] = [
-    { role: "system", content: FORENSIC_SYSTEM_PROMPT },
-    { role: "user", content: buildUserMessage(input) },
-  ];
-
   const model = env.GEMINI_MODEL || "gemini-3.5-flash-lite";
-  const rawResponse = await callGemini(messages, env, model);
-  const parsed = parseAuditResponse(rawResponse);
-  const validated = validateAuditReport(parsed);
+  const chunks: string[] = [];
+  for (let start = 0; start < input.text.length; start += 28_500) chunks.push(input.text.slice(Math.max(0, start - 1_500), start + 30_000));
+  if (!chunks.length) throw new Error("The prepared document is empty.");
+  const reports: AuditReport[] = [];
+  for (let i = 0; i < chunks.length; i++) {
+    let parsed: AuditReport | undefined, lastError: unknown;
+    for (let attempt = 0; attempt < 3 && !parsed; attempt++) {
+      try {
+        const raw = await callGemini([{ role: "system", content: FORENSIC_SYSTEM_PROMPT }, { role: "user", content: buildUserMessage({ ...input, text: `[Batch ${i + 1}/${chunks.length}]\n${chunks[i]}` }) }], env, model);
+        parsed = validateAuditReport(parseAuditResponse(raw));
+      } catch (error) { lastError = error; console.warn(`[AI_BATCH_RETRY] batch=${i + 1} attempt=${attempt + 1} reason="${error instanceof Error ? error.message : String(error)}"`); }
+    }
+    if (!parsed) throw lastError instanceof Error ? lastError : new Error("Gemini batch failed validation");
+    reports.push(parsed);
+    console.log(`[AI_BATCH] batch=${i + 1}/${chunks.length} inputChars=${chunks[i].length} findings=${reports.at(-1)?.findings.length ?? 0}`);
+  }
+  const validated = reports[0];
+  const seen = new Set<string>();
+  validated.findings = reports.flatMap((r) => r.findings).filter((f) => {
+    if (!f.title || !f.category || !f.severity || !f.evidence || !f.explanation || !f.recommended_action || typeof f.confidence_score !== "number") throw new Error("Gemini finding failed schema validation");
+    const key = `${f.category}|${f.source_reference || f.page || ""}|${f.amount ?? f.percentage ?? ""}|${f.evidence}`.toLowerCase().replace(/\s+/g, " ");
+    if (seen.has(key)) return false; seen.add(key); return true;
+  });
+  validated.risk_score = Math.max(...reports.map((r) => r.risk_score));
+  validated.confidence_level = Math.min(...reports.map((r) => r.confidence_level));
+  validated.potential_savings = validated.findings.reduce((sum, f) => sum + (f.amount || 0), 0);
 
   // Override with actual document metadata
   validated.document_meta.pages_reviewed = input.pages;

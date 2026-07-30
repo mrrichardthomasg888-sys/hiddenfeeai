@@ -41,6 +41,12 @@ export interface UnifiedExtractionResult {
   success: boolean;
   /** Sanitized customer-facing message on failure. */
   customerMessage?: string;
+  coverage?: {
+    totalPages: number; processedPages: number;
+    totalImages: number; processedImages: number;
+    totalWorksheets: number; processedWorksheets: number;
+    failedUnits: string[]; retryAttempts: number;
+  };
 }
 
 // ─── Provider & method enums ───

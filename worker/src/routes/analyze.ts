@@ -120,7 +120,7 @@ analyzeRoute.post("/:auditId/start", async (c) => {
   const useNew = c.env.USE_NEW_PIPELINE === "true";
 
   // Update status to analyzing (atomic check in production KV store)
-  await updateJob(auditId, { status: "analyzing" });
+  await updateJob(auditId, { status: "analyzing", progress: job.progress ? { ...job.progress, stage: "analyzing", geminiRequestStatus: "running", complete: false } : undefined });
   console.log(`[JobLifecycle] ANALYSIS_STARTED auditId=${auditId} pipeline=${useNew ? "new" : "legacy"} pages=${job.documentContext?.pages ?? "unknown"}`);
 
   // Run audit asynchronously
@@ -163,9 +163,13 @@ analyzeRoute.post("/:auditId/start", async (c) => {
         const durationMs = Date.now() - startTime;
         // The finished report is all the customer needs. Do not retain the
         // extracted source text or structured document after review completion.
+        if (!report || !Array.isArray(report.findings)) throw new Error("Gemini response failed report schema validation");
+        await updateJob(auditId, { status: "reviewing_findings", progress: job.progress ? { ...job.progress, stage: "reviewing", geminiRequestStatus: "succeeded", geminiResponseStatus: "valid", complete: false } : undefined });
         await updateJob(auditId, {
           status: "complete",
           report,
+          resultState: report.findings.length ? "findings_found" : "no_findings_complete",
+          progress: job.progress ? { ...job.progress, stage: "complete", geminiRequestStatus: "succeeded", geminiResponseStatus: "valid", complete: true } : undefined,
           extractedText: undefined,
           extractedDocument: undefined,
         });
@@ -176,6 +180,8 @@ analyzeRoute.post("/:auditId/start", async (c) => {
         await updateJob(auditId, {
           status: "error",
           error: auditError instanceof Error ? auditError.message : "AI audit analysis failed",
+          resultState: "unreadable",
+          progress: job.progress ? { ...job.progress, stage: "failed", geminiRequestStatus: "failed", geminiResponseStatus: "failed", complete: false } : undefined,
           extractedText: undefined,
           extractedDocument: undefined,
         });

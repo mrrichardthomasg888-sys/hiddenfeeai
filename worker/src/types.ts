@@ -9,6 +9,9 @@ export type JobStatus =
   | "awaiting_payment"
   | "paid"
   | "analyzing"
+  | "reviewing_findings"
+  | "generating_report"
+  | "partial"
   | "complete"
   | "error";
 
@@ -51,6 +54,9 @@ export interface Finding {
   recommended_action: string;
   negotiation_message?: string;
   negotiation_strategy?: NegotiationStrategy;
+  percentage?: string | null;
+  source_reference?: string;
+  charge_timing?: "mandatory" | "conditional" | "recurring" | "one-time";
 }
 
 export interface CleanDocumentSummary {
@@ -158,6 +164,25 @@ export interface Job {
   createdAt: number;
   error?: string;
   report?: AuditReport;
+  resultState?: "findings_found" | "no_findings_complete" | "partial_analysis" | "unreadable";
+  progress?: AnalysisProgress;
+}
+
+export interface AnalysisProgress {
+  stage: "uploading" | "preparing" | "analyzing" | "reviewing" | "reporting" | "complete" | "failed";
+  originalFileType: string;
+  originalFileSize: number;
+  totalPages: number;
+  processedPages: number;
+  totalImages: number;
+  processedImages: number;
+  totalWorksheets: number;
+  processedWorksheets: number;
+  failedUnits: string[];
+  retryAttempts: number;
+  geminiRequestStatus: "not_started" | "running" | "succeeded" | "failed";
+  geminiResponseStatus: "not_started" | "valid" | "invalid" | "failed";
+  complete: boolean;
 }
 
 export interface ExtractionResult {

@@ -53,7 +53,7 @@ function getDocumentAwareSteps(fileName?: string): string[] {
   const readingStep = extension === "pdf"
     ? "Reading every PDF page"
     : ["png", "jpg", "jpeg", "webp", "heic", "heif", "tiff", "tif", "bmp", "gif"].includes(extension ?? "")
-      ? "Enhancing the image and reading visible text"
+      ? "Reading the original image at full quality"
       : ["docx", "doc"].includes(extension ?? "")
         ? "Extracting paragraphs, clauses, and tables"
         : ["xlsx", "xls", "csv"].includes(extension ?? "")

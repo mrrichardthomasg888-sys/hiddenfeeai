@@ -53,6 +53,11 @@ export async function routeExtraction(
   fileName: string,
   env: Env,
 ): Promise<UnifiedExtractionResult> {
+  const extension = fileName.split(".").pop()?.toLowerCase() ?? "";
+  const supported = new Set([...IMAGE_FORMATS, ...OFFICE_FORMATS, ...TEXT_FORMATS, "pdf"]);
+  if (!buffer.byteLength || !supported.has(extension)) {
+    return { text: "", context: { pages: 0, lineItems: 0, fileType: extension || "unknown", extractionMethod: "native", confidenceScore: 0 }, provider: "fallback", success: false, customerMessage: !buffer.byteLength ? "The uploaded file is empty." : "This file type is not supported." };
+  }
   const route: DocumentRouteResult = routeDocument(buffer, fileName);
   const requiresOcr = needsOcr(route);
 

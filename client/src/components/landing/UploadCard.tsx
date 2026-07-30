@@ -125,10 +125,10 @@ export function UploadCard() {
       // Poll until extraction complete → payment gate
       const pollingStartedAt = Date.now();
       const pollInterval = setInterval(async () => {
-        if (Date.now() - pollingStartedAt > 120_000) {
+        if (Date.now() - pollingStartedAt > 15 * 60_000) {
           clearInterval(pollInterval);
           setState("error");
-          setErrorMessage("Document reading timed out. Try a smaller file, fewer pages, or a clearer image.");
+          setErrorMessage("Document preparation timed out before every page or worksheet could be verified. Please try again.");
           return;
         }
         try {

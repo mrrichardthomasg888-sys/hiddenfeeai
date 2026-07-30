@@ -1,5 +1,3 @@
-const MAX_IMAGE_DIMENSION = 3200;
-const IMAGE_REENCODE_THRESHOLD = 4 * 1024 * 1024;
 const UPLOAD_TIMEOUT_MS = 120_000;
 
 export class UploadError extends Error {
@@ -37,35 +35,9 @@ async function canvasBlob(canvas: HTMLCanvasElement): Promise<Blob> {
  * decode HEIC here; browsers that cannot decode it leave the original intact for
  * the server-side Gemini fallback. */
 export async function prepareUploadFile(file: File): Promise<File> {
-  const ext = extension(file.name);
-  const imageTypes = new Set(["jpg", "jpeg", "png", "webp", "heic", "heif"]);
-  if (!imageTypes.has(ext) || (file.size < IMAGE_REENCODE_THRESHOLD && !["heic", "heif"].includes(ext))) {
-    return file;
-  }
-
-  try {
-    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-    const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(bitmap.width, bitmap.height));
-    const width = Math.max(1, Math.round(bitmap.width * scale));
-    const height = Math.max(1, Math.round(bitmap.height * scale));
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d", { alpha: false });
-    if (!context) throw new Error("Canvas is unavailable.");
-    context.fillStyle = "#fff";
-    context.fillRect(0, 0, width, height);
-    context.drawImage(bitmap, 0, 0, width, height);
-    bitmap.close();
-    const blob = await canvasBlob(canvas);
-    if (blob.size >= file.size && !["heic", "heif"].includes(ext)) return file;
-    return new File([blob], replaceExtension(file.name, "jpg"), {
-      type: "image/jpeg",
-      lastModified: file.lastModified,
-    });
-  } catch {
-    return file;
-  }
+  // Gemini must receive the original bytes. Browser-side resizing/re-encoding
+  // previously destroyed small print and could also strip EXIF orientation.
+  return file;
 }
 
 async function responseError(response: Response): Promise<UploadError> {
