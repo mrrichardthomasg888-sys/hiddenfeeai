@@ -13,6 +13,7 @@ import { generateEducationTopics } from "../education/consumerEducation.js";
 import { generateActionPlan } from "../intelligence/actionPlanEngine.js";
 import { estimateSavings } from "../intelligence/savingsEstimator.js";
 import { auditPreparedFile } from "../services/geminiDirectAudit.js";
+import { buildPremiumReport, normalizeConfidence } from "../services/premiumReport.js";
 
 export const analyzeRoute = new Hono<{ Bindings: Env }>();
 
@@ -42,7 +43,7 @@ function verifiedFindings(findings: Finding[]): VerifiedFinding[] {
 }
 
 function buildTrustScore(report: AuditReport): TrustScore {
-  const score = Math.max(0, Math.min(100, report.confidence_level ?? 0));
+  const score = normalizeConfidence(report.confidence_level);
   const rating = score >= 90 ? "Excellent" : score >= 75 ? "Good" : score >= 55 ? "Fair" : score >= 35 ? "Limited" : "Poor";
   return {
     score,
@@ -275,6 +276,7 @@ analyzeRoute.get("/:auditId/pdf", async (c) => {
 
     const enhancedData: EnhancedReportData = {
       auditReport: pdfReport,
+      premiumReport: buildPremiumReport(pdfReport),
       executiveSummary,
       prioritizedFindings,
       trustScore,
@@ -336,6 +338,7 @@ function normalizeReportForFrontend(r: AuditReport): any {
   const contractRisks = Array.isArray(r.contract_risks) ? r.contract_risks : [];
 
   return {
+    premiumReport: buildPremiumReport(r),
     documentMetadata: {
       documentType: metadata.document_type ?? "Other",
       issuer: metadata.issuer ?? "",
@@ -411,7 +414,7 @@ function normalizeReportForFrontend(r: AuditReport): any {
       .map((f: Finding) => f.negotiation_message!)
       .slice(0, 5),
     emailNegotiationTemplate: buildEmailTemplate(r),
-    confidence: r.confidence_level ?? 0,
+    confidence: normalizeConfidence(r.confidence_level),
     allFindings: findings.map((f: Finding) => ({
       id: f.id, title: f.title, severity: f.severity, status: f.status ?? "confirmed",
       confidenceScore: f.confidence_score ?? 0, amount: f.amount, pageNumber: f.page,

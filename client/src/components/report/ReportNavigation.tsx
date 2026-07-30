@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Search, FileText, MessageSquare, Shield, ListChecks } from "lucide-react";
+import { LayoutDashboard, Search, FileText, MessageSquare, Shield, CircleDollarSign } from "lucide-react";
 
 const sections = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "discoveries", label: "Top Concerns", icon: Search },
-  { id: "action-plan", label: "Action Plan", icon: ListChecks },
-  { id: "playbook", label: "What to Say", icon: MessageSquare },
-  { id: "findings-section", label: "Findings", icon: FileText },
-  { id: "trust", label: "Check Evidence", icon: Shield },
+  { id: "discoveries", label: "Decision", icon: Search },
+  { id: "playbook", label: "Playbook", icon: MessageSquare },
+  { id: "financial-impact", label: "Financial Impact", icon: CircleDollarSign },
+  { id: "prioritized-findings", label: "Findings", icon: FileText },
+  { id: "methodology", label: "Evidence", icon: Shield },
 ];
 
 export function ReportNavigation() {

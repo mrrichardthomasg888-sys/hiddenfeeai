@@ -57,6 +57,64 @@ export interface Finding {
   percentage?: string | null;
   source_reference?: string;
   charge_timing?: "mandatory" | "conditional" | "recurring" | "one-time";
+  questions_to_ask?: string[];
+  negotiability_assessment?: string;
+  alternative_language?: string;
+  financial_impact?: string;
+}
+
+export interface ReportTimelineItem {
+  event: string;
+  date: string;
+  source_reference: string;
+  evidence: string;
+  recommended_action: string;
+}
+
+export interface ReportInsightItem {
+  title: string;
+  explanation: string;
+  source_reference?: string;
+  evidence?: string;
+  recommended_action?: string;
+}
+
+export interface ConsolidatedNegotiationPlaybook {
+  objective: string;
+  leverage_points: string[];
+  priority_items: string[];
+  opening_statement: string;
+  likely_objections: { objection: string; response: string }[];
+  concessions: string[];
+  unacceptable_terms: string[];
+  escalation_path: string[];
+  walk_away_threshold: string;
+  follow_up_schedule: string[];
+  phone_script: string;
+  short_email: string;
+  detailed_email: string;
+  renewal_script?: string;
+  cancellation_script?: string;
+}
+
+export interface PremiumInsights {
+  document_summary?: string;
+  confirmed_charges?: number;
+  recurring_monthly_exposure?: number;
+  estimated_annual_exposure?: number;
+  contract_term_exposure?: number | null;
+  calculation_explanation?: string;
+  timeline?: ReportTimelineItem[];
+  positive_terms?: ReportInsightItem[];
+  missing_protections?: ReportInsightItem[];
+  watch_items?: ReportInsightItem[];
+  provider_questions?: string[];
+  escalation_steps?: string[];
+  final_decision?: "Accept" | "Negotiate" | "Escalate" | "Request Clarification" | "Avoid";
+  decision_reasoning?: string;
+  unreadable_areas?: string[];
+  assumptions?: string[];
+  negotiation_playbook?: ConsolidatedNegotiationPlaybook;
 }
 
 export interface CleanDocumentSummary {
@@ -81,6 +139,7 @@ export interface AuditReport {
   hidden_fees: Finding[];
   contract_risks: Finding[];
   clean_document_summary: CleanDocumentSummary | null;
+  premium_insights?: PremiumInsights;
 }
 
 // ─── NEW INTERFACES for Document Processing Pipeline ───

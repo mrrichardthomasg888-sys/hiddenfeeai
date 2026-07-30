@@ -1,265 +1,86 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Check, Shield, Scale, Target, FileText, Copy } from "lucide-react";
-import type { HiddenFee, QuestionableCharge, NegotiationLeverage } from "@/types/audit";
+import { Check, Copy, Mail, Phone, Scale, Shield, Target } from "lucide-react";
+import type { PremiumReport } from "@/types/audit";
 
 interface NegotiationPlaybookProps {
-  hiddenFees: HiddenFee[];
-  questionableCharges: QuestionableCharge[];
-  negotiationLeverage: NegotiationLeverage[];
+  report: PremiumReport;
 }
 
-export function NegotiationPlaybook({
-  hiddenFees,
-  questionableCharges,
-  negotiationLeverage,
-}: NegotiationPlaybookProps) {
+function ListCard({ title, items, tone = "blue" }: { title: string; items: string[]; tone?: "blue" | "gold" | "green" }) {
+  const toneClass = tone === "gold" ? "border-[#f4c542]/20 bg-[#f4c542]/[0.05]" : tone === "green" ? "border-[#36d399]/20 bg-[#36d399]/[0.05]" : "border-[#4da3ff]/20 bg-[#4da3ff]/[0.05]";
+  return (
+    <div className={`rounded-2xl border p-5 sm:p-6 ${toneClass}`}>
+      <h3 className="text-sm font-black uppercase tracking-[.14em] text-white">{title}</h3>
+      <ul className="mt-4 space-y-3">
+        {items.map((item, index) => <li key={`${title}-${index}`} className="flex gap-3 text-[15px] leading-7 text-[#dce4ec]"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#f4c542]" />{item}</li>)}
+      </ul>
+    </div>
+  );
+}
+
+function ScriptCard({ id, title, icon, text, onCopy, copied }: { id: string; title: string; icon: "phone" | "mail"; text: string; onCopy: (text: string, id: string) => void; copied: string | null }) {
+  return (
+    <article className="break-inside-avoid rounded-2xl border border-white/[0.08] bg-[#0b1525] p-5 sm:p-7">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#4da3ff]/20 bg-[#4da3ff]/10">{icon === "phone" ? <Phone className="h-5 w-5 text-[#73b8ff]" /> : <Mail className="h-5 w-5 text-[#f8d96e]" />}</span>
+          <h3 className="text-lg font-black text-white">{title}</h3>
+        </div>
+        <button type="button" onClick={() => onCopy(text, id)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 px-4 text-sm font-extrabold text-white hover:bg-white/[0.06]">
+          {copied === id ? <Check className="h-4 w-4 text-[#36d399]" /> : <Copy className="h-4 w-4" />}{copied === id ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <div className="mt-5 whitespace-pre-wrap text-[15px] leading-7 text-[#dce4ec]">{text}</div>
+    </article>
+  );
+}
+
+export function NegotiationPlaybook({ report }: NegotiationPlaybookProps) {
   const [copied, setCopied] = useState<string | null>(null);
-
-  const negotiableFindings: HiddenFee[] = [
-    ...hiddenFees.filter((f) => f.negotiationMessage || f.negotiationStrategy),
-    ...questionableCharges.filter((f) => f.negotiationStrategy).map((f) => ({
-      ...f,
-      negotiationMessage: "",
-    })),
-  ];
-
-  const totalScripts = negotiableFindings.length + negotiationLeverage.length;
-  if (totalScripts === 0) return null;
-
-  const handleCopy = async (text: string, id: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(id);
-      setTimeout(() => setCopied(null), 2500);
-    } catch { /* fallback */ }
+  const playbook = report.negotiationPlaybook;
+  const copy = async (text: string, id: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopied(id);
+    window.setTimeout(() => setCopied(null), 2200);
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.25, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      className="relative overflow-hidden rounded-[2rem] border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent"
-    >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,rgba(99,102,241,0.05),transparent)]" />
-
-      <div className="relative p-8 sm:p-12">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-2">
-          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-trust-500/20 to-trust-600/10 flex items-center justify-center border border-trust-400/10">
-            <Scale className="h-7 w-7 text-trust-400" />
-          </div>
+    <section className="relative overflow-hidden rounded-[2rem] border border-[#f4c542]/20 bg-[linear-gradient(145deg,rgba(244,197,66,.07),rgba(77,163,255,.04)_42%,rgba(255,255,255,.02))] p-6 sm:p-10">
+      <div className="pointer-events-none absolute right-[-10%] top-[-35%] h-72 w-72 rounded-full bg-[#4da3ff]/10 blur-[90px]" />
+      <div className="relative">
+        <div className="flex items-start gap-4">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#f4c542]/25 bg-[#f4c542]/10"><Scale className="h-7 w-7 text-[#f4c542]" /></span>
           <div>
-            <h2 className="text-2xl sm:text-3xl font-black text-premium-primary tracking-[-0.02em]">What to Say</h2>
-            <p className="text-base text-premium-tertiary mt-0.5">
-              {totalScripts} ready-to-use question{totalScripts === 1 ? "" : "s"}, script{totalScripts === 1 ? "" : "s"}, and response{totalScripts === 1 ? "" : "s"}
-            </p>
+            <p className="text-xs font-black uppercase tracking-[.18em] text-[#f8d96e]">Restored and expanded</p>
+            <h2 className="mt-1 text-3xl font-black tracking-[-.035em] text-white sm:text-4xl">Negotiation Playbook</h2>
+            <p className="mt-3 max-w-3xl text-base leading-7 text-[#dce4ec]">One personalized strategy for the entire document. Full scripts appear here once; each finding contains only its own short talking point.</p>
           </div>
         </div>
 
-        {/* Per-finding negotiation scripts */}
-        <div className="mt-8 space-y-8">
-          {negotiableFindings.map((f) => {
-            const ns = f.negotiationStrategy;
-            const msg = "negotiationMessage" in f ? f.negotiationMessage : undefined;
-            return (
-              <motion.div
-                key={f.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                className="rounded-2xl border border-white/[0.06] bg-white/[0.015] p-6 sm:p-8"
-              >
-                <h3 className="text-xl sm:text-2xl font-bold text-premium-primary mb-6">{f.title}</h3>
+        <div className="mt-8 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-white/[0.08] bg-black/15 p-5 sm:p-6"><p className="text-xs font-black uppercase tracking-[.14em] text-[#73b8ff]">Negotiation objective</p><p className="mt-3 text-lg font-bold leading-8 text-white">{playbook.objective}</p></div>
+          <div className="rounded-2xl border border-[#36d399]/20 bg-[#36d399]/[0.05] p-5 sm:p-6"><p className="text-xs font-black uppercase tracking-[.14em] text-[#79e6bd]">Estimated achievable savings</p><p className="mt-3 text-lg font-bold leading-8 text-white">{playbook.estimatedSavingsRange}</p></div>
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2"><ListCard title="Customer leverage" items={playbook.leveragePoints} tone="green" /><ListCard title="Priority items to challenge" items={playbook.priorityItems} tone="gold" /></div>
 
-                {/* Their position (company's likely argument) */}
-                {ns?.expectedCompanyResponse && (
-                  <div className="mb-5 rounded-xl border border-red-500/10 bg-gradient-to-br from-red-500/[0.04] to-transparent p-5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText className="h-4 w-4 text-red-400/60" />
-                      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-red-400/60">What They May Say</p>
-                    </div>
-                    <p className="text-[16px] text-premium-secondary italic leading-relaxed">
-                      &ldquo;{ns.expectedCompanyResponse}&rdquo;
-                    </p>
-                  </div>
-                )}
+        <div className="mt-6 rounded-2xl border border-[#4da3ff]/20 bg-[#4da3ff]/[0.05] p-5 sm:p-7">
+          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[.14em] text-[#73b8ff]"><Target className="h-4 w-4" />What to say first</div>
+          <p className="mt-4 text-lg font-bold italic leading-8 text-white">&ldquo;{playbook.openingStatement}&rdquo;</p>
+        </div>
 
-                {(msg || (ns && ns.bestCounterResponse)) && (
-                  <div className="mb-5 rounded-xl border border-savings-500/10 bg-gradient-to-br from-savings-500/[0.04] to-transparent p-5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Target className="h-4 w-4 text-savings-400/60" />
-                      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-savings-400/60">What You Can Say</p>
-                    </div>
-                    <p className="text-[16px] text-premium-secondary italic leading-relaxed">
-                      &ldquo;{(msg || (ns && ns.bestCounterResponse) || "").toString()}&rdquo;
-                    </p>
-                  </div>
-                )}
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          {playbook.likelyObjections.map((item, index) => <div key={index} className="rounded-2xl border border-white/[0.08] bg-black/15 p-5"><p className="text-xs font-black uppercase tracking-[.12em] text-[#f8a1a1]">Likely objection</p><p className="mt-2 font-bold text-white">{item.objection}</p><p className="mt-4 text-xs font-black uppercase tracking-[.12em] text-[#79e6bd]">Suggested response</p><p className="mt-2 leading-7 text-[#dce4ec]">{item.response}</p></div>)}
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2"><ListCard title="Concessions you can offer" items={playbook.concessions} /><ListCard title="Terms you should not accept" items={playbook.unacceptableTerms} tone="gold" /></div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2"><ListCard title="Escalation path" items={playbook.escalationPath} /><ListCard title="Follow-up schedule" items={playbook.followUpSchedule} tone="green" /></div>
+        <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/[0.04] p-5 sm:p-6"><div className="flex items-center gap-2 text-xs font-black uppercase tracking-[.14em] text-red-300"><Shield className="h-4 w-4" />Walk-away threshold</div><p className="mt-3 leading-7 text-[#dce4ec]">{playbook.walkAwayThreshold}</p></div>
 
-                {/* Full strategy script */}
-                {ns?.script && (
-                  <div className="mb-5 rounded-xl bg-white/[0.015] border border-white/[0.06] p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Shield className="h-4 w-4 text-trust-400/60" />
-                      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-premium-muted">Ready-to-Use Script</p>
-                    </div>
-                    <p className="text-[15px] text-premium-secondary leading-relaxed">{ns.script}</p>
-                  </div>
-                )}
-
-                {/* Strategy steps */}
-                {ns?.steps && ns.steps.length > 0 && (
-                  <div className="mb-5 rounded-xl bg-white/[0.015] border border-white/[0.06] p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Shield className="h-4 w-4 text-trust-400/60" />
-                      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-premium-muted">How to Handle the Conversation</p>
-                    </div>
-                    <ol className="space-y-2">
-                      {ns.steps.map((s, j) => (
-                        <li key={j} className="flex items-start gap-3 text-[15px] text-premium-secondary leading-relaxed">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-trust-400/10 text-[11px] font-bold text-trust-400">{j + 1}</span>
-                          {s}
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
-
-                {/* Manager escalation */}
-                {ns?.managerEscalation && (
-                  <div className="mb-5 rounded-xl border border-amber-500/10 bg-amber-500/[0.03] p-5">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-400/60 mb-2">If You Need to Escalate</p>
-                    <p className="text-[15px] text-premium-secondary">{ns.managerEscalation}</p>
-                  </div>
-                )}
-
-                {/* Documents to request */}
-                {ns?.documentsToRequest && ns.documentsToRequest.length > 0 && (
-                  <div className="mb-5">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-premium-muted mb-2">Documents to Request</p>
-                    <ul className="space-y-1">
-                      {ns.documentsToRequest.map((doc, i) => (
-                        <li key={i} className="flex items-start gap-2 text-[14px] text-premium-secondary">
-                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-trust-400/60" />
-                          {doc}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Action buttons */}
-                <div className="flex flex-wrap gap-3 mt-5 pt-5 border-t border-white/[0.04]">
-                  {msg && (
-                    <button
-                      onClick={() => handleCopy(msg as string, `script-${f.id}`)}
-                      className="btn-premium inline-flex items-center gap-2 rounded-xl px-5 py-3 text-[13px]"
-                    >
-                      {copied === `script-${f.id}` ? (
-                        <>Copied</>
-                      ) : (
-                        <>Copy Phone Script</>
-                      )}
-                    </button>
-                  )}
-                  {f.recommendedAction && (
-                    <button
-                      onClick={() => handleCopy(f.recommendedAction as string, `email-${f.id}`)}
-                      className="btn-ghost-premium inline-flex items-center gap-2 rounded-xl px-5 py-3 text-[13px]"
-                    >
-                      {copied === `email-${f.id}` ? (
-                        <>Copied</>
-                      ) : (
-                        <>Copy Email Draft</>
-                      )}
-                    </button>
-                  )}
-                  {ns && (
-                    <span className={`ml-auto rounded-full px-3 py-1.5 text-[10px] font-bold uppercase self-center ${
-                      ns.difficulty === "Easy" ? "bg-savings-500/15 text-savings-400" :
-                      ns.difficulty === "Medium" ? "bg-amber-500/15 text-amber-400" :
-                      "bg-red-500/15 text-red-400"
-                    }`}>
-                      {ns.difficulty}
-                    </span>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
-
-          {/* Negotiation Leverage items */}
-          {negotiationLeverage.map((lev) => (
-            <motion.div
-              key={lev.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="rounded-2xl border border-violet-500/15 bg-violet-500/[0.03] p-6 sm:p-8"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                  lev.priority === "Immediate" ? "bg-red-500/20 text-red-300" :
-                  lev.priority === "High" ? "bg-amber-500/20 text-amber-300" :
-                  lev.priority === "Medium" ? "bg-yellow-500/20 text-yellow-300" :
-                  "bg-blue-500/20 text-blue-300"
-                }`}>
-                  {lev.priority}
-                </span>
-                {lev.successProbability > 0 && (
-                  <span className="text-[12px] text-premium-muted">
-                    <span className="text-savings-400 font-semibold">{lev.successProbability}%</span> success rate
-                  </span>
-                )}
-                {lev.estimatedSavings > 0 && (
-                  <span className="text-[12px] text-savings-400 font-semibold">
-                    ~${lev.estimatedSavings.toLocaleString()} savings
-                  </span>
-                )}
-              </div>
-
-              <h3 className="text-xl font-bold text-premium-primary mb-3">{lev.title}</h3>
-              <p className="text-[16px] text-premium-secondary mb-5">{lev.leverage}</p>
-
-              {lev.whyCompanyMayAgree && (
-                <div className="mb-5 rounded-xl border border-savings-500/10 bg-savings-500/[0.03] p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-savings-400/60 mb-1">Why This Request May Work</p>
-                  <p className="text-[15px] text-premium-secondary">{lev.whyCompanyMayAgree}</p>
-                </div>
-              )}
-
-              {lev.suggestedWording && (
-                <div className="mb-4 rounded-xl border-l-[3px] border-trust-400/30 bg-trust-400/[0.03] p-5">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-premium-muted mb-2">Suggested Wording</p>
-                  <p className="text-[16px] text-premium-secondary italic">&ldquo;{lev.suggestedWording}&rdquo;</p>
-                </div>
-              )}
-
-              {lev.alternativeWording && (
-                <div className="mb-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-premium-muted mb-1">Alternative Wording</p>
-                  <p className="text-[15px] text-premium-secondary italic">&ldquo;{lev.alternativeWording}&rdquo;</p>
-                </div>
-              )}
-
-              {lev.suggestedWording && (
-                <button
-                  onClick={() => handleCopy(lev.suggestedWording, `lev-${lev.id}`)}
-                  className="btn-premium inline-flex items-center gap-2 rounded-xl px-5 py-3 text-[13px]"
-                >
-                  {copied === `lev-${lev.id}` ? (
-                    <><Check className="h-4 w-4" /> Copied</>
-                  ) : (
-                    <><Copy className="h-4 w-4" /> Copy Script</>
-                  )}
-                </button>
-              )}
-            </motion.div>
-          ))}
+        <div className="mt-8 space-y-4">
+          <ScriptCard id="phone" title="Personalized phone script" icon="phone" text={playbook.phoneScript} onCopy={copy} copied={copied} />
+          <div className="grid gap-4 lg:grid-cols-2"><ScriptCard id="short-email" title="Short executive email" icon="mail" text={playbook.shortEmail} onCopy={copy} copied={copied} /><ScriptCard id="detailed-email" title="Detailed negotiation email" icon="mail" text={playbook.detailedEmail} onCopy={copy} copied={copied} /></div>
+          {(playbook.renewalScript || playbook.cancellationScript) && <div className="grid gap-4 lg:grid-cols-2">{playbook.renewalScript && <ScriptCard id="renewal" title="Renewal negotiation script" icon="phone" text={playbook.renewalScript} onCopy={copy} copied={copied} />}{playbook.cancellationScript && <ScriptCard id="cancel" title="Cancellation / opt-out script" icon="phone" text={playbook.cancellationScript} onCopy={copy} copied={copied} />}</div>}
         </div>
       </div>
-    </motion.div>
+    </section>
   );
 }

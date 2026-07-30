@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { Download, Printer, Share2, Loader2, Check, AlertCircle } from "lucide-react";
+import { Download, Printer, Share2, Loader2, Check, AlertCircle, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ReportActionsProps {
   auditId: string;
+  executiveSummary: string;
 }
 
-export function ReportActions({ auditId }: ReportActionsProps) {
+export function ReportActions({ auditId, executiveSummary }: ReportActionsProps) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -45,6 +46,15 @@ export function ReportActions({ auditId }: ReportActionsProps) {
       } catch {
         showFeedback("error", "Could not share. Copy the URL manually.");
       }
+    }
+  };
+
+  const handleCopySummary = async () => {
+    try {
+      await navigator.clipboard.writeText(executiveSummary);
+      showFeedback("success", "Executive summary copied.");
+    } catch {
+      showFeedback("error", "Could not copy the summary. Try selecting it manually.");
     }
   };
 
@@ -115,24 +125,24 @@ export function ReportActions({ auditId }: ReportActionsProps) {
           {feedback.message}
         </div>
       )}
-      <div className="mx-auto flex max-w-4xl items-center justify-center gap-3 px-4 py-4">
+      <div className="mx-auto grid max-w-4xl grid-cols-4 gap-2 px-3 py-3 sm:gap-3 sm:px-4 sm:py-4">
         <Button
           type="button"
           variant="violet"
           size="sm"
           onClick={handleDownload}
           disabled={isDownloading}
-          className="report-download-btn font-extrabold"
+          className="report-download-btn min-w-0 bg-[#f4c542] font-extrabold text-[#07101d] hover:bg-[#f8d96e]"
         >
           {isDownloading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Downloading...
+              <span className="hidden sm:inline">Downloading...</span><span className="sm:hidden">PDF</span>
             </>
           ) : (
             <>
               <Download className="h-4 w-4" />
-              Download My Report
+              <span className="hidden sm:inline">Download PDF</span><span className="sm:hidden">PDF</span>
             </>
           )}
         </Button>
@@ -141,20 +151,24 @@ export function ReportActions({ auditId }: ReportActionsProps) {
           variant="outline"
           size="sm"
           onClick={handlePrint}
-          className="font-medium"
+          className="min-w-0 font-medium"
         >
           <Printer className="h-4 w-4" />
-          Print
+          <span className="hidden sm:inline">Print</span><span className="sm:hidden">Print</span>
         </Button>
         <Button
           type="button"
           variant="outline"
           size="sm"
           onClick={handleShare}
-          className="font-medium"
+          className="min-w-0 font-medium"
         >
           <Share2 className="h-4 w-4" />
-          Share Report
+          <span className="hidden sm:inline">Share secure link</span><span className="sm:hidden">Share</span>
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={handleCopySummary} className="min-w-0 font-medium">
+          <Copy className="h-4 w-4" />
+          <span className="hidden sm:inline">Copy executive summary</span><span className="sm:hidden">Copy</span>
         </Button>
       </div>
     </div>

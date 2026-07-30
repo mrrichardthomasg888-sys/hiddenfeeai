@@ -12,17 +12,9 @@ import { PremiumReportHero } from "@/components/report/PremiumReportHero";
 import { ReportStickySummary } from "@/components/report/ReportStickySummary";
 import { ReportNavigation } from "@/components/report/ReportNavigation";
 import { ValueSummaryDashboard } from "@/components/report/ValueSummaryDashboard";
-import { PremiumFindingCard } from "@/components/report/PremiumFindingCard";
-import { PriorityActionCenter } from "@/components/report/PriorityActionCenter";
 import { NegotiationPlaybook } from "@/components/report/NegotiationPlaybook";
-import { ExecutiveSummaryCard } from "@/components/report/ExecutiveSummaryCard";
-import { TrustPanel } from "@/components/report/TrustPanel";
-import { ActionPlanSection } from "@/components/report/ActionPlanSection";
-import { ContractRisksSection } from "@/components/report/ContractRisksSection";
-import { MathErrorsSection } from "@/components/report/MathErrorsSection";
-import { ConsumerRightsSection } from "@/components/report/ConsumerRightsSection";
-import { NegotiationScriptsSection } from "@/components/report/NegotiationScriptsSection";
 import { AuditDeliverables } from "@/components/report/AuditDeliverables";
+import { PremiumReportSections } from "@/components/report/PremiumReportSections";
 import { BrandIdentity } from "@/components/brand/BrandIdentity";
 
 interface JobState {
@@ -298,46 +290,22 @@ export function AuditReport() {
   const report = job?.report;
   if (!report) return null;
 
-  // ── Derive display values from new Gemini schema ────────────────────────────
+  // Derive every displayed value from the canonical premium report.
+  const premium = report.premiumReport;
   const meta = report.documentMetadata;
-  const exec = report.executiveSummary;
-  const allFindings = report.allFindings ?? [];
-
-  const totalIssues =
-    (report.hiddenFees?.length ?? 0) +
-    (report.questionableCharges?.length ?? 0) +
-    (report.contractRisks?.length ?? 0) +
-    (report.mathematicalErrors?.length ?? 0);
-
-  const hiddenFeesCount = report.hiddenFees?.length ?? 0;
-  const potentialSavings = report.estimatedSavings?.mostLikely ?? 0;
-  const criticalCount = allFindings.filter((f) => f.severity === "Critical").length;
+  const totalIssues = premium.executiveOverview.totalFindings;
+  const hiddenFeesCount = premium.findings.filter((finding) => /fee|charge|surcharge|tax/i.test(`${finding.category} ${finding.title}`)).length;
+  const potentialSavings = premium.executiveOverview.potentialSavings;
+  const criticalCount = premium.findings.filter((finding) => finding.severity === "Critical").length;
   const severityCounts = {
     Critical: criticalCount,
-    High: allFindings.filter((f) => f.severity === "High").length,
-    Medium: allFindings.filter((f) => f.severity === "Medium").length,
-    Low: allFindings.filter((f) => f.severity === "Low").length,
+    High: premium.findings.filter((finding) => finding.severity === "High").length,
+    Medium: premium.findings.filter((finding) => finding.severity === "Medium").length,
+    Low: premium.findings.filter((finding) => finding.severity === "Low").length,
   };
-  const evidenceCount = allFindings.filter((f) => Boolean(f.evidence || f.lineReference)).length;
-  const actionCount = report.recommendedActions?.length ?? 0;
-  const scriptCount = (report.phoneNegotiationScript?.length ?? 0) +
-    ((report.emailNegotiationTemplate?.length ?? 0) > 0 ? 1 : 0) +
-    allFindings.filter((f) => Boolean(f.negotiationMessage || f.negotiationStrategy?.script)).length;
-
-  const hasNegotiation =
-    allFindings.some((f) => f.negotiationMessage || f.negotiationStrategy) ||
-    (report.negotiationLeverage?.length ?? 0) > 0;
-
-  // Top concerns: combine hiddenFees + questionableCharges sorted by severity
-  const severityOrder = { Critical: 0, High: 1, Medium: 2, Low: 3 };
-  const topConcerns = [...allFindings]
-    .sort((a, b) => {
-      const ao = severityOrder[a.severity] ?? 4;
-      const bo = severityOrder[b.severity] ?? 4;
-      if (ao !== bo) return ao - bo;
-      return (b.amount ?? 0) - (a.amount ?? 0);
-    })
-    .slice(0, 5);
+  const evidenceCount = premium.findings.filter((finding) => Boolean(finding.evidenceQuote && finding.location)).length;
+  const actionCount = Object.values(premium.actionPlan).flat().length;
+  const scriptCount = 3 + Number(Boolean(premium.negotiationPlaybook.renewalScript)) + Number(Boolean(premium.negotiationPlaybook.cancellationScript));
 
   return (
     <div id="overview" className="premium-page audit-report-page relative min-h-screen overflow-hidden bg-[#070b14] print:bg-[#070b14]">
@@ -392,13 +360,11 @@ export function AuditReport() {
           <PremiumReportHero
             documentType={meta.documentType}
             issuer={meta.issuer}
-            riskScore={report.overallRiskScore}
+            riskScore={premium.executiveOverview.riskScore}
             riskLevel={report.riskCategory}
             totalIssues={totalIssues}
             potentialExposure={potentialSavings}
-            negotiationOpportunities={allFindings.filter(
-              (f) => f.negotiationMessage || f.negotiationStrategy
-            ).length}
+            negotiationOpportunities={premium.negotiationPlaybook.priorityItems.length}
             criticalCount={criticalCount}
             hiddenFeesCount={hiddenFeesCount}
             severityCounts={severityCounts}
@@ -417,139 +383,48 @@ export function AuditReport() {
               totalIssues={totalIssues}
               hiddenFeesCount={hiddenFeesCount}
               potentialSavings={potentialSavings}
-              confidenceLevel={report.confidence}
+              confidenceLevel={premium.executiveOverview.confidence}
             />
           </div>
 
           {/* ── EXECUTIVE SUMMARY ── */}
-          <div id="discoveries" className="scroll-mt-16">
-            <ExecutiveSummaryCard
-              headline={exec.headline}
-              overview={exec.overview}
-              criticalFindings={exec.criticalFindings}
-              immediateActions={exec.immediateActions}
-              topConcerns={topConcerns}
-            />
+          <div id="discoveries" className="scroll-mt-24 rounded-[2rem] border border-white/[0.08] bg-[linear-gradient(145deg,rgba(77,163,255,.07),rgba(255,255,255,.02))] p-6 sm:p-10">
+            <div className="flex flex-wrap items-start justify-between gap-5">
+              <div className="max-w-3xl">
+                <p className="text-xs font-black uppercase tracking-[.17em] text-[#73b8ff]">Executive decision brief</p>
+                <h2 className="mt-2 text-3xl font-black tracking-[-.035em] text-white sm:text-4xl">{premium.executiveOverview.decision}</h2>
+                <p className="mt-4 text-lg font-bold leading-8 text-white">{premium.executiveOverview.decisionReasoning}</p>
+                <p className="mt-3 leading-7 text-[#c8d3df]">{premium.executiveOverview.documentSummary}</p>
+              </div>
+              <div className="rounded-2xl border border-[#f4c542]/20 bg-[#f4c542]/[0.06] px-5 py-4 text-center"><p className="text-xs font-black uppercase tracking-[.13em] text-[#f8d96e]">Risk</p><p className="mt-1 text-2xl font-black text-white">{premium.executiveOverview.riskScore}/100</p></div>
+            </div>
+            <h3 className="mt-8 text-sm font-black uppercase tracking-[.15em] text-[#f8d96e]">Top three urgent actions</h3>
+            <ol className="mt-4 grid gap-3 lg:grid-cols-3">{premium.executiveOverview.urgentActions.slice(0, 3).map((action, index) => <li key={index} className="rounded-2xl border border-white/[0.08] bg-black/15 p-5 text-[15px] font-bold leading-7 text-white"><span className="mb-3 flex h-7 w-7 items-center justify-center rounded-full bg-[#f4c542]/15 text-xs font-black text-[#f8d96e]">{index + 1}</span>{action}</li>)}</ol>
           </div>
 
           {/* ── RISK MAP ── */}
-          <div id="action-plan" className="scroll-mt-16">
-            <PriorityActionCenter findings={allFindings} />
+          <div id="playbook" className="scroll-mt-24">
+            <NegotiationPlaybook report={premium} />
           </div>
-
-          <ActionPlanSection
-            recommendedActions={report.recommendedActions ?? []}
-            questionsToAsk={report.questionsToAsk ?? []}
-          />
 
           {/* ── NEGOTIATION PLAYBOOK ── */}
-          {hasNegotiation && (
-            <div id="playbook" className="scroll-mt-16">
-              <NegotiationPlaybook
-                hiddenFees={report.hiddenFees ?? []}
-                questionableCharges={report.questionableCharges ?? []}
-                negotiationLeverage={report.negotiationLeverage ?? []}
-              />
-            </div>
-          )}
-
           {/* ── HIDDEN FEES ── */}
-          {(report.hiddenFees?.length ?? 0) > 0 && (
-            <div id="findings-section" className="scroll-mt-16">
-              <div className="flex items-center gap-2 mb-6">
-                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-[-0.02em]">
-                  Hidden Fees
-                </h2>
-                <span className="px-3 py-1 rounded-full bg-red-500/15 border border-red-500/20 text-sm font-semibold text-red-300">
-                  {report.hiddenFees.length}
-                </span>
-              </div>
-              <div className="space-y-4">
-                {report.hiddenFees.map((fee, i) => (
-                  <PremiumFindingCard key={fee.id} finding={fee} index={i} />
-                ))}
-              </div>
-            </div>
-          )}
+          <PremiumReportSections report={premium} />
 
           {/* ── QUESTIONABLE CHARGES ── */}
-          {(report.questionableCharges?.length ?? 0) > 0 && (
-            <div id="questionable" className="scroll-mt-16">
-              <div className="flex items-center gap-2 mb-6">
-                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-[-0.02em]">
-                  Questionable Charges
-                </h2>
-                <span className="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/20 text-sm font-semibold text-amber-300">
-                  {report.questionableCharges.length}
-                </span>
-              </div>
-              <div className="space-y-4">
-                {report.questionableCharges.map((charge, i) => (
-                  <PremiumFindingCard key={charge.id} finding={charge} index={i} />
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* ── CONTRACT RISKS ── */}
-          {(report.contractRisks?.length ?? 0) > 0 && (
-            <div id="contract-risks" className="scroll-mt-16">
-              <ContractRisksSection risks={report.contractRisks} />
-            </div>
-          )}
-
           {/* ── MATHEMATICAL ERRORS ── */}
-          {(report.mathematicalErrors?.length ?? 0) > 0 && (
-            <div id="math-errors" className="scroll-mt-16">
-              <MathErrorsSection errors={report.mathematicalErrors} />
-            </div>
-          )}
-
           {/* ── EMPTY STATE ── */}
-          {totalIssues === 0 && (
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-12 text-center">
-              <CheckCircle2 className="mx-auto h-12 w-12 text-savings-500" />
-              <p className="mt-4 text-xl font-bold text-white">No major concerns found</p>
-              <p className="mx-auto mt-3 max-w-md text-base leading-[1.7] text-[#dce4ec]">
-                We did not find major problems in the available document. This does not guarantee every charge is correct, so compare the report with the original.
-                {exec.overview && (
-                  <span className="block mt-2">{exec.overview}</span>
-                )}
-              </p>
-            </div>
-          )}
-
           {/* ── NEGOTIATION SCRIPTS ── */}
-          {((report.phoneNegotiationScript?.length ?? 0) > 0 ||
-            (report.emailNegotiationTemplate?.length ?? 0) > 0) && (
-            <div id="scripts" className="scroll-mt-16">
-              <NegotiationScriptsSection
-                phoneScript={report.phoneNegotiationScript ?? []}
-                emailTemplate={report.emailNegotiationTemplate ?? []}
-              />
-            </div>
-          )}
-
           {/* ── CONSUMER RIGHTS ── */}
-          {(report.consumerRights?.length ?? 0) > 0 && (
-            <div id="consumer-rights" className="scroll-mt-16">
-              <ConsumerRightsSection rights={report.consumerRights} />
-            </div>
-          )}
-
           {/* ── TRUST PANEL ── */}
-          <div id="trust" className="scroll-mt-16">
-            <TrustPanel
-              confidenceScore={report.confidence}
-              pagesReviewed={meta.pagesReviewed}
-              lineItemsReviewed={meta.lineItemsReviewed}
-              reportId={meta.reportId}
-            />
-          </div>
         </div>
       </Container>
 
-      <ReportActions auditId={auditId ?? ""} />
+      <ReportActions
+        auditId={auditId ?? ""}
+        executiveSummary={`${premium.executiveOverview.decision}: ${premium.executiveOverview.decisionReasoning}\n\nTop actions:\n${premium.executiveOverview.urgentActions.map((item, index) => `${index + 1}. ${item}`).join("\n")}`}
+      />
     </div>
   );
 }

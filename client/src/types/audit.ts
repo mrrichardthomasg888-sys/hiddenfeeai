@@ -181,6 +181,7 @@ export interface RecommendedAction {
 
 // ── Main AuditReport ───────────────────────────────────────────────────────
 export interface AuditReport {
+  premiumReport: PremiumReport;
   documentMetadata: DocumentMetadata;
   executiveSummary: ExecutiveSummary;
   overallRiskScore: number;
@@ -200,6 +201,90 @@ export interface AuditReport {
   emailNegotiationTemplate: string[];
   confidence: number;
   allFindings: HiddenFee[];
+}
+
+export interface PremiumFinding {
+  id: string;
+  title: string;
+  category: string;
+  severity: Severity | "Informational";
+  confidence: number;
+  amount: number | null;
+  explanation: string;
+  whyItMatters: string;
+  evidenceQuote: string;
+  location: string;
+  financialImpact: string;
+  recommendedAction: string;
+  questionsToAsk: string[];
+  negotiability: string;
+  betterAlternativeLanguage: string;
+  talkingPoint: string;
+}
+
+export interface PremiumInsightItem {
+  title: string;
+  explanation: string;
+  source_reference?: string;
+  evidence?: string;
+  recommended_action?: string;
+}
+
+export interface PremiumReport {
+  reportId: string;
+  documentType: string;
+  issuer: string;
+  payer: string;
+  analysisDate: string;
+  executiveOverview: {
+    riskScore: number;
+    riskLevel: string;
+    potentialSavings: number;
+    totalFindings: number;
+    pagesReviewed: number;
+    confidence: number;
+    documentSummary: string;
+    urgentActions: string[];
+    decision: "Accept" | "Negotiate" | "Escalate" | "Request Clarification" | "Avoid";
+    decisionReasoning: string;
+  };
+  financialImpact: {
+    originalTotal: number;
+    confirmedCharges: number;
+    recurringMonthlyExposure: number;
+    estimatedAnnualExposure: number;
+    contractTermExposure: number | null;
+    possibleSavings: number;
+    correctedTotal: number;
+    explanation: string;
+  };
+  negotiationPlaybook: {
+    objective: string;
+    estimatedSavingsRange: string;
+    leveragePoints: string[];
+    priorityItems: string[];
+    openingStatement: string;
+    likelyObjections: { objection: string; response: string }[];
+    concessions: string[];
+    unacceptableTerms: string[];
+    escalationPath: string[];
+    walkAwayThreshold: string;
+    followUpSchedule: string[];
+    phoneScript: string;
+    shortEmail: string;
+    detailedEmail: string;
+    renewalScript?: string;
+    cancellationScript?: string;
+  };
+  timeline: Array<{ event: string; date: string; location: string; evidence: string; recommendedAction: string }>;
+  findings: PremiumFinding[];
+  positiveTerms: PremiumInsightItem[];
+  missingProtections: PremiumInsightItem[];
+  watchLater: PremiumInsightItem[];
+  actionPlan: { today: string[]; beforeSigning: string[]; duringNegotiation: string[]; afterSigning: string[]; beforeRenewal: string[] };
+  providerQuestions: string[];
+  escalationSteps: string[];
+  methodology: { coverage: string; limitations: string[]; unreadableAreas: string[]; assumptions: string[]; humanConfirmation: string[] };
 }
 
 // ── Job Status ─────────────────────────────────────────────────────────────

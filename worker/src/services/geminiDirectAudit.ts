@@ -4,12 +4,27 @@ import { extractOffice } from "./extraction/officeExtractor.js";
 const MODEL = "gemini-3.5-flash-lite";
 const RETRYABLE = new Set([408, 429, 500, 502, 503, 504]);
 
-const PROMPT = `Audit the COMPLETE attached file as a forensic consumer-contract and billing expert. Inspect every page, image, table, cell, total, subtotal, header, footer, footnote, disclosure, scan and fine-print term. Detect hidden fees, recurring charges, setup or activation fees, cancellation and early-termination penalties, automatic renewals, price increases, taxes and surcharges, add-ons, deposits, interest, financing and late-payment charges, contradictory terms, missing or unclear pricing, percentage charges and charges embedded in images.
+const PROMPT = `Audit the COMPLETE attached file as a forensic consumer-contract and billing expert. Inspect every page, image, table, cell, total, subtotal, header, footer, footnote, disclosure, appendix, handwriting, scan and fine-print term.
 
-Never say the document is clean unless you inspected the complete file. Never invent evidence. Every finding needs an exact source quote and page, worksheet/cell, or image reference. Return JSON only using the requested schema.`;
+Look for hidden, junk, vague, duplicate, administrative, convenience, processing, maintenance, platform, technology, regulatory, recovery, service, activation, cancellation, termination, early-exit, late, renewal, usage, overage, minimum and pass-through fees; auto-renewal and cancellation traps; unilateral price or contract changes; minimum commitments; unused or bundled services; ambiguous definitions; liability, indemnification, arbitration, venue and warranty limits; data ownership, privacy, security and AI-use clauses; service levels, credits, uptime and support; taxes, surcharges, reimbursements and expenses; missing dates or totals; conflicts between tables and legal terms; negotiable clauses; favorable protections; and protections the customer should request.
+
+Create one consolidated negotiation playbook for the document, not a full script per finding. Each finding should have only a concise finding-specific talking point plus questions and replacement language. Identify verified dates, recurring exposure, positive terms, missing protections, future watch items, provider questions, escalation steps and a final decision. For a clean document, still return a useful contract-health assessment.
+
+Never invent evidence, fees, savings, dates, totals or page references. Clearly label estimates and uncertainty. Confidence values must be 0-100 (for example 99, never 0.99). Every finding and claimed positive term needs an exact source quote and a page, section, table, row, cell, sheet or image reference. Keep scripts concise enough to remain together on a printed page. Return JSON only using the requested schema.`;
+
+const INSIGHT_ITEM_SCHEMA = { type: "OBJECT", required: ["title", "explanation", "source_reference", "evidence", "recommended_action"], properties: {
+  title: { type: "STRING" }, explanation: { type: "STRING" }, source_reference: { type: "STRING" }, evidence: { type: "STRING" }, recommended_action: { type: "STRING" },
+} };
+
+const PLAYBOOK_SCHEMA = { type: "OBJECT", required: ["objective", "leverage_points", "priority_items", "opening_statement", "likely_objections", "concessions", "unacceptable_terms", "escalation_path", "walk_away_threshold", "follow_up_schedule", "phone_script", "short_email", "detailed_email"], properties: {
+  objective: { type: "STRING" }, leverage_points: { type: "ARRAY", items: { type: "STRING" } }, priority_items: { type: "ARRAY", items: { type: "STRING" } }, opening_statement: { type: "STRING" },
+  likely_objections: { type: "ARRAY", items: { type: "OBJECT", required: ["objection", "response"], properties: { objection: { type: "STRING" }, response: { type: "STRING" } } } },
+  concessions: { type: "ARRAY", items: { type: "STRING" } }, unacceptable_terms: { type: "ARRAY", items: { type: "STRING" } }, escalation_path: { type: "ARRAY", items: { type: "STRING" } }, walk_away_threshold: { type: "STRING" }, follow_up_schedule: { type: "ARRAY", items: { type: "STRING" } },
+  phone_script: { type: "STRING" }, short_email: { type: "STRING" }, detailed_email: { type: "STRING" }, renewal_script: { type: "STRING" }, cancellation_script: { type: "STRING" },
+} };
 
 const RESPONSE_SCHEMA = {
-  type: "OBJECT", required: ["document_meta", "risk_score", "risk_level", "potential_savings", "confidence_level", "financial_impact", "findings"],
+  type: "OBJECT", required: ["document_meta", "risk_score", "risk_level", "potential_savings", "confidence_level", "financial_impact", "findings", "premium_insights"],
   properties: {
     document_meta: { type: "OBJECT", required: ["document_type", "pages_reviewed", "line_items_reviewed"], properties: {
       document_type: { type: "STRING" }, issuer: { type: "STRING" }, payer: { type: "STRING" }, pages_reviewed: { type: "INTEGER" }, line_items_reviewed: { type: "INTEGER" },
@@ -18,7 +33,14 @@ const RESPONSE_SCHEMA = {
     financial_impact: { type: "OBJECT", required: ["original_total", "questionable_charges_total", "corrected_total"], properties: { original_total: { type: "NUMBER" }, questionable_charges_total: { type: "NUMBER" }, corrected_total: { type: "NUMBER" } } },
     findings: { type: "ARRAY", items: { type: "OBJECT", required: ["title", "category", "severity", "confidence_score", "evidence", "explanation", "recommended_action", "source_reference", "charge_timing"], properties: {
       title: { type: "STRING" }, category: { type: "STRING" }, severity: { type: "STRING", enum: ["Low", "Medium", "High", "Critical"] }, status: { type: "STRING", enum: ["confirmed", "possible", "needs_review"] }, confidence_score: { type: "NUMBER" }, amount: { type: "NUMBER", nullable: true }, percentage: { type: "STRING", nullable: true }, page: { type: "INTEGER", nullable: true }, source_reference: { type: "STRING" }, evidence: { type: "STRING" }, explanation: { type: "STRING" }, why_it_matters: { type: "STRING" }, recommended_action: { type: "STRING" }, charge_timing: { type: "STRING", enum: ["mandatory", "conditional", "recurring", "one-time"] },
+      questions_to_ask: { type: "ARRAY", items: { type: "STRING" } }, negotiability_assessment: { type: "STRING" }, alternative_language: { type: "STRING" }, financial_impact: { type: "STRING" },
     } } },
+    premium_insights: { type: "OBJECT", required: ["document_summary", "confirmed_charges", "recurring_monthly_exposure", "estimated_annual_exposure", "calculation_explanation", "timeline", "positive_terms", "missing_protections", "watch_items", "provider_questions", "escalation_steps", "final_decision", "decision_reasoning", "unreadable_areas", "assumptions", "negotiation_playbook"], properties: {
+      document_summary: { type: "STRING" }, confirmed_charges: { type: "NUMBER" }, recurring_monthly_exposure: { type: "NUMBER" }, estimated_annual_exposure: { type: "NUMBER" }, contract_term_exposure: { type: "NUMBER", nullable: true }, calculation_explanation: { type: "STRING" },
+      timeline: { type: "ARRAY", items: { type: "OBJECT", required: ["event", "date", "source_reference", "evidence", "recommended_action"], properties: { event: { type: "STRING" }, date: { type: "STRING" }, source_reference: { type: "STRING" }, evidence: { type: "STRING" }, recommended_action: { type: "STRING" } } } },
+      positive_terms: { type: "ARRAY", items: INSIGHT_ITEM_SCHEMA }, missing_protections: { type: "ARRAY", items: INSIGHT_ITEM_SCHEMA }, watch_items: { type: "ARRAY", items: INSIGHT_ITEM_SCHEMA }, provider_questions: { type: "ARRAY", items: { type: "STRING" } }, escalation_steps: { type: "ARRAY", items: { type: "STRING" } },
+      final_decision: { type: "STRING", enum: ["Accept", "Negotiate", "Escalate", "Request Clarification", "Avoid"] }, decision_reasoning: { type: "STRING" }, unreadable_areas: { type: "ARRAY", items: { type: "STRING" } }, assumptions: { type: "ARRAY", items: { type: "STRING" } }, negotiation_playbook: PLAYBOOK_SCHEMA,
+    } },
   },
 };
 
@@ -76,9 +98,13 @@ function validateReport(value: any, auditId: string): AuditReport {
   if (!value?.document_meta || !Array.isArray(value.findings) || !value.financial_impact) throw new Error("Gemini returned malformed report JSON.");
   const findings: Finding[] = value.findings.map((f: any) => {
     if (!f.title || !f.category || !f.severity || !f.evidence || !f.explanation || !f.recommended_action || !f.source_reference) throw new Error("Gemini returned an incomplete finding.");
-    return { ...f, id: crypto.randomUUID(), status: f.status || "confirmed", confidence_score: Number(f.confidence_score), amount: typeof f.amount === "number" ? f.amount : null, page: typeof f.page === "number" ? f.page : null, why_it_matters: f.why_it_matters || f.explanation };
+    const rawConfidence = Number(f.confidence_score);
+    const confidence = rawConfidence > 0 && rawConfidence <= 1 ? rawConfidence * 100 : rawConfidence;
+    return { ...f, id: crypto.randomUUID(), status: f.status || "confirmed", confidence_score: Math.max(0, Math.min(100, confidence)), amount: typeof f.amount === "number" ? f.amount : null, page: typeof f.page === "number" ? f.page : null, why_it_matters: f.why_it_matters || f.explanation };
   });
-  return { ...value, document_meta: { ...value.document_meta, analysis_date: new Date().toISOString(), report_id: auditId }, findings, math_errors: findings.filter((f) => f.category === "Math Error" || f.category === "Billing Error"), duplicate_charges: findings.filter((f) => f.category === "Duplicate Charge"), hidden_fees: findings.filter((f) => /fee|charge|surcharge|tax/i.test(f.category)), contract_risks: findings.filter((f) => !/math|duplicate/i.test(f.category)), clean_document_summary: findings.length ? null : { spending_breakdown: [], cost_categories: [], key_terms: [], negotiation_opportunities: [], questions_to_ask: [], money_saving_suggestions: [] } } as AuditReport;
+  const rawOverallConfidence = Number(value.confidence_level);
+  const confidenceLevel = rawOverallConfidence > 0 && rawOverallConfidence <= 1 ? rawOverallConfidence * 100 : rawOverallConfidence;
+  return { ...value, confidence_level: Math.max(0, Math.min(100, confidenceLevel)), document_meta: { ...value.document_meta, analysis_date: new Date().toISOString(), report_id: auditId }, findings, math_errors: findings.filter((f) => f.category === "Math Error" || f.category === "Billing Error"), duplicate_charges: findings.filter((f) => f.category === "Duplicate Charge"), hidden_fees: findings.filter((f) => /fee|charge|surcharge|tax/i.test(f.category + " " + f.title)), contract_risks: findings.filter((f) => !/math|duplicate|billing error/i.test(f.category)), clean_document_summary: findings.length ? null : { spending_breakdown: [], cost_categories: [], key_terms: [], negotiation_opportunities: [], questions_to_ask: [], money_saving_suggestions: [] } } as AuditReport;
 }
 
 export async function prepareFileForAudit(file: File, env: Env, auditId: string): Promise<{ uri: string; name: string; mimeType: string; originalFileName: string }> {
