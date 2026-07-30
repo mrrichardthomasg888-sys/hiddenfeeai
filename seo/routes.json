@@ -1,14 +1,14 @@
 [
-  {"path":"/","title":"HiddenFeeAI AI Document Audit Software","priority":"1.0","changefreq":"weekly","source":"client/src/pages/Landing.tsx"},
-  {"path":"/faq","title":"HiddenFeeAI FAQ","priority":"0.8","changefreq":"weekly","source":"client/src/pages/FAQ.tsx"},
-  {"path":"/about","title":"About HiddenFeeAI","priority":"0.6","changefreq":"monthly","source":"client/src/pages/About.tsx"},
-  {"path":"/security","title":"HiddenFeeAI Security","priority":"0.6","changefreq":"monthly","source":"client/src/pages/Security.tsx"},
-  {"path":"/methodology","title":"HiddenFeeAI Audit Methodology","priority":"0.6","changefreq":"monthly","source":"client/src/pages/Methodology.tsx"},
-  {"path":"/accuracy","title":"HiddenFeeAI Accuracy and Limitations","priority":"0.6","changefreq":"monthly","source":"client/src/pages/Accuracy.tsx"},
-  {"path":"/changelog","title":"HiddenFeeAI Product Changelog","priority":"0.5","changefreq":"weekly","source":"client/src/pages/Changelog.tsx"},
-  {"path":"/contact","title":"Contact HiddenFeeAI Support","priority":"0.5","changefreq":"monthly","source":"client/src/pages/Contact.tsx"},
-  {"path":"/privacy","title":"HiddenFeeAI Privacy Policy","priority":"0.3","changefreq":"monthly","source":"client/src/pages/Privacy.tsx"},
-  {"path":"/terms","title":"HiddenFeeAI Terms of Service","priority":"0.3","changefreq":"monthly","source":"client/src/pages/Terms.tsx"},
-  {"path":"/refund","title":"HiddenFeeAI Refund Policy","priority":"0.3","changefreq":"monthly","source":"client/src/pages/Refund.tsx"},
-  {"path":"/sitemap","title":"HiddenFeeAI HTML Sitemap","priority":"0.2","changefreq":"monthly","source":"client/src/pages/HtmlSitemap.tsx"}
+  {"path":"/","title":"HiddenFeeAI AI Document Audit Software","description":"AI document audit software for hidden fees, billing errors, duplicate charges, and costly clauses.","priority":"1.0","changefreq":"weekly","source":"client/src/pages/Landing.tsx"},
+  {"path":"/faq","title":"HiddenFeeAI FAQ","description":"Clear answers about HiddenFeeAI's AI audit product, supported files, privacy, payment, accuracy, and reports.","priority":"0.8","changefreq":"weekly","source":"client/src/pages/FAQ.tsx"},
+  {"path":"/about","title":"About HiddenFeeAI","description":"Learn what HiddenFeeAI does, who it is for, and how the product turns document fine print into evidence-led decisions.","priority":"0.6","changefreq":"monthly","source":"client/src/pages/About.tsx"},
+  {"path":"/security","title":"HiddenFeeAI Security","description":"Learn how HiddenFeeAI handles temporary document processing, Stripe checkout, HTTPS transport, and short-lived report access.","priority":"0.6","changefreq":"monthly","source":"client/src/pages/Security.tsx"},
+  {"path":"/methodology","title":"HiddenFeeAI Audit Methodology","description":"See how HiddenFeeAI reads documents, detects cost signals, connects findings to evidence, and creates practical next steps.","priority":"0.6","changefreq":"monthly","source":"client/src/pages/Methodology.tsx"},
+  {"path":"/accuracy","title":"HiddenFeeAI Accuracy and Limitations","description":"Understand what improves HiddenFeeAI audit accuracy, what can reduce it, and how to verify every finding against the original document.","priority":"0.6","changefreq":"monthly","source":"client/src/pages/Accuracy.tsx"},
+  {"path":"/changelog","title":"HiddenFeeAI Product Changelog","description":"Follow HiddenFeeAI product, report, privacy, and reliability updates.","priority":"0.5","changefreq":"weekly","source":"client/src/pages/Changelog.tsx"},
+  {"path":"/contact","title":"Contact HiddenFeeAI Support","description":"Contact HiddenFeeAI about uploads, payment, document analysis, reports, privacy, or account-free audit support.","priority":"0.5","changefreq":"monthly","source":"client/src/pages/Contact.tsx"},
+  {"path":"/privacy","title":"HiddenFeeAI Privacy Policy","description":"Learn how HiddenFeeAI temporarily processes uploaded documents, uses Google Gemini, handles Stripe checkout, and deletes original files.","priority":"0.3","changefreq":"monthly","source":"client/src/pages/Privacy.tsx"},
+  {"path":"/terms","title":"HiddenFeeAI Terms of Service","description":"Read the terms for HiddenFeeAI's one-time AI document audit, including limitations, acceptable use, payment, and report access.","priority":"0.3","changefreq":"monthly","source":"client/src/pages/Terms.tsx"},
+  {"path":"/refund","title":"HiddenFeeAI Refund Policy","description":"Understand refund eligibility for a HiddenFeeAI document audit and how to contact support about a purchase.","priority":"0.3","changefreq":"monthly","source":"client/src/pages/Refund.tsx"},
+  {"path":"/sitemap","title":"HiddenFeeAI HTML Sitemap","description":"Browse canonical product, trust, support, and policy pages from HiddenFeeAI.","priority":"0.2","changefreq":"monthly","source":"client/src/pages/HtmlSitemap.tsx"}
 ]
