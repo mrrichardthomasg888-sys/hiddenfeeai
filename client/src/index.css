@@ -164,9 +164,9 @@
   .premium-page section { scroll-margin-top: 5rem; }
   .audit-report-page .report-command-bar > div { gap: .5rem; padding-inline: .75rem; }
   .audit-report-page .report-command-bar [class*="gap-5"] { gap: .65rem; }
-  .audit-report-page .report-actions > div:last-child { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; padding: .75rem; padding-bottom: calc(.75rem + env(safe-area-inset-bottom)); }
-  .audit-report-page .report-actions .report-download-btn { grid-column: 1 / -1; width: 100%; }
-  .audit-report-page .report-actions button { width: 100%; min-height: 48px; padding-inline: .65rem; }
+  .audit-report-page .report-actions > div:last-child { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .4rem; padding: .55rem; padding-bottom: calc(.55rem + env(safe-area-inset-bottom)); }
+  .audit-report-page .report-actions .report-download-btn { grid-column: auto; width: 100%; }
+  .audit-report-page .report-actions button { width: 100%; min-height: 48px; padding-inline: .35rem; font-size: .72rem; }
 }
 
 @layer utilities {
