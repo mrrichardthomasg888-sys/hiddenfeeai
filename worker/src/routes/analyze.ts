@@ -161,7 +161,14 @@ analyzeRoute.post("/:auditId/start", async (c) => {
           );
         }
         const durationMs = Date.now() - startTime;
-        await updateJob(auditId, { status: "complete", report });
+        // The finished report is all the customer needs. Do not retain the
+        // extracted source text or structured document after review completion.
+        await updateJob(auditId, {
+          status: "complete",
+          report,
+          extractedText: undefined,
+          extractedDocument: undefined,
+        });
         console.log(`[JobLifecycle] ANALYSIS_COMPLETED auditId=${auditId} durationMs=${durationMs} findings=${report.findings.length} riskScore=${report.risk_score} hasReport=${!!report}`);
       } catch (auditError) {
         const durationMs = Date.now() - startTime;
@@ -169,6 +176,8 @@ analyzeRoute.post("/:auditId/start", async (c) => {
         await updateJob(auditId, {
           status: "error",
           error: auditError instanceof Error ? auditError.message : "AI audit analysis failed",
+          extractedText: undefined,
+          extractedDocument: undefined,
         });
       }
     })()

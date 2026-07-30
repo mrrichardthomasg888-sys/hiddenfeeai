@@ -243,7 +243,7 @@ export function UploadCard() {
               <Lock className="mt-0.5 h-4 w-4 shrink-0 text-violet-400" />
               <span>
                 <span className="font-bold text-white">Private document review.</span>{" "}
-                Your file is kept temporarily and deleted when the review finishes. No account or subscription required.
+                Your original upload is processed in memory. Extracted review data is deleted when the review finishes or fails; your private report link remains available for up to one hour. No account or subscription required.
               </span>
             </div>
           </motion.div>
@@ -316,7 +316,7 @@ export function UploadCard() {
               {[
                 "No subscription — pay once, get the full report",
                 "No account required",
-                "Private review — original file deleted afterward",
+                "Private review — source review data deleted after completion",
                 "Every finding includes evidence and a clear next step",
               ].map((point) => (
                 <div key={point} className="flex items-start gap-3 rounded-xl border border-white/[0.07] bg-white/[0.035] px-4 py-3 shadow-[inset_0_1px_rgba(255,255,255,.04)]">
@@ -351,14 +351,14 @@ export function UploadCard() {
             <div className="mt-4 flex items-start justify-center gap-2 text-sm text-violet-400/50">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-savings-500" />
               <span>
-                <span className="font-medium text-violet-200">Your original file is temporary.</span>{" "}
-                It is deleted when the review completes or fails.
+                <span className="font-medium text-violet-200">Your original file is processed in memory.</span>{" "}
+                Source review data is deleted when the review completes or fails.
               </span>
             </div>
             <div className="mt-4 grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
               <div className="flex items-center justify-center gap-1.5 rounded-xl bg-white/[0.025] px-3 py-2 text-[11px] text-violet-300/60"><CreditCard className="h-3.5 w-3.5 text-savings-400" /> Stripe-hosted checkout</div>
               <div className="flex items-center justify-center gap-1.5 rounded-xl bg-white/[0.025] px-3 py-2 text-[11px] text-violet-300/60"><ShieldCheck className="h-3.5 w-3.5 text-savings-400" /> Full card details stay with Stripe</div>
-              <div className="flex items-center justify-center gap-1.5 rounded-xl bg-white/[0.025] px-3 py-2 text-[11px] text-violet-300/60"><Trash2 className="h-3.5 w-3.5 text-savings-400" /> File auto-deleted</div>
+              <div className="flex items-center justify-center gap-1.5 rounded-xl bg-white/[0.025] px-3 py-2 text-[11px] text-violet-300/60"><Trash2 className="h-3.5 w-3.5 text-savings-400" /> Source data auto-deleted</div>
             </div>
           </motion.div>
         )}
