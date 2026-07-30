@@ -7,7 +7,6 @@ import { SecurityCard } from "@/components/landing/SecurityCard";
 import { PricingCard } from "@/components/landing/PricingCard";
 import { ConversionFAQ } from "@/components/landing/ConversionFAQ";
 import { DocumentCoverage } from "@/components/landing/DocumentCoverage";
-import { MobileAuditBar } from "@/components/landing/MobileAuditBar";
 import { CapabilityGrid } from "@/components/landing/CapabilityGrid";
 import { FinalCTA } from "@/components/landing/FinalCTA";
 import { useSearchParams } from "react-router-dom";
@@ -29,7 +28,6 @@ export function Landing() {
       <ConversionFAQ />
       <FinalCTA />
       <Footer />
-      <MobileAuditBar />
     </div>
   );
 }

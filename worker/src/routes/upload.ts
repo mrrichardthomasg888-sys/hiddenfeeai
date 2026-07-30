@@ -4,6 +4,7 @@ import { createJob, updateJob } from "../jobStore.js";
 import { isAcceptedExtension } from "../router/documentRouter.js";
 import { routeExtraction } from "../services/extraction/extractionRouter.js";
 import * as errors from "../utils/errors.js";
+import { validateUpload } from "../middleware/inputValidation.js";
 
 export const uploadRoute = new Hono<{ Bindings: Env }>();
 
@@ -23,7 +24,13 @@ uploadRoute.post("/", async (c) => {
     throw errors.badFile("The uploaded file is empty. Please select a valid document.");
   }
 
-  const fileName = file.name;
+  const validation = validateUpload(file.name, file.size, file.type);
+  if (!validation.valid) {
+    if (file.size > maxMb * 1024 * 1024) throw errors.tooLarge(maxMb);
+    throw errors.badFile(validation.error);
+  }
+
+  const fileName = validation.sanitizedFileName;
   if (!isAcceptedExtension(fileName)) {
     const ext = fileName.split(".").pop() ?? "";
     throw errors.unsupportedType("." + ext);
@@ -79,7 +86,11 @@ uploadRoute.post("/", async (c) => {
         }
       } catch (extractError) {
         const isTimeout = extractError instanceof Error && extractError.message === "EXTRACTION_SAFETY_TIMEOUT";
-        const safeReason = "We couldn't read this document. Please try uploading a clearer copy.";
+        const safeReason = isTimeout
+          ? "Document reading timed out. Try a smaller file, fewer pages, or a clearer image."
+          : extractError instanceof Error && extractError.message.includes("Gemini")
+            ? "Gemini could not analyze this file. The file may be damaged, unsupported, or temporarily unavailable."
+            : "We couldn't read this document. It may be damaged or unclear; try a clearer copy.";
         console.error(`[EXTRACTION_FAILED] auditId=${auditId} safeReason="${safeReason}" isTimeout=${isTimeout}`);
         await updateJob(auditId, {
           status: "error",

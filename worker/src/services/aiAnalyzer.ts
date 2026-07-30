@@ -347,7 +347,7 @@ export class AIAnalyzer {
 
     let extractedData: Partial<ExtractedData> = {};
     try {
-      const model = this.env.GEMINI_MODEL || "gemini-1.5-flash";
+      const model = this.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
       const stage1Raw = await callGemini(stage1Messages, model, this.env, 8000);
       extractedData = parseJsonResponse(stage1Raw) as Partial<ExtractedData>;
       console.log(`[AIAnalyzer] Stage 1 complete: ${extractedData.extractedItems?.length || 0} items extracted`);
@@ -371,7 +371,7 @@ export class AIAnalyzer {
 
     let report: AuditReport;
     try {
-      const model = this.env.GEMINI_PRO_MODEL || this.env.GEMINI_MODEL || "gemini-1.5-pro";
+      const model = this.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
       const stage2Raw = await callGemini(stage2Messages, model, this.env, 8192);
       const parsed = parseJsonResponse(stage2Raw) as Partial<AuditReport>;
       report = validateAuditReport(parsed);

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { apiUrl } from "@/config/api";
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { prepareUploadFile, uploadDocument } from "@/lib/upload";
 
 const ACCEPTED_EXTENSIONS = [
   // PDF
@@ -66,9 +67,25 @@ export function UploadCard() {
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [analyzeStep, setAnalyzeStep] = useState(0);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleFiles = useCallback((files: FileList | null) => {
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("hiddenfee:workflow", { detail: { active: state !== "idle" && state !== "error" } }));
+    return () => { window.dispatchEvent(new CustomEvent("hiddenfee:workflow", { detail: { active: false } })); };
+  }, [state]);
+
+  useEffect(() => {
+    if (!file?.type.startsWith("image/") || file.type === "image/heic" || file.type === "image/heif") {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const handleFiles = useCallback(async (files: FileList | null) => {
     const selected = files?.[0];
     if (!selected) return;
 
@@ -78,52 +95,47 @@ export function UploadCard() {
       return;
     }
 
-    if (selected.size > MAX_SIZE_BYTES) {
+    setFileError(null);
+    setErrorMessage(null);
+    setState("uploading");
+    setUploadProgress(5);
+    const prepared = await prepareUploadFile(selected);
+
+    if (prepared.size > MAX_SIZE_BYTES) {
       setFileError(`File is too large. Maximum size is ${MAX_SIZE_MB} MB.`);
+      setState("idle");
       return;
     }
 
-    setFileError(null);
-    setErrorMessage(null);
-    setFile(selected);
-    startUpload(selected);
+    setFile(prepared);
+    await startUpload(prepared);
   }, []);
 
   const startUpload = async (fileToUpload: File) => {
     setState("uploading");
     setUploadProgress(0);
 
-    const formData = new FormData();
-    formData.append("file", fileToUpload);
-
     try {
-      const xhr = new XMLHttpRequest();
-      const uploadPromise = new Promise<{ auditId: string }>((resolve, reject) => {
-        xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100));
-        });
-        xhr.addEventListener("load", () => {
-          if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText));
-          else {
-            try { reject(new Error(JSON.parse(xhr.responseText).error || "Upload failed")); }
-            catch { reject(new Error("Upload failed. Please try again.")); }
-          }
-        });
-        xhr.addEventListener("error", () => reject(new Error("Network error. Please check your connection.")));
-        xhr.open("POST", apiUrl("/upload"));
-        xhr.send(formData);
-      });
-
-      const data = await uploadPromise;
+      setUploadProgress(20);
+      const data = await uploadDocument(fileToUpload);
+      setUploadProgress(100);
       setAuditId(data.auditId);
       setState("extracting");
 
       // Poll until extraction complete → payment gate
+      const pollingStartedAt = Date.now();
       const pollInterval = setInterval(async () => {
+        if (Date.now() - pollingStartedAt > 120_000) {
+          clearInterval(pollInterval);
+          setState("error");
+          setErrorMessage("Document reading timed out. Try a smaller file, fewer pages, or a clearer image.");
+          return;
+        }
         try {
           const res = await fetch(apiUrl(`/analyze/${data.auditId}`));
           if (res.ok) {
-            const job = await res.json();
+            const job = await res.json().catch(() => null);
+            if (!job) throw new Error("Invalid processing response");
             if (job.status === "extracted") {
               clearInterval(pollInterval);
               setState("awaiting_payment");
@@ -280,11 +292,15 @@ export function UploadCard() {
 
             {file && (
               <div className="mt-5 flex w-full items-center gap-3 rounded-2xl border border-violet-400/15 bg-midnight-950/50 p-4 text-left">
+                {previewUrl ? (
+                  <img src={previewUrl} alt="Selected document preview" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+                ) : (
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500/15">
                   <FileCheck2 className="h-5 w-5 text-violet-300" />
                 </div>
+                )}
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-violet-100">{file.name}</p>
+              <p className="break-words text-sm font-semibold text-violet-100">{file.name}</p>
                   <p className="mt-1 text-xs font-semibold text-[#c8d3df]">{formatFileSize(file.size)} · Ready for private review</p>
                 </div>
               </div>

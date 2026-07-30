@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Landing } from "@/pages/Landing";
 import { PageMetadata } from "@/components/seo/PageMetadata";
+import { MobileAuditBar } from "@/components/landing/MobileAuditBar";
 
 const AuditReport = lazy(() => import("@/pages/AuditReport").then((m) => ({ default: m.AuditReport })));
 const NotFound = lazy(() => import("@/pages/NotFound").then((m) => ({ default: m.NotFound })));
@@ -37,6 +38,7 @@ function App() {
         <Route path="/hidden-fees-utility-subscription-bills" element={<HiddenFeesUtilityBills />} />
         <Route path="*" element={<NotFound />} />
       </Routes></Suspense>
+      <MobileAuditBar />
     </BrowserRouter>
   );
 }

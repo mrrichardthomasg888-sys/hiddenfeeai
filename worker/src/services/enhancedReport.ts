@@ -1,428 +1,278 @@
-import type { AuditReport, Finding, VerifiedFinding } from "../types.js";
-import type { EnhancedExecutiveSummary, TopConcern } from "../intelligence/executiveSummary.js";
+import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib";
+import type { AuditReport, Finding } from "../types.js";
+import type { EnhancedExecutiveSummary } from "../intelligence/executiveSummary.js";
 import type { PrioritizedFinding } from "../intelligence/prioritizationEngine.js";
 import type { TrustScore } from "../trust/trustScore.js";
-import type { ConsumerExplanation } from "../intelligence/explanationEngine.js";
 import type { NegotiationAdvice } from "../intelligence/negotiationEngine.js";
 import type { EducationTopic } from "../education/consumerEducation.js";
 import type { ActionPlan } from "../intelligence/actionPlanEngine.js";
 import type { SavingsEstimate } from "../intelligence/savingsEstimator.js";
-import { PDFDocument, rgb, StandardFonts, PDFFont, PDFPage } from "pdf-lib";
-
-// ═══ Premium Redesign: Color Palette ═══
-type Color = [number, number, number];
-const C_PRIMARY: Color = [0.44, 0.31, 0.98]; // A strong, modern violet
-const C_BACKGROUND: Color = [0.98, 0.98, 0.99]; // Off-white for a softer, premium feel
-const C_TEXT_HEADER: Color = [0.1, 0.1, 0.15]; // Near-black for headers
-const C_TEXT_BODY: Color = [0.25, 0.25, 0.3]; // Dark gray for body text
-const C_TEXT_MUTED: Color = [0.5, 0.5, 0.55]; // Lighter gray for metadata
-const C_BORDER: Color = [0.9, 0.9, 0.92]; // Subtle border color
-const C_GREEN: Color = [0.1, 0.6, 0.35];
-const C_RED: Color = [0.8, 0.15, 0.15];
-const C_ORANGE: Color = [0.95, 0.5, 0.1];
-const C_YELLOW: Color = [0.9, 0.7, 0.1];
-
-// ═══ Layout Constants ═══
-const PAGE_WIDTH = 612;
-const PAGE_HEIGHT = 792;
-const MARGIN = 50;
-const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
-
-function severityColor(severity: string): Color {
-  switch (severity?.toLowerCase()) {
-    case "critical": return C_RED;
-    case "high": return C_ORANGE;
-    case "medium": return C_YELLOW;
-    default: return C_GREEN;
-  }
-}
 
 export interface EnhancedReportData {
   auditReport: AuditReport;
   executiveSummary?: EnhancedExecutiveSummary;
   prioritizedFindings?: PrioritizedFinding[];
   trustScore?: TrustScore;
-  explanations?: Map<string, ConsumerExplanation>;
   negotiationAdvice?: Map<string, NegotiationAdvice>;
   educationTopics?: EducationTopic[];
   actionPlan?: ActionPlan;
   savingsEstimates?: SavingsEstimate[];
 }
 
-/**
- * A robust layout engine for PDF generation.
- * This class manages pages, content flow, and ensures no components are
- * awkwardly split across pages, which prevents blank pages.
- */
-class PDFLayoutManager {
-  doc: PDFDocument;
-  pages: PDFPage[] = [];
-  y = 0;
-  font: PDFFont;
-  fontBold: PDFFont;
+type Color = [number, number, number];
+const PAGE_W = 612;
+const PAGE_H = 792;
+const MARGIN = 42;
+const TOP = 58;
+const BOTTOM = 52;
+const WIDTH = PAGE_W - MARGIN * 2;
+const BODY: Color = [0.16, 0.2, 0.27];
+const MUTED: Color = [0.4, 0.45, 0.52];
+const NAVY: Color = [0.035, 0.07, 0.13];
+const BLUE: Color = [0.16, 0.43, 0.82];
+const GOLD: Color = [0.86, 0.64, 0.12];
+const RED: Color = [0.78, 0.18, 0.18];
+const ORANGE: Color = [0.88, 0.42, 0.1];
+const GREEN: Color = [0.08, 0.55, 0.34];
+const BORDER: Color = [0.86, 0.89, 0.93];
+const PAPER: Color = [0.985, 0.99, 1];
 
-  constructor(doc: PDFDocument, font: PDFFont, fontBold: PDFFont) {
-    this.doc = doc;
-    this.font = font;
-    this.fontBold = fontBold;
+const clean = (value: unknown): string => String(value ?? "")
+  .replace(/[\u{1F000}-\u{1FAFF}]/gu, "")
+  .replace(/[\u2010-\u2015]/g, "-")
+  .replace(/\u2022/g, "-")
+  .replace(/\s+/g, " ")
+  .trim();
+
+const money = (value: number | null | undefined) => value == null
+  ? "Not stated"
+  : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(value);
+
+class Flow {
+  private page!: PDFPage;
+  private y = PAGE_H - TOP;
+  private pageNumber = 0;
+
+  constructor(
+    private readonly pdf: PDFDocument,
+    private readonly regular: PDFFont,
+    private readonly bold: PDFFont,
+  ) {}
+
+  addPage(): void {
+    this.page = this.pdf.addPage([PAGE_W, PAGE_H]);
+    this.pageNumber += 1;
+    this.y = PAGE_H - TOP;
+    this.page.drawRectangle({ x: 0, y: 0, width: PAGE_W, height: PAGE_H, color: rgb(...PAPER) });
+    this.page.drawText("HiddenFeeAI Professional Audit Report", { x: MARGIN, y: PAGE_H - 30, size: 8, font: this.regular, color: rgb(...MUTED) });
+    this.page.drawLine({ start: { x: MARGIN, y: PAGE_H - 38 }, end: { x: PAGE_W - MARGIN, y: PAGE_H - 38 }, thickness: 0.6, color: rgb(...BORDER) });
   }
 
-  private get currentPage(): PDFPage {
-    return this.pages[this.pages.length - 1];
+  private ensure(height: number): void {
+    if (!this.page || this.y - height < BOTTOM) this.addPage();
   }
 
-  private addNewPage() {
-    const newPage = this.doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-    this.pages.push(newPage);
-    this.y = PAGE_HEIGHT - MARGIN;
-    newPage.drawRectangle({
-      x: 0, y: 0,
-      width: PAGE_WIDTH, height: PAGE_HEIGHT,
-      color: rgb(...C_BACKGROUND),
-    });
-    this.drawPageHeader();
-  }
-
-  private drawPageHeader() {
-    this.currentPage.drawText('HiddenFeeAI Audit Report', {
-      x: MARGIN,
-      y: PAGE_HEIGHT - 35,
-      font: this.font,
-      size: 9,
-      color: rgb(...C_TEXT_MUTED),
-    });
-    this.currentPage.drawLine({
-      start: { x: MARGIN, y: PAGE_HEIGHT - 45 },
-      end: { x: PAGE_WIDTH - MARGIN, y: PAGE_HEIGHT - 45 },
-      thickness: 0.5,
-      color: rgb(...C_BORDER),
-    });
-  }
-
-  ensureSpace(height: number) {
-    if (this.y - height < MARGIN) {
-      this.addNewPage();
-      this.y -= 40; // Extra space for header on new page
+  private splitWord(word: string, font: PDFFont, size: number, width: number): string[] {
+    const pieces: string[] = [];
+    let part = "";
+    for (const char of word) {
+      if (part && font.widthOfTextAtSize(part + char, size) > width) { pieces.push(part); part = char; }
+      else part += char;
     }
+    if (part) pieces.push(part);
+    return pieces;
   }
 
-  addSpace(height: number) {
-    this.ensureSpace(height);
-    this.y -= height;
-  }
-
-  // A robust text drawing method that calculates its own height
-  drawText(text: string, options: {
-    font?: PDFFont, size?: number, color?: Color, x?: number, y?: number,
-    maxWidth?: number, lineHeight?: number, bold?: boolean
-  } = {}) {
-    const {
-      size = 10,
-      color = C_TEXT_BODY,
-      x = MARGIN,
-      maxWidth = CONTENT_WIDTH,
-      lineHeight = 1.4,
-      bold = false,
-    } = options;
-    const font = bold ? this.fontBold : this.font;
-
-    const lines = this.wrapText(text, font, size, maxWidth);
-    const height = lines.length * size * lineHeight;
-
-    this.ensureSpace(height);
-
-    const yStart = options.y ?? this.y;
-    for (let i = 0; i < lines.length; i++) {
-      this.currentPage.drawText(lines[i], {
-        font, size, color: rgb(...color),
-        x,
-        y: yStart - (i * size * lineHeight),
-      });
-    }
-
-    if (!options.y) {
-      this.y -= height;
-    }
-    return height;
-  }
-
-  drawLine() {
-    this.ensureSpace(10);
-    this.y -= 5;
-    this.currentPage.drawLine({
-      start: { x: MARGIN, y: this.y },
-      end: { x: PAGE_WIDTH - MARGIN, y: this.y },
-      thickness: 1,
-      color: rgb(...C_BORDER),
-    });
-    this.y -= 5;
-  }
-
-  /**
-   * Draws a finding card, managing its own vertical space.
-   * Ensures the entire card fits on the current page or moves to a new one.
-   */
-  drawFindingCard(finding: Finding, index: number) {
-    const title = `${index + 1}. ${finding.title}`;
-    const meta = `${finding.severity} Severity | Confidence: ${finding.confidence_score}% ${finding.page ? `| Page: ${finding.page}` : ''}`;
-    const explanation = finding.explanation;
-    const evidence = `Evidence: "${finding.evidence}"`;
-
-    // Calculate heights of individual text blocks
-    const titleHeight = this.getTextHeight(title, { size: 12, bold: true });
-    const metaHeight = this.getTextHeight(meta, { size: 8 });
-    const explanationHeight = this.getTextHeight(explanation, { size: 9 });
-    const evidenceHeight = this.getTextHeight(evidence, { size: 8 });
-
-    // Define internal card padding and spacing
-    const cardPaddingTop = 20;
-    const cardPaddingBottom = 10;
-    const spacingBetweenText = 5 + 10 + 5; // Between title/meta, meta/explanation, explanation/evidence
-
-    // Calculate total height the card will occupy
-    const totalContentHeight = titleHeight + metaHeight + explanationHeight + evidenceHeight + spacingBetweenText;
-    const totalCardHeight = totalContentHeight + cardPaddingTop + cardPaddingBottom;
-
-    this.ensureSpace(totalCardHeight); // Ensure enough space for the entire card
-
-    const cardRectY = this.y - totalCardHeight; // This is the bottom Y coordinate of the card rectangle
-    const sevColor = severityColor(finding.severity);
-
-    // Draw card background and severity bar
-    this.currentPage.drawRectangle({
-      x: MARGIN, y: cardRectY,
-      width: CONTENT_WIDTH, height: totalCardHeight,
-      color: rgb(1, 1, 1),
-      borderColor: rgb(...C_BORDER),
-      borderWidth: 1,
-    });
-    this.currentPage.drawRectangle({
-      x: MARGIN, y: cardRectY,
-      width: 5, height: totalCardHeight,
-      color: rgb(...sevColor),
-    });
-
-    // Draw text elements, letting drawText update this.y automatically
-    this.y -= cardPaddingTop; // Move down for top padding
-    this.drawText(title, { x: MARGIN + 15, size: 12, bold: true, color: C_TEXT_HEADER });
-    this.y -= 5; // Spacing
-    this.drawText(meta, { x: MARGIN + 15, size: 8, color: sevColor });
-    this.y -= 10; // Spacing
-    this.drawText(explanation, { x: MARGIN + 15, size: 9, maxWidth: CONTENT_WIDTH - 30 });
-    this.y -= 5; // Spacing
-    this.drawText(evidence, { x: MARGIN + 15, size: 8, color: C_TEXT_MUTED, maxWidth: CONTENT_WIDTH - 30 });
-    this.y -= cardPaddingBottom; // Move down for bottom padding
-  }
-
-  // Utility to measure text height without drawing
-  getTextHeight(text: string, options: { font?: PDFFont, size?: number, maxWidth?: number, lineHeight?: number, bold?: boolean } = {}): number {
-    const { size = 10, maxWidth = CONTENT_WIDTH, lineHeight = 1.4, bold = false } = options;
-    const font = bold ? this.fontBold : this.font;
-    const lines = this.wrapText(text, font, size, maxWidth);
-    return lines.length * size * lineHeight;
-  }
-
-  wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
-    if (!text) return [];
-    const words = text.split(' ');
-    const lines: string[] = [];
-    let currentLine = '';
-    for (const word of words) {
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
-      if (font.widthOfTextAtSize(testLine, size) > maxWidth) {
-        lines.push(currentLine);
-        currentLine = word;
-      } else {
-        currentLine = testLine;
+  wrap(value: unknown, font: PDFFont, size: number, width: number): string[] {
+    const paragraphs = String(value ?? "").replace(/\r/g, "").split("\n");
+    const output: string[] = [];
+    for (const paragraph of paragraphs) {
+      const words = clean(paragraph).split(" ").filter(Boolean).flatMap((word) =>
+        font.widthOfTextAtSize(word, size) > width ? this.splitWord(word, font, size, width) : [word]
+      );
+      if (!words.length) { output.push(""); continue; }
+      let line = "";
+      for (const word of words) {
+        const next = line ? `${line} ${word}` : word;
+        if (line && font.widthOfTextAtSize(next, size) > width) { output.push(line); line = word; }
+        else line = next;
       }
+      if (line) output.push(line);
     }
-    lines.push(currentLine);
-    return lines;
+    return output;
   }
 
-  async finalize() {
-    const totalPages = this.doc.getPageCount();
-    for (let i = 0; i < totalPages; i++) {
-      const page = this.doc.getPage(i);
-      const footerText = `Page ${i + 1} of ${totalPages}`;
-      page.drawText(footerText, {
-        x: PAGE_WIDTH / 2 - this.font.widthOfTextAtSize(footerText, 8) / 2,
-        y: 30,
-        font: this.font,
-        size: 8,
-        color: rgb(...C_TEXT_MUTED),
-      });
+  text(value: unknown, options: { size?: number; bold?: boolean; color?: Color; indent?: number; width?: number; gap?: number } = {}): void {
+    const size = options.size ?? 9.5;
+    const font = options.bold ? this.bold : this.regular;
+    const indent = options.indent ?? 0;
+    const width = options.width ?? WIDTH - indent;
+    const lineHeight = size * 1.34;
+    const lines = this.wrap(value, font, size, width);
+    for (const line of lines) {
+      this.ensure(lineHeight);
+      if (line) this.page.drawText(line, { x: MARGIN + indent, y: this.y - size, size, font, color: rgb(...(options.color ?? BODY)) });
+      this.y -= lineHeight;
     }
-    return this.doc.save();
+    this.y -= options.gap ?? 4;
+  }
+
+  section(title: string, subtitle?: string): void {
+    const height = subtitle ? 47 : 31;
+    this.ensure(height);
+    this.y -= 3;
+    this.page.drawRectangle({ x: MARGIN, y: this.y - 22, width: 4, height: 23, color: rgb(...BLUE) });
+    this.page.drawText(clean(title), { x: MARGIN + 12, y: this.y - 17, size: 17, font: this.bold, color: rgb(...NAVY) });
+    this.y -= 27;
+    if (subtitle) this.text(subtitle, { size: 8.5, color: MUTED, gap: 8 }); else this.y -= 7;
+  }
+
+  label(label: string, value: unknown): void {
+    if (value == null || clean(value) === "") return;
+    this.text(`${label}: ${clean(value)}`, { size: 9.2, gap: 3 });
+  }
+
+  metric(label: string, value: string, color: Color = BLUE): void {
+    this.ensure(44);
+    this.page.drawRectangle({ x: MARGIN, y: this.y - 37, width: WIDTH, height: 37, color: rgb(0.95, 0.97, 0.99), borderColor: rgb(...BORDER), borderWidth: 0.6 });
+    this.page.drawText(clean(label), { x: MARGIN + 10, y: this.y - 14, size: 8.5, font: this.regular, color: rgb(...MUTED) });
+    const safeValue = clean(value);
+    this.page.drawText(safeValue, { x: PAGE_W - MARGIN - 10 - this.bold.widthOfTextAtSize(safeValue, 12), y: this.y - 16, size: 12, font: this.bold, color: rgb(...color) });
+    this.y -= 44;
+  }
+
+  finding(finding: Finding, index: number): void {
+    const severityColor = finding.severity === "Critical" ? RED : finding.severity === "High" ? ORANGE : finding.severity === "Medium" ? GOLD : GREEN;
+    this.ensure(40);
+    this.text(`${index + 1}. ${finding.title}`, { size: 12, bold: true, color: severityColor, gap: 2 });
+    this.text(`${finding.severity} | ${finding.confidence_score}% confidence | ${finding.amount == null ? "Amount not stated" : money(finding.amount)}${finding.page ? ` | Page ${finding.page}` : ""}`, { size: 8.2, color: MUTED, gap: 5 });
+    this.label("Evidence", finding.evidence);
+    this.label("Explanation", finding.explanation);
+    this.label("Why it matters", finding.why_it_matters);
+    this.label("Recommended action", finding.recommended_action);
+    this.label("Negotiation message", finding.negotiation_message);
+    if (finding.negotiation_strategy) {
+      this.label("Difficulty", finding.negotiation_strategy.difficulty);
+      finding.negotiation_strategy.steps?.forEach((step, i) => this.text(`Step ${i + 1}: ${step}`, { indent: 10, size: 9, gap: 2 }));
+      this.label("Script", finding.negotiation_strategy.script);
+      finding.negotiation_strategy.key_points?.forEach((point) => this.text(`- ${point}`, { indent: 10, size: 9, gap: 2 }));
+    }
+    this.ensure(10);
+    this.page.drawLine({ start: { x: MARGIN, y: this.y }, end: { x: PAGE_W - MARGIN, y: this.y }, thickness: 0.6, color: rgb(...BORDER) });
+    this.y -= 10;
+  }
+
+  finalize(): void {
+    const count = this.pdf.getPageCount();
+    this.pdf.getPages().forEach((page, index) => {
+      const footer = `Page ${index + 1} of ${count}`;
+      page.drawLine({ start: { x: MARGIN, y: 42 }, end: { x: PAGE_W - MARGIN, y: 42 }, thickness: 0.5, color: rgb(...BORDER) });
+      page.drawText(footer, { x: PAGE_W / 2 - this.regular.widthOfTextAtSize(footer, 8) / 2, y: 27, size: 8, font: this.regular, color: rgb(...MUTED) });
+    });
   }
 }
 
 export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uint8Array> {
-  const { auditReport } = data;
-  const doc = await PDFDocument.create();
-  const font = await doc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const report = data.auditReport;
+  const pdf = await PDFDocument.create();
+  const regular = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const flow = new Flow(pdf, regular, bold);
 
-  const layout = new PDFLayoutManager(doc, font, fontBold);
+  flow.addPage();
+  flow.section("Professional Audit Report", "Complete findings, evidence, financial impact, and next steps");
+  flow.text(report.document_meta.document_type || "Document Analysis", { size: 24, bold: true, color: NAVY, gap: 12 });
+  flow.label("Issuer", report.document_meta.issuer);
+  flow.label("Payer", report.document_meta.payer);
+  flow.label("Analysis date", report.document_meta.analysis_date);
+  flow.label("Report ID", report.document_meta.report_id);
+  flow.metric("Risk score", `${report.risk_score}/100 - ${report.risk_level}`, report.risk_score >= 70 ? RED : report.risk_score >= 40 ? ORANGE : GREEN);
+  flow.metric("Potential savings", money(report.potential_savings), GREEN);
+  flow.metric("Evidence confidence", `${report.confidence_level}%`, BLUE);
+  flow.metric("Document coverage", `${report.document_meta.pages_reviewed} pages / ${report.document_meta.line_items_reviewed} line items`, BLUE);
 
-  // ═══════════════════════════════════════════
-  //  COVER PAGE
-  // ═══════════════════════════════════════════
-  layout.addNewPage();
-  layout.currentPage.drawRectangle({ x: 0, y: 0, width: PAGE_WIDTH, height: PAGE_HEIGHT, color: rgb(0.05, 0.05, 0.15) });
-  layout.drawText('CONFIDENTIAL AI AUDIT REPORT', { y: PAGE_HEIGHT / 2 + 100, size: 28, color: [1, 1, 1], bold: true, x: MARGIN });
-  layout.drawText(auditReport.document_meta.document_type || 'Document Analysis', { y: PAGE_HEIGHT / 2 + 70, size: 20, color: C_PRIMARY, bold: true, x: MARGIN });
-  layout.y = PAGE_HEIGHT / 2;
-  layout.drawLine();
-  const formattedDate = new Date(auditReport.document_meta.analysis_date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-  layout.drawText(`Date: ${formattedDate}`, { size: 12, color: [0.8, 0.8, 0.8] });
-  layout.addSpace(5);
-  layout.drawText(`File: ${auditReport.document_meta.fileName || 'N/A'}`, { size: 12, color: [0.8, 0.8, 0.8] });
-  layout.addSpace(5);
-  layout.drawText(`Report ID: ${auditReport.document_meta.report_id.slice(0, 8).toUpperCase()}`, { size: 12, color: [0.8, 0.8, 0.8] });
-
-  // ═══════════════════════════════════════════
-  //  EXECUTIVE SUMMARY
-  // ═══════════════════════════════════════════
-  layout.addNewPage();
-  layout.addSpace(40);
-  layout.drawText('Executive Summary', { size: 24, bold: true, color: C_TEXT_HEADER });
-  layout.addSpace(20);
-
-  // --- Risk Score ---
-  if (data.trustScore) {
-    const ts = data.trustScore;
-    const scoreColor = ts.score >= 80 ? C_GREEN : ts.score >= 60 ? C_YELLOW : C_ORANGE;
-    layout.drawText('Trust Score', { size: 16, bold: true, color: C_TEXT_HEADER });
-    layout.addSpace(5);
-    layout.drawText(`${ts.score}/100`, { size: 28, bold: true, color: scoreColor });
-    layout.addSpace(5);
-    layout.drawText(ts.ratingLabel, { size: 11, color: C_TEXT_BODY });
-    layout.addSpace(20);
-  }
-
-  // --- Financial Impact ---
+  flow.section("Executive Summary");
   if (data.executiveSummary) {
-    const es = data.executiveSummary;
-    layout.drawText('Financial Overview', { size: 16, bold: true, color: C_TEXT_HEADER });
-    layout.addSpace(10);
-    layout.drawText(`Total First-Year Impact: $${es.totalFirstYear.toLocaleString()}`, { size: 14, bold: true, color: C_ORANGE });
-    layout.addSpace(5);
-    if (es.oneTimeCosts > 0) layout.drawText(`One-Time Charges: $${es.oneTimeCosts.toLocaleString()}`, { size: 10 });
-    if (es.recurringMonthly > 0) layout.drawText(`Monthly Recurring: $${es.recurringMonthly.toLocaleString()}`, { size: 10 });
-    layout.addSpace(20);
+    flow.text(data.executiveSummary.riskSummary);
+    data.executiveSummary.keyTakeaways?.forEach((item) => flow.text(`- ${item}`, { indent: 10, gap: 2 }));
+    data.executiveSummary.recommendedNextSteps?.forEach((item, index) => flow.text(`${index + 1}. ${item}`, { indent: 10, gap: 2 }));
+  } else flow.text(`The audit identified ${report.findings.length} findings with a ${report.risk_level.toLowerCase()} overall risk level.`);
+
+  flow.section("Financial Impact");
+  flow.metric("Original total", money(report.financial_impact.original_total));
+  flow.metric("Questionable charges", money(report.financial_impact.questionable_charges_total), ORANGE);
+  flow.metric("Corrected total", money(report.financial_impact.corrected_total), GREEN);
+  data.savingsEstimates?.forEach((estimate) => {
+    flow.text(`${estimate.feeName}: ${estimate.rangeLabel}`, { bold: true, gap: 2 });
+    flow.text(estimate.basis, { size: 8.8, gap: 2 });
+    flow.text(estimate.disclaimer, { size: 7.8, color: MUTED, gap: 5 });
+  });
+
+  if (data.prioritizedFindings?.length) {
+    flow.section("Priority Order", "All ranked issues, not only the first three");
+    data.prioritizedFindings.forEach((priority) => {
+      flow.text(`${priority.rank}. ${clean(priority.priorityLabel)} - ${priority.finding.title}`, { bold: true, gap: 2 });
+      flow.text(priority.reason, { size: 8.8, color: MUTED, gap: 2 });
+      flow.text(priority.recommendedAction, { size: 9, gap: 5 });
+    });
   }
 
-  // --- Summary Text ---
-  if (data.executiveSummary?.riskSummary) {
-    layout.drawText('Summary', { size: 16, bold: true, color: C_TEXT_HEADER });
-    layout.addSpace(10);
-    layout.drawText(data.executiveSummary.riskSummary, { size: 10, lineHeight: 1.5 });
-    layout.addSpace(20);
+  flow.section(`All Findings (${report.findings.length})`, "Every finding, source excerpt, explanation, risk detail, and recommendation");
+  if (!report.findings.length) flow.text("No major findings were identified in the available document.");
+  report.findings.forEach((finding, index) => flow.finding(finding, index));
+
+  if (data.actionPlan) {
+    flow.section("Action Plan");
+    data.actionPlan.checklist?.forEach((item, index) => flow.text(`${index + 1}. ${item}`, { gap: 3 }));
+    Object.entries(data.actionPlan).forEach(([key, value]) => {
+      if (key === "checklist" || value == null || typeof value === "object") return;
+      flow.label(clean(key.replace(/([A-Z])/g, " $1")), value);
+    });
   }
 
-  // --- Key Takeaways ---
-  if (data.executiveSummary?.keyTakeaways && data.executiveSummary.keyTakeaways.length > 0) {
-    layout.drawText('Key Takeaways', { size: 16, bold: true, color: C_TEXT_HEADER });
-    layout.addSpace(10);
-    for (const takeaway of data.executiveSummary.keyTakeaways) {
-      layout.drawText(`• ${takeaway}`, { size: 10, lineHeight: 1.6, maxWidth: CONTENT_WIDTH - 15, x: MARGIN + 15 });
-      layout.addSpace(5);
-    }
+  if (data.negotiationAdvice?.size) {
+    flow.section("Negotiation Guidance", "Complete scripts and talking points for every applicable finding");
+    Array.from(data.negotiationAdvice.values()).forEach((advice, index) => {
+      flow.text(`${index + 1}. ${advice.findingTitle} (${advice.difficulty})`, { size: 12, bold: true, color: BLUE, gap: 3 });
+      advice.questions.forEach((question) => flow.text(`Question: ${question}`, { indent: 10, gap: 2 }));
+      advice.talkingPoints.forEach((point) => flow.text(`- ${point}`, { indent: 10, gap: 2 }));
+      flow.label("Phone script", advice.phoneScript);
+      flow.label("Email template", advice.emailTemplate);
+      advice.alternativeActions.forEach((action) => flow.text(`Alternative: ${action}`, { indent: 10, gap: 2 }));
+      flow.label("Expected outcome", advice.expectedOutcome);
+    });
   }
 
-  // ═══════════════════════════════════════════
-  //  PRIORITIZED FINDINGS
-  // ═══════════════════════════════════════════
-  if (data.prioritizedFindings && data.prioritizedFindings.length > 0) {
-    layout.addNewPage();
-    layout.addSpace(40);
-    layout.drawText('Priority Findings', { size: 24, bold: true, color: C_TEXT_HEADER });
-    layout.drawText('These are the most critical issues that require your immediate attention.', { size: 11, color: C_TEXT_MUTED });
-    layout.addSpace(20);
-
-    for (const pf of data.prioritizedFindings.slice(0, 3)) {
-      layout.drawFindingCard(pf.finding, pf.rank - 1);
-      layout.addSpace(15);
-    }
+  if (data.educationTopics?.length) {
+    flow.section("Consumer Education");
+    data.educationTopics.forEach((topic) => {
+      flow.text(topic.topic, { size: 12, bold: true, color: NAVY, gap: 2 });
+      flow.label("What it is", topic.whatIsIt);
+      flow.label("Why it matters", topic.whyItMatters);
+      topic.questionsToAsk.forEach((question) => flow.text(`- ${question}`, { indent: 10, gap: 2 }));
+      flow.label("Learn more", topic.learnMore);
+    });
   }
 
-  // ═══════════════════════════════════════════
-  //  DETAILED FINDINGS
-  // ═══════════════════════════════════════════
-  if (auditReport.findings && auditReport.findings.length > 0) {
-    layout.addNewPage();
-    layout.addSpace(40);
-    layout.drawText('All Findings', { size: 24, bold: true, color: C_TEXT_HEADER });
-    layout.drawText(`A detailed list of all ${auditReport.findings.length} issues identified in the document.`, { size: 11, color: C_TEXT_MUTED });
-    layout.addSpace(20);
-
-    for (let i = 0; i < auditReport.findings.length; i++) {
-      layout.drawFindingCard(auditReport.findings[i], i);
-      layout.addSpace(15);
-    }
+  if (report.clean_document_summary) {
+    flow.section("Clean Document Details");
+    report.clean_document_summary.spending_breakdown?.forEach((item) => flow.text(`${item.category}: ${money(item.amount)}`, { gap: 2 }));
+    report.clean_document_summary.key_terms?.forEach((item) => flow.text(`Key term: ${item}`, { gap: 2 }));
+    report.clean_document_summary.negotiation_opportunities?.forEach((item) => flow.text(`Opportunity: ${item}`, { gap: 2 }));
+    report.clean_document_summary.questions_to_ask?.forEach((item) => flow.text(`Question: ${item}`, { gap: 2 }));
+    report.clean_document_summary.money_saving_suggestions?.forEach((item) => flow.text(`Suggestion: ${item}`, { gap: 2 }));
   }
 
-  // ═══════════════════════════════════════════
-  //  ACTION PLAN & NEGOTIATION
-  // ═══════════════════════════════════════════
-  if (data.actionPlan || (data.negotiationAdvice && data.negotiationAdvice.size > 0)) {
-    layout.addNewPage();
-    layout.addSpace(40);
-    layout.drawText('Action Center', { size: 24, bold: true, color: C_TEXT_HEADER });
-    layout.drawText('Your recommended next steps and negotiation guidance.', { size: 11, color: C_TEXT_MUTED });
-    layout.addSpace(20);
-
-    if (data.actionPlan) {
-      layout.drawText('Action Checklist', { size: 16, bold: true, color: C_TEXT_HEADER });
-      layout.addSpace(10);
-      for (const item of data.actionPlan.checklist.slice(0, 5)) {
-        layout.drawText(`☐ ${item}`, { size: 10, lineHeight: 1.6 });
-        layout.addSpace(5);
-      }
-      layout.addSpace(20);
-    }
-
-    if (data.negotiationAdvice && data.negotiationAdvice.size > 0) {
-      const advices = Array.from(data.negotiationAdvice.values()).filter(a => a.negotiability !== 'none').slice(0, 2);
-      if (advices.length > 0) {
-        layout.drawText('Negotiation Scripts', { size: 16, bold: true, color: C_TEXT_HEADER }); // This updates layout.y
-        layout.addSpace(10); // This updates layout.y
-        for (const advice of advices) {
-          // Calculate heights for the negotiation card content
-          const scriptHeight = layout.getTextHeight(advice.phoneScript, { size: 9, maxWidth: CONTENT_WIDTH - 20 });
-          const titleHeight = layout.getTextHeight(`For: ${advice.findingTitle}`, { size: 11, bold: true });
-          const cardPaddingTop = 20;
-          const cardPaddingBottom = 10;
-          const spacingBetweenText = 10; // Between title and script
-
-          const totalContentHeight = titleHeight + scriptHeight + spacingBetweenText;
-          const totalCardHeight = totalContentHeight + cardPaddingTop + cardPaddingBottom;
-
-          layout.ensureSpace(totalCardHeight); // Ensure space for the entire card
-          const cardRectY = layout.y - totalCardHeight; // Bottom Y coordinate of the card rectangle
-
-          layout.currentPage.drawRectangle({
-            x: MARGIN, y: cardRectY,
-            width: CONTENT_WIDTH, height: totalCardHeight,
-            color: rgb(0.95, 0.98, 0.95), // Light green background
-            borderColor: rgb(...C_GREEN),
-            borderWidth: 1,
-          });
-
-          layout.y -= cardPaddingTop; // Move down for top padding
-          layout.drawText(`For: ${advice.findingTitle}`, { x: MARGIN + 10, size: 11, bold: true, color: C_GREEN });
-          layout.y -= spacingBetweenText; // Spacing
-          layout.drawText(`"${advice.phoneScript}"`, { x: MARGIN + 10, size: 9, color: C_TEXT_BODY, maxWidth: CONTENT_WIDTH - 20 });
-          layout.y -= cardPaddingBottom; // Move down for bottom padding
-          layout.addSpace(15);
-        }
-      }
-    }
+  if (data.trustScore) {
+    flow.section("Evidence and Reliability");
+    flow.metric("Trust score", `${data.trustScore.score}/100 - ${data.trustScore.rating}`);
+    flow.text(data.trustScore.summary);
+    data.trustScore.factors.forEach((factor) => flow.text(`${factor.name}: ${factor.score}/100 - ${factor.detail}`, { gap: 3 }));
+    flow.text(data.trustScore.disclaimer, { size: 8, color: MUTED });
   }
 
-  // ═══════════════════════════════════════════
-  //  FINALIZATION
-  // ═══════════════════════════════════════════
-  return layout.finalize();
+  flow.section("Important Notice");
+  flow.text("This report is based on information visible in the submitted document. Verify important findings against the original and seek qualified advice when appropriate. This report is not legal, financial, tax, or accounting advice.", { size: 8.5, color: MUTED });
+  flow.finalize();
+  return pdf.save();
 }

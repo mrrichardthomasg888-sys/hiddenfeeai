@@ -29,6 +29,11 @@ app.use("*", cors({
   origin: (origin, c) => {
     const isDev = c.env.ENVIRONMENT === "development";
     const frontendUrl = c.env.FRONTEND_URL || "http://localhost:5173";
+    const requestOrigin = c.req.header("Origin");
+
+    if (requestOrigin === "null" || requestOrigin?.startsWith("capacitor://")) {
+      return requestOrigin;
+    }
 
     // Production allowed origins only
     const PRODUCTION_ORIGINS = [
@@ -59,6 +64,10 @@ app.use("*", cors({
     // Default: return frontend URL for unknown origins (prevents CORS errors)
     return frontendUrl;
   },
+  allowHeaders: ["Content-Type", "Accept"],
+  allowMethods: ["GET", "POST", "OPTIONS"],
+  exposeHeaders: ["Content-Disposition", "Content-Type"],
+  maxAge: 86400,
 }));
 
 // ── Health check ──
@@ -73,10 +82,6 @@ app.get("/api/health", (c) => {
       new: c.env.USE_NEW_PIPELINE === "true",
       v2: c.env.USE_V2_PIPELINE === "true",
     },
-    docling: {
-      configured: !!c.env.DOCLING_SERVICE_URL,
-      url: c.env.DOCLING_SERVICE_URL ? "[configured]" : "[not set]",
-    },
     store: c.env.ANALYSIS_KV ? "kv" : "memory",
     metrics: getMetricsSnapshot(),
   });
@@ -87,8 +92,7 @@ app.get("/api/health/deep", async (c) => {
   const results: Record<string, unknown> = {
     worker: { status: "ok", timestamp: new Date().toISOString() },
     kv: { status: "unknown" },
-    docling: { status: "unknown" },
-    deepseek: { status: "unknown" },
+    gemini: { status: "unknown" },
   };
 
   // KV check
@@ -104,33 +108,19 @@ app.get("/api/health/deep", async (c) => {
     results.kv = { status: "not_configured" };
   }
 
-  // Docling check
-  if (c.env.DOCLING_SERVICE_URL) {
+  // Gemini check
+  const geminiKey = c.env.GEMINI_API_KEY || c.env.GOOGLE_API_KEY;
+  if (geminiKey) {
     try {
-      const doclingResp = await fetch(`${c.env.DOCLING_SERVICE_URL}/health`, {
+      const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${c.env.GEMINI_MODEL || "gemini-3.5-flash-lite"}?key=${geminiKey}`, {
         signal: AbortSignal.timeout(5000),
       });
-      results.docling = { status: doclingResp.ok ? "ok" : "degraded", code: doclingResp.status };
+      results.gemini = { status: geminiResp.ok ? "ok" : "degraded", code: geminiResp.status };
     } catch {
-      results.docling = { status: "unavailable" };
+      results.gemini = { status: "unavailable" };
     }
   } else {
-    results.docling = { status: "not_configured" };
-  }
-
-  // DeepSeek check
-  if (c.env.DEEPSEEK_API_KEY) {
-    try {
-      const dsResp = await fetch(`${c.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com"}/v1/models`, {
-        headers: { Authorization: `Bearer ${c.env.DEEPSEEK_API_KEY}` },
-        signal: AbortSignal.timeout(5000),
-      });
-      results.deepseek = { status: dsResp.ok ? "ok" : "degraded", code: dsResp.status };
-    } catch {
-      results.deepseek = { status: "unavailable" };
-    }
-  } else {
-    results.deepseek = { status: "not_configured" };
+    results.gemini = { status: "not_configured" };
   }
 
   const allOk = Object.values(results).every((r: any) => r.status === "ok" || r.status === "not_configured");

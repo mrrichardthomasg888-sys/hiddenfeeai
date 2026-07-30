@@ -68,7 +68,7 @@ export function ReportNavigation() {
       </nav>
 
       {/* Mobile bottom nav */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 border-t border-white/[0.09] bg-[#0e1625]/95 shadow-[0_-12px_40px_rgba(0,0,0,.28)] backdrop-blur-xl print:hidden">
+      <nav className="hidden print:hidden">
         <div className="flex items-center justify-around px-2 py-2">
           {sections.slice(0, 5).map((s) => (
             <button

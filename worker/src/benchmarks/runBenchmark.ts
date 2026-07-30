@@ -418,7 +418,7 @@ async function runAllBenchmarks(): Promise<BenchmarkReport> {
     qualityGate(results.every(r => r.actual.suppressedCount <= r.expected.findingCount * 0.3),
       'Hallucination Rate < 30%', 'No excessive suppression detected'),
     qualityGate(true, 'All documents processed without crash', `${results.length} documents`),
-    qualityGate(results.length >= 5, 'Minimum 5 benchmark documents', `${results.length}`);
+    qualityGate(results.length >= 5, 'Minimum 5 benchmark documents', `${results.length}`),
   ];
 
   const allGatePassed = gates.every(g => g.passed);

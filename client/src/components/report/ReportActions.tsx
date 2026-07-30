@@ -63,7 +63,7 @@ export function ReportActions({ auditId }: ReportActionsProps) {
   };
 
   return (
-    <div className="report-actions print:hidden sticky bottom-0 z-50 border-t border-[#f4c542]/20 bg-[#0e1625]/95 shadow-[0_-18px_55px_rgba(0,0,0,.35)] backdrop-blur-2xl">
+    <div className="report-actions print:hidden sticky bottom-0 z-50 border-t border-[#f4c542]/20 bg-[#0e1625]/95 shadow-[0_-18px_55px_rgba(0,0,0,.35)] backdrop-blur-2xl pb-[env(safe-area-inset-bottom)]">
       {feedback && (
         <div
           className={`mx-auto flex max-w-4xl items-center justify-center gap-2 px-4 py-2 text-xs font-medium ${

@@ -26,6 +26,7 @@ import {
   LIMITS,
   CUSTOMER_MESSAGES,
 } from "./extractionTypes.js";
+import { extractTextWithGemini } from "./geminiVision.js";
 
 const PROVIDER: ExtractionProvider = "image-ocr";
 
@@ -72,7 +73,7 @@ function detectImageMime(buffer: ArrayBuffer): ImageMime {
   if (arr[4] === 0x66 && arr[5] === 0x74 && arr[6] === 0x79 && arr[7] === 0x70) {
     if (arr.length >= 12) {
       const brand = new TextDecoder().decode(arr.slice(8, 12)).toLowerCase();
-      if (brand === "heic" || brand === "heix") return "image/heic";
+      if (["heic", "heix", "mif1", "mif2", "msf1"].includes(brand)) return "image/heic";
       if (brand === "heif" || brand === "hevc") return "image/heif";
     }
   }
@@ -406,15 +407,13 @@ export async function extractImage(
   const preprocessed = await preprocessImage(buffer, detectedMime);
 
   // ── OCR Attempt 1: Cloudflare Workers AI ──
-  console.log("[FALLBACK_STARTED] provider=image-ocr-cloudflare-ai");
-  let ocrText = await ocrWithCloudflareAI(preprocessed.base64, env, TIMEOUTS.ocrMs);
+  console.log("[OCR_STARTED] provider=gemini");
+  const processedBuffer = preprocessed.preprocessed
+    ? Uint8Array.from(atob(preprocessed.base64), (char) => char.charCodeAt(0)).buffer
+    : buffer;
+  let ocrText = await extractTextWithGemini(processedBuffer, preprocessed.mime, env, TIMEOUTS.ocrMs);
 
   // ── OCR Attempt 2: DeepSeek (if CF AI failed) ──
-  if (!ocrText) {
-    console.log("[FALLBACK_STARTED] provider=image-ocr-deepseek");
-    ocrText = await ocrWithDeepSeek(preprocessed.base64, env, TIMEOUTS.ocrMs);
-  }
-
   if (!ocrText) {
     console.log("[IMAGE_FAILURE] reason=all_ocr_failed willFallback=true");
     return null;

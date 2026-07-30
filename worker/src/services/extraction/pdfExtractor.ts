@@ -9,6 +9,7 @@
  */
 
 import type { Env, DocumentRouteResult } from "../../types.js";
+import { extractTextWithGemini } from "./geminiVision.js";
 import {
   type UnifiedExtractionResult,
   type ExtractionProvider,
@@ -233,7 +234,7 @@ export async function extractPdf(
 
   // ── Step 2: OCR fallback for scanned PDFs ──
   console.log("[FALLBACK_STARTED] provider=pdf-ocr-cloudflare-ai");
-  const ocrText = await ocrPdfWithCloudflareAI(buffer, env, TIMEOUTS.ocrMs);
+  const ocrText = await extractTextWithGemini(buffer, "application/pdf", env, TIMEOUTS.ocrMs);
 
   if (ocrText) {
     const lineItems = ocrText.split("\n").filter((l) => l.trim().length > 0).length;

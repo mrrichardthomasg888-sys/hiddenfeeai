@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { Env, AuditReport, Finding } from "../types.js";
+import type { Env, AuditReport, Finding, VerifiedFinding } from "../types.js";
 import { getJob, updateJob } from "../jobStore.js";
 import { runAudit as runAuditLegacy } from "../services/ai.legacy.js";
 import { AIAnalyzer } from "../services/aiAnalyzer.js";
@@ -7,13 +7,51 @@ import { generateEnhancedPdf, type EnhancedReportData } from "../services/enhanc
 import * as errors from "../utils/errors.js";
 import { generateExecutiveSummary } from "../intelligence/executiveSummary.js";
 import { prioritizeFindings } from "../intelligence/prioritizationEngine.js";
-import { calculateTrustScore } from "../trust/trustScore.js";
+import type { TrustScore } from "../trust/trustScore.js";
 import { generateNegotiationAdvice } from "../intelligence/negotiationEngine.js";
 import { generateEducationTopics } from "../education/consumerEducation.js";
 import { generateActionPlan } from "../intelligence/actionPlanEngine.js";
 import { estimateSavings } from "../intelligence/savingsEstimator.js";
 
 export const analyzeRoute = new Hono<{ Bindings: Env }>();
+
+function verifiedFindings(findings: Finding[]): VerifiedFinding[] {
+  return findings.map((finding) => ({
+    id: finding.id,
+    title: finding.title,
+    category: finding.category,
+    severity: finding.severity,
+    confidenceScore: finding.confidence_score,
+    confidenceTier: finding.confidence_score >= 85 ? "verified" : finding.confidence_score >= 70 ? "high" : finding.confidence_score >= 50 ? "moderate" : "low",
+    amount: finding.amount,
+    page: finding.page,
+    sectionHeading: null,
+    evidenceQuote: finding.evidence,
+    explanation: finding.explanation,
+    whyItMatters: finding.why_it_matters,
+    recommendedAction: finding.recommended_action,
+    negotiationMessage: finding.negotiation_message,
+    negotiationStrategy: finding.negotiation_strategy,
+    sourceAnalyzer: "gemini-3.5-flash-lite",
+    evidencePresent: Boolean(finding.evidence),
+    evidenceMatchScore: finding.evidence ? finding.confidence_score / 100 : 0,
+    verificationNotes: finding.evidence ? "Evidence excerpt included in the report." : "No source excerpt was returned.",
+    suppressed: false,
+  }));
+}
+
+function buildTrustScore(report: AuditReport): TrustScore {
+  const score = Math.max(0, Math.min(100, report.confidence_level ?? 0));
+  const rating = score >= 90 ? "Excellent" : score >= 75 ? "Good" : score >= 55 ? "Fair" : score >= 35 ? "Limited" : "Poor";
+  return {
+    score,
+    rating,
+    ratingLabel: `${rating} evidence confidence`,
+    factors: [{ name: "Gemini evidence confidence", score, weight: 1, label: rating, detail: `${report.findings.filter((finding) => finding.evidence).length}/${report.findings.length} findings include source evidence.` }],
+    summary: `The report's evidence confidence is ${score}/100 (${rating}).`,
+    disclaimer: "This score measures support in the submitted document, not whether a company is trustworthy.",
+  };
+}
 
 /**
  * GET /api/analyze/:auditId
@@ -163,12 +201,13 @@ analyzeRoute.get("/:auditId/pdf", async (c) => {
     // Safely generate intelligence modules — each is optional for PDF
     let executiveSummary, prioritizedFindings, trustScore, negotiationAdvice, educationTopics, actionPlan, savingsEstimates;
     try { executiveSummary = generateExecutiveSummary(job.report); } catch { console.warn("[PDF] failed to generate executiveSummary"); }
-    try { prioritizedFindings = prioritizeFindings(job.report.findings); } catch { console.warn("[PDF] failed to generate prioritizedFindings"); }
-    try { trustScore = calculateTrustScore(job.report); } catch { console.warn("[PDF] failed to generate trustScore"); }
-    try { negotiationAdvice = generateNegotiationAdvice(job.report.findings); } catch { console.warn("[PDF] failed to generate negotiationAdvice"); }
+    const verified = verifiedFindings(job.report.findings);
+    try { prioritizedFindings = prioritizeFindings(verified); } catch { console.warn("[PDF] failed to generate prioritizedFindings"); }
+    try { trustScore = buildTrustScore(job.report); } catch { console.warn("[PDF] failed to generate trustScore"); }
+    try { negotiationAdvice = new Map(verified.map((finding) => [finding.id, generateNegotiationAdvice(finding)])); } catch { console.warn("[PDF] failed to generate negotiationAdvice"); }
     try { educationTopics = generateEducationTopics(job.report.findings); } catch { console.warn("[PDF] failed to generate educationTopics"); }
-    try { actionPlan = generateActionPlan(job.report.findings); } catch { console.warn("[PDF] failed to generate actionPlan"); }
-    try { savingsEstimates = estimateSavings(job.report.findings); } catch { console.warn("[PDF] failed to generate savingsEstimates"); }
+    try { actionPlan = generateActionPlan(verified, job.report.document_meta.document_type); } catch { console.warn("[PDF] failed to generate actionPlan"); }
+    try { savingsEstimates = estimateSavings(verified); } catch { console.warn("[PDF] failed to generate savingsEstimates"); }
 
     const enhancedData: EnhancedReportData = {
       auditReport: job.report,

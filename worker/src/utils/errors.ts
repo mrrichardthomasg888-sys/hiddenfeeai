@@ -20,6 +20,6 @@ export function notPaid() {
   return new HTTPException(402, { message: "Payment is required before analysis. Please complete checkout." });
 }
 
-export function generic() {
-  return new HTTPException(500, { message: "Something went wrong. Please try again." });
+export function generic(message = "Something went wrong. Please try again.") {
+  return new HTTPException(500, { message });
 }

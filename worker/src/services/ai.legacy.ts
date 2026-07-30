@@ -294,7 +294,7 @@ export async function runAudit(input: AuditInput, env: Env): Promise<AuditReport
     { role: "user", content: buildUserMessage(input) },
   ];
 
-  const model = env.GEMINI_PRO_MODEL || env.GEMINI_MODEL || "gemini-3.5-flash-lite";
+  const model = env.GEMINI_MODEL || "gemini-3.5-flash-lite";
   const rawResponse = await callGemini(messages, env, model);
   const parsed = parseAuditResponse(rawResponse);
   const validated = validateAuditReport(parsed);

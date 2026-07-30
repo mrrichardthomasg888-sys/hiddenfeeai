@@ -19,7 +19,6 @@
 
 import type { Env, DocumentRouteResult } from "../../types.js";
 import { routeDocument } from "../../router/documentRouter.js";
-import { extractWithDocling } from "./doclingExtractor.js";
 import { extractImage } from "./imageExtractor.js";
 import { extractPdf } from "./pdfExtractor.js";
 import { extractOffice } from "./officeExtractor.js";
@@ -72,16 +71,6 @@ route=${requiresOcr ? "ocr-path" : "fast-path"}`,
   // OCR-PATH: Document needs OCR → IBM Docling primary
   // (scanned PDFs, images, phone photos, screenshots)
   // ══════════════════════════════════════════════════════════
-  if (requiresOcr && env.DOCLING_SERVICE_URL) {
-    console.log("[ROUTER] route=ocr-path (Docling)");
-    const doclingResult = await extractWithDocling(buffer, fileName, route, env);
-    if (doclingResult?.success) {
-      console.log(`[EXTRACTION_COMPLETE] provider=docling textLength=${doclingResult.text.length} confidence=${doclingResult.context.confidenceScore}`);
-      return doclingResult;
-    }
-    console.log("[DOCLING_FAILURE] falling back to format-specific extractor");
-  }
-
   // ══════════════════════════════════════════════════════════
   // FAST-PATH: Text already exists → native extraction (instant)
   // (digital PDFs with embedded text, DOCX, XLSX, TXT, CSV)
@@ -95,7 +84,7 @@ route=${requiresOcr ? "ocr-path" : "fast-path"}`,
     console.log("[EXTRACTION_START] provider=pdf-native (decompressing FlateDecode streams)");
     result = await extractPdf(buffer, fileName, route, env);
   } else if (isImageFormat(route.fileFormat)) {
-    console.log("[EXTRACTION_START] provider=image-ocr (Cloudflare AI)");
+    console.log("[EXTRACTION_START] provider=image-ocr (Gemini)");
     result = await extractImage(buffer, fileName, route, env);
   } else if (isOfficeFormat(route.fileFormat)) {
     console.log("[EXTRACTION_START] provider=office-native (JSZip)");
@@ -106,18 +95,18 @@ route=${requiresOcr ? "ocr-path" : "fast-path"}`,
   }
 
   if (result?.success && result.text.length > 10) {
-    // Fast-path digital PDF: enhance with Docling if quality is low
-    if (route.fileFormat === "pdf" && !requiresOcr && env.DOCLING_SERVICE_URL && result.context.confidenceScore < 70) {
-      console.log("[ROUTER] native_quality_low — trying Docling enhancement");
-      const doclingResult = await extractWithDocling(buffer, fileName, route, env);
-      if (doclingResult?.success && doclingResult.text.length > result.text.length) {
-        console.log(`[EXTRACTION_COMPLETE] provider=docling (enhanced) textLength=${doclingResult.text.length}`);
-        return doclingResult;
-      }
-    }
-
     console.log(`[EXTRACTION_COMPLETE] provider=${result.provider} textLength=${result.text.length} confidence=${result.context.confidenceScore}`);
     return result;
+  }
+
+  if (isImageFormat(route.fileFormat)) {
+    return {
+      text: "",
+      context: { pages: 1, lineItems: 0, fileType: route.fileFormat, extractionMethod: "image-ocr", confidenceScore: 0 },
+      provider: "image-ocr",
+      success: false,
+      customerMessage: "Gemini could not find readable document text in this image. Try a clearer, closer photo with the full page visible.",
+    };
   }
 
   // ══════════════════════════════════════════════════════════

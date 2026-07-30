@@ -124,7 +124,7 @@ function detectFormatByMagic(buffer: ArrayBuffer): SupportedFileFormat | null {
   // HEIC/HEIF: ftyp box
   if (len >= 12 && arr[4] === 0x66 && arr[5] === 0x74 && arr[6] === 0x79 && arr[7] === 0x70) {
     const brand = new TextDecoder().decode(arr.slice(8, 12)).toLowerCase();
-    if (['heic', 'heif', 'heix', 'hevc'].includes(brand)) return 'heic';
+    if (['heic', 'heif', 'heix', 'hevc', 'mif1', 'mif2', 'msf1'].includes(brand)) return 'heic';
   }
 
   // EML: starts with common email headers
