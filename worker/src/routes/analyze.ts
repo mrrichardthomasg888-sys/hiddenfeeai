@@ -290,20 +290,22 @@ function buildEmailTemplate(r: AuditReport): string[] {
 
 // ── Report normalization: convert legacy snake_case to frontend camelCase ──
 function normalizeReportForFrontend(r: AuditReport): any {
-  const findings = r.findings ?? [];
-  const hiddenFees = r.hidden_fees ?? [];
-  const mathErrors = r.math_errors ?? [];
-  const contractRisks = r.contract_risks ?? [];
+  const metadata: Partial<AuditReport["document_meta"]> = r.document_meta ?? {};
+  const financialImpact: Partial<AuditReport["financial_impact"]> = r.financial_impact ?? {};
+  const findings = Array.isArray(r.findings) ? r.findings : [];
+  const hiddenFees = Array.isArray(r.hidden_fees) ? r.hidden_fees : [];
+  const mathErrors = Array.isArray(r.math_errors) ? r.math_errors : [];
+  const contractRisks = Array.isArray(r.contract_risks) ? r.contract_risks : [];
 
   return {
     documentMetadata: {
-      documentType: r.document_meta.document_type ?? "Other",
-      issuer: r.document_meta.issuer,
-      payer: r.document_meta.payer,
-      analysisDate: r.document_meta.analysis_date ?? new Date().toISOString(),
-      pagesReviewed: r.document_meta.pages_reviewed ?? 0,
-      lineItemsReviewed: r.document_meta.line_items_reviewed ?? 0,
-      reportId: r.document_meta.report_id ?? "",
+      documentType: metadata.document_type ?? "Other",
+      issuer: metadata.issuer ?? "",
+      payer: metadata.payer ?? "",
+      analysisDate: metadata.analysis_date ?? new Date().toISOString(),
+      pagesReviewed: metadata.pages_reviewed ?? 0,
+      lineItemsReviewed: metadata.line_items_reviewed ?? 0,
+      reportId: metadata.report_id ?? "",
     },
     executiveSummary: {
       headline: r.risk_level ?? "Review Recommended",
@@ -315,10 +317,10 @@ function normalizeReportForFrontend(r: AuditReport): any {
     overallRiskScore: r.risk_score ?? 0,
     riskCategory: r.risk_level ?? "Low",
     financialImpact: {
-      originalTotal: r.financial_impact.original_total ?? 0,
-      questionableChargesTotal: r.financial_impact.questionable_charges_total ?? 0,
-      correctedTotal: r.financial_impact.corrected_total ?? 0,
-      potentialOvercharge: r.financial_impact.questionable_charges_total ?? 0,
+      originalTotal: financialImpact.original_total ?? 0,
+      questionableChargesTotal: financialImpact.questionable_charges_total ?? 0,
+      correctedTotal: financialImpact.corrected_total ?? 0,
+      potentialOvercharge: financialImpact.questionable_charges_total ?? 0,
       description: "Based on identified hidden fees and questionable charges.",
     },
     estimatedSavings: {
