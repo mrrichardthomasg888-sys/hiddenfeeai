@@ -22,8 +22,8 @@ export interface EnhancedReportData {
 type Color = [number, number, number];
 const PAGE_W = 612;
 const PAGE_H = 792;
-const MARGIN = 42;
-const TOP = 58;
+const MARGIN = 48;
+const TOP = 66;
 const BOTTOM = 52;
 const WIDTH = PAGE_W - MARGIN * 2;
 const BODY: Color = [0.95, 0.97, 1];
@@ -153,22 +153,22 @@ class Flow {
       ["01", "Audit at a Glance", "Your document, risk score, savings, and coverage."],
       ["02", "Report Deliverables", "The decision tools included in your audit."],
       ["03", "Executive Summary", "The key issues and what they mean."],
-      ["04", "Financial Impact", "Totals, questionable charges, and possible savings."],
-      ["05", "All Findings", "Evidence, explanations, and recommended actions."],
-      ["06", "Action Plan", "The highest-value next steps to take."],
-      ["07", "Questions to Ask", "Focused questions for your provider or counterpart."],
-      ["08", "Negotiation Guidance", "Questions, talking points, and scripts."],
+      ["04", "Your Action Scripts", "Complete phone and email scripts for every finding."],
+      ["05", "Financial Impact", "Totals, questionable charges, and possible savings."],
+      ["06", "All Findings", "Evidence, explanations, and recommended actions."],
+      ["07", "Action Plan", "The highest-value next steps to take."],
+      ["08", "Questions and Guidance", "Questions, talking points, and alternatives."],
       ["09", "Evidence and Reliability", "Confidence, source support, and limitations."],
     ];
     entries.forEach(([number, title, description], index) => {
-      this.ensure(43);
-      const y = this.y - 36;
-      this.page.drawRectangle({ x: MARGIN, y, width: WIDTH, height: 36, color: rgb(0.07, 0.14, 0.25), borderColor: rgb(...BORDER), borderWidth: 0.5 });
-      this.page.drawRectangle({ x: MARGIN, y, width: 42, height: 36, color: index % 2 === 0 ? rgb(...BLUE) : rgb(...GOLD) });
-      this.page.drawText(number, { x: MARGIN + 11, y: y + 13, size: 9, font: this.bold, color: rgb(1, 1, 1) });
-      this.page.drawText(title, { x: MARGIN + 54, y: y + 20, size: 11.5, font: this.bold, color: rgb(1, 1, 1) });
-      this.page.drawText(description, { x: MARGIN + 54, y: y + 8, size: 7.8, font: this.regular, color: rgb(...MUTED) });
-      this.y -= 42;
+      this.ensure(52);
+      const y = this.y - 44;
+      this.page.drawRectangle({ x: MARGIN, y, width: WIDTH, height: 44, color: rgb(0.07, 0.14, 0.25), borderColor: rgb(...BORDER), borderWidth: 0.5 });
+      this.page.drawRectangle({ x: MARGIN, y, width: 46, height: 44, color: index % 2 === 0 ? rgb(...BLUE) : rgb(...GOLD) });
+      this.page.drawText(number, { x: MARGIN + 12, y: y + 16, size: 11, font: this.bold, color: rgb(1, 1, 1) });
+      this.page.drawText(title, { x: MARGIN + 59, y: y + 25, size: 13, font: this.bold, color: rgb(1, 1, 1) });
+      this.page.drawText(description, { x: MARGIN + 59, y: y + 9, size: 9.5, font: this.regular, color: rgb(...MUTED) });
+      this.y -= 52;
     });
     this.y -= 8;
   }
@@ -208,44 +208,44 @@ class Flow {
   }
 
   text(value: unknown, options: { size?: number; bold?: boolean; color?: Color; indent?: number; width?: number; gap?: number } = {}): void {
-    const size = options.size ?? 12;
+    const size = options.size ?? 15;
     const font = options.bold ? this.bold : this.regular;
     const indent = options.indent ?? 0;
     const width = options.width ?? WIDTH - indent;
-    const lineHeight = size * 1.34;
+    const lineHeight = size * 1.45;
     const lines = this.wrap(value, font, size, width);
     for (const line of lines) {
       this.ensure(lineHeight);
       if (line) this.page.drawText(line, { x: MARGIN + indent, y: this.y - size, size, font, color: rgb(...(options.color ?? BODY)) });
       this.y -= lineHeight;
     }
-    this.y -= options.gap ?? 4;
+    this.y -= options.gap ?? 7;
   }
 
   section(title: string, subtitle?: string): void {
-    const height = subtitle ? 54 : 38;
+    const height = subtitle ? 68 : 48;
     this.ensure(height);
     this.y -= 3;
-    this.page.drawRectangle({ x: MARGIN, y: this.y - 30, width: WIDTH, height: 30, color: rgb(0.07, 0.18, 0.34), borderColor: rgb(0.22, 0.45, 0.76), borderWidth: 0.5 });
-    this.page.drawRectangle({ x: MARGIN, y: this.y - 28, width: 6, height: 28, color: rgb(...BLUE) });
-    this.page.drawText(clean(title), { x: MARGIN + 16, y: this.y - 21, size: 19, font: this.bold, color: rgb(1, 1, 1) });
-    this.y -= 34;
-    if (subtitle) this.text(subtitle, { size: 11, color: MUTED, gap: 10 }); else this.y -= 8;
+    this.page.drawRectangle({ x: MARGIN, y: this.y - 38, width: WIDTH, height: 38, color: rgb(0.07, 0.18, 0.34), borderColor: rgb(0.22, 0.45, 0.76), borderWidth: 0.6 });
+    this.page.drawRectangle({ x: MARGIN, y: this.y - 38, width: 7, height: 38, color: rgb(...BLUE) });
+    this.page.drawText(clean(title), { x: MARGIN + 18, y: this.y - 27, size: 21, font: this.bold, color: rgb(1, 1, 1) });
+    this.y -= 46;
+    if (subtitle) this.text(subtitle, { size: 13.5, color: MUTED, gap: 14 }); else this.y -= 12;
   }
 
   label(label: string, value: unknown): void {
     if (value == null || clean(value) === "") return;
-    this.text(`${label}: ${clean(value)}`, { size: 11.5, gap: 5 });
+    this.text(`${label}: ${clean(value)}`, { size: 14, gap: 8 });
   }
 
   metric(label: string, value: string, color: Color = BLUE): void {
-    this.ensure(44);
-    this.page.drawRectangle({ x: MARGIN, y: this.y - 37, width: WIDTH, height: 37, color: rgb(0.06, 0.13, 0.23), borderColor: rgb(...BORDER), borderWidth: 0.6 });
-    this.page.drawRectangle({ x: MARGIN, y: this.y - 37, width: 4, height: 37, color: rgb(...color) });
-    this.page.drawText(clean(label), { x: MARGIN + 14, y: this.y - 14, size: 10.4, font: this.regular, color: rgb(...MUTED) });
+    this.ensure(58);
+    this.page.drawRectangle({ x: MARGIN, y: this.y - 50, width: WIDTH, height: 50, color: rgb(0.06, 0.13, 0.23), borderColor: rgb(...BORDER), borderWidth: 0.6 });
+    this.page.drawRectangle({ x: MARGIN, y: this.y - 50, width: 5, height: 50, color: rgb(...color) });
+    this.page.drawText(clean(label), { x: MARGIN + 16, y: this.y - 20, size: 12.5, font: this.regular, color: rgb(...MUTED) });
     const safeValue = clean(value);
-    this.page.drawText(safeValue, { x: PAGE_W - MARGIN - 10 - this.bold.widthOfTextAtSize(safeValue, 15), y: this.y - 18, size: 15, font: this.bold, color: rgb(...color) });
-    this.y -= 44;
+    this.page.drawText(safeValue, { x: PAGE_W - MARGIN - 12 - this.bold.widthOfTextAtSize(safeValue, 17), y: this.y - 23, size: 17, font: this.bold, color: rgb(...color) });
+    this.y -= 60;
   }
 
   private scriptLines(value: string, width: number): string[] {
@@ -255,65 +255,51 @@ class Flow {
         if (lines[lines.length - 1] !== "") lines.push("");
         continue;
       }
-      lines.push(...this.wrap(paragraph, this.regular, 10.5, width));
+      lines.push(...this.wrap(paragraph, this.regular, 13.5, width));
     }
     return lines.length ? lines : ["No script was generated for this item."];
   }
 
-  private drawScriptHeader(continued: boolean): void {
-    this.ensure(43);
-    this.page.drawRectangle({ x: MARGIN, y: this.y - 31, width: WIDTH, height: 31, color: rgb(0.11, 0.17, 0.28), borderColor: rgb(...GOLD), borderWidth: 0.7 });
-    this.page.drawRectangle({ x: MARGIN, y: this.y - 31, width: 6, height: 31, color: rgb(...GOLD) });
-    this.page.drawText(`YOUR ACTION SCRIPTS${continued ? " - CONTINUED" : ""}`, { x: MARGIN + 16, y: this.y - 21, size: 15, font: this.bold, color: rgb(1, 1, 1) });
-    this.y -= 39;
-  }
-
-  actionScripts(advice: NegotiationAdvice): void {
-    const gap = 12;
-    const columnWidth = (WIDTH - gap) / 2;
-    const innerWidth = columnWidth - 28;
-    const phone = this.scriptLines(advice.phoneScript, innerWidth);
-    const email = this.scriptLines(advice.emailTemplate, innerWidth);
+  private scriptCard(label: string, value: string, accent: Color): void {
+    const innerWidth = WIDTH - 34;
+    const lines = this.scriptLines(value, innerWidth);
+    const lineHeight = 19.5;
+    const labelHeight = 38;
     let offset = 0;
-    const totalLines = Math.max(phone.length, email.length);
 
-    while (offset < totalLines) {
-      this.ensure(100);
-      this.drawScriptHeader(offset > 0);
-      const labelHeight = 30;
-      const lineHeight = 14.2;
-      const available = this.y - BOTTOM - labelHeight - 14;
-      const count = Math.max(1, Math.min(totalLines - offset, Math.floor(available / lineHeight)));
-      const cardHeight = labelHeight + count * lineHeight + 14;
+    while (offset < lines.length) {
+      this.ensure(120);
+      const available = this.y - BOTTOM - labelHeight - 20;
+      const count = Math.max(1, Math.min(lines.length - offset, Math.floor(available / lineHeight)));
+      const cardHeight = labelHeight + count * lineHeight + 20;
       const y = this.y - cardHeight;
-      const leftX = MARGIN;
-      const rightX = MARGIN + columnWidth + gap;
-
-      [leftX, rightX].forEach((x, column) => {
-        this.page.drawRectangle({ x, y, width: columnWidth, height: cardHeight, color: rgb(0.055, 0.12, 0.22), borderColor: rgb(0.28, 0.42, 0.62), borderWidth: 0.7 });
-        this.page.drawRectangle({ x, y: y + cardHeight - labelHeight, width: columnWidth, height: labelHeight, color: column === 0 ? rgb(0.08, 0.22, 0.4) : rgb(0.18, 0.15, 0.09) });
-        this.page.drawRectangle({ x, y, width: 3, height: cardHeight, color: column === 0 ? rgb(...BLUE) : rgb(...GOLD) });
-        this.page.drawText(column === 0 ? "PHONE SCRIPT" : "EMAIL TEMPLATE", { x: x + 13, y: y + cardHeight - 20, size: 9.4, font: this.bold, color: column === 0 ? rgb(0.58, 0.8, 1) : rgb(1, 0.84, 0.32) });
-      });
-
-      [phone, email].forEach((script, column) => {
-        const x = column === 0 ? leftX : rightX;
-        for (let lineIndex = 0; lineIndex < count; lineIndex += 1) {
-          const line = script[offset + lineIndex] ?? "";
-          if (line) this.page.drawText(line, { x: x + 13, y: y + cardHeight - labelHeight - 16 - lineIndex * lineHeight, size: 10.5, font: this.regular, color: rgb(0.95, 0.97, 1) });
-        }
-      });
-      this.y = y - 12;
+      this.page.drawRectangle({ x: MARGIN, y, width: WIDTH, height: cardHeight, color: rgb(0.055, 0.12, 0.22), borderColor: rgb(...BORDER), borderWidth: 0.8 });
+      this.page.drawRectangle({ x: MARGIN, y: y + cardHeight - labelHeight, width: WIDTH, height: labelHeight, color: rgb(0.1, 0.17, 0.28) });
+      this.page.drawRectangle({ x: MARGIN, y, width: 5, height: cardHeight, color: rgb(...accent) });
+      this.page.drawText(`${label}${offset > 0 ? " - CONTINUED" : ""}`, { x: MARGIN + 17, y: y + cardHeight - 26, size: 12, font: this.bold, color: rgb(...accent) });
+      for (let lineIndex = 0; lineIndex < count; lineIndex += 1) {
+        const line = lines[offset + lineIndex] ?? "";
+        if (line) this.page.drawText(line, { x: MARGIN + 17, y: y + cardHeight - labelHeight - 20 - lineIndex * lineHeight, size: 13.5, font: this.regular, color: rgb(...BODY) });
+      }
+      this.y = y - 16;
       offset += count;
     }
   }
 
-  finding(finding: Finding, index: number, advice?: NegotiationAdvice): void {
+  actionScripts(advice: NegotiationAdvice, index: number): void {
+    this.ensure(100);
+    this.text(`${index + 1}. ${advice.findingTitle}`, { size: 17, bold: true, color: GOLD, gap: 4 });
+    this.text(`${advice.difficulty} negotiation difficulty`, { size: 12.5, color: MUTED, gap: 10 });
+    this.scriptCard("PHONE SCRIPT", advice.phoneScript, [0.49, 0.76, 1]);
+    this.scriptCard("EMAIL TEMPLATE", advice.emailTemplate, [1, 0.82, 0.3]);
+    this.y -= 8;
+  }
+
+  finding(finding: Finding, index: number): void {
     const severityColor = finding.severity === "Critical" ? RED : finding.severity === "High" ? ORANGE : finding.severity === "Medium" ? GOLD : GREEN;
     this.ensure(40);
-    this.text(`${index + 1}. ${finding.title}`, { size: 15, bold: true, color: severityColor, gap: 4 });
-    this.text(`${finding.severity} | ${finding.confidence_score}% confidence | ${finding.amount == null ? "Amount not stated" : money(finding.amount)}${finding.page ? ` | Page ${finding.page}` : ""}`, { size: 10.5, color: MUTED, gap: 7 });
-    if (advice) this.actionScripts(advice);
+    this.text(`${index + 1}. ${finding.title}`, { size: 18, bold: true, color: severityColor, gap: 6 });
+    this.text(`${finding.severity} | ${finding.confidence_score}% confidence | ${finding.amount == null ? "Amount not stated" : money(finding.amount)}${finding.page ? ` | Page ${finding.page}` : ""}`, { size: 13, color: MUTED, gap: 11 });
     this.label("Evidence", finding.evidence);
     this.label("Explanation", finding.explanation);
     this.label("Why it matters", finding.why_it_matters);
@@ -321,13 +307,13 @@ class Flow {
     this.label("Negotiation message", finding.negotiation_message);
     if (finding.negotiation_strategy) {
       this.label("Difficulty", finding.negotiation_strategy.difficulty);
-      finding.negotiation_strategy.steps?.forEach((step, i) => this.text(`Step ${i + 1}: ${step}`, { indent: 10, size: 11, gap: 3 }));
+      finding.negotiation_strategy.steps?.forEach((step, i) => this.text(`Step ${i + 1}: ${step}`, { indent: 12, size: 13.5, gap: 6 }));
       this.label("Script", finding.negotiation_strategy.script);
-      finding.negotiation_strategy.key_points?.forEach((point) => this.text(`- ${point}`, { indent: 10, size: 11, gap: 3 }));
+      finding.negotiation_strategy.key_points?.forEach((point) => this.text(`- ${point}`, { indent: 12, size: 13.5, gap: 6 }));
     }
     this.ensure(10);
     this.page.drawLine({ start: { x: MARGIN, y: this.y }, end: { x: PAGE_W - MARGIN, y: this.y }, thickness: 0.6, color: rgb(...BORDER) });
-    this.y -= 10;
+    this.y -= 18;
   }
 
   finalize(): void {
@@ -409,9 +395,14 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
   flow.section("Executive Summary");
   if (data.executiveSummary) {
     flow.text(data.executiveSummary.riskSummary);
-    data.executiveSummary.keyTakeaways?.forEach((item) => flow.text(`- ${item}`, { indent: 10, gap: 2 }));
-    data.executiveSummary.recommendedNextSteps?.forEach((item, index) => flow.text(`${index + 1}. ${item}`, { indent: 10, gap: 2 }));
+    data.executiveSummary.keyTakeaways?.forEach((item) => flow.text(`- ${item}`, { indent: 12, gap: 6 }));
+    data.executiveSummary.recommendedNextSteps?.forEach((item, index) => flow.text(`${index + 1}. ${item}`, { indent: 12, gap: 6 }));
   } else flow.text(`The audit identified ${report.findings.length} findings with a ${report.risk_level.toLowerCase()} overall risk level.`);
+
+  if (data.negotiationAdvice?.size) {
+    flow.section("Your Action Scripts", "Ready-to-use phone and email language for every applicable finding");
+    Array.from(data.negotiationAdvice.values()).forEach((advice, index) => flow.actionScripts(advice, index));
+  }
 
   flow.section("Financial Impact");
   flow.metric("Original total", money(report.financial_impact.original_total));
@@ -419,22 +410,22 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
   flow.metric("Corrected total", money(report.financial_impact.corrected_total), GREEN);
   data.savingsEstimates?.forEach((estimate) => {
     flow.text(`${estimate.feeName}: ${estimate.rangeLabel}`, { bold: true, gap: 2 });
-    flow.text(estimate.basis, { size: 10.5, gap: 3 });
-    flow.text(estimate.disclaimer, { size: 10, color: MUTED, gap: 6 });
+    flow.text(estimate.basis, { size: 13.5, gap: 6 });
+    flow.text(estimate.disclaimer, { size: 12.5, color: MUTED, gap: 10 });
   });
 
   if (data.prioritizedFindings?.length) {
     flow.section("Priority Order", "All ranked issues, not only the first three");
     data.prioritizedFindings.forEach((priority) => {
       flow.text(`${priority.rank}. ${clean(priority.priorityLabel)} - ${priority.finding.title}`, { bold: true, gap: 2 });
-      flow.text(priority.reason, { size: 10.5, color: MUTED, gap: 3 });
-      flow.text(priority.recommendedAction, { size: 11, gap: 6 });
+      flow.text(priority.reason, { size: 13.5, color: MUTED, gap: 6 });
+      flow.text(priority.recommendedAction, { size: 14, gap: 10 });
     });
   }
 
   flow.section(`All Findings (${report.findings.length})`, "Every finding, source excerpt, explanation, risk detail, and recommendation");
   if (!report.findings.length) flow.text("No major findings were identified in the available document.");
-  report.findings.forEach((finding, index) => flow.finding(finding, index, data.negotiationAdvice?.get(finding.id)));
+  report.findings.forEach((finding, index) => flow.finding(finding, index));
 
   if (data.actionPlan) {
     flow.section("Action Plan", "A practical sequence for review, negotiation, and follow-through");
@@ -447,10 +438,10 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
     ] as const;
     phases.forEach(([title, items]) => {
       if (!items?.length) return;
-      flow.text(title, { size: 14, bold: true, color: GOLD, gap: 4 });
+      flow.text(title, { size: 17, bold: true, color: GOLD, gap: 7 });
       items.forEach((item, index) => {
         flow.text(`${index + 1}. ${item.step} (${clean(item.urgency).replace(/_/g, " ")})`, { bold: true, gap: 2 });
-        flow.text(item.detail, { size: 10.5, color: MUTED, gap: 5 });
+        flow.text(item.detail, { size: 13.5, color: MUTED, gap: 9 });
       });
     });
   }
@@ -467,11 +458,11 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
   if (data.negotiationAdvice?.size) {
     flow.section("Negotiation Guidance", "Complete scripts and talking points for every applicable finding");
     Array.from(data.negotiationAdvice.values()).forEach((advice, index) => {
-      flow.text(`${index + 1}. ${advice.findingTitle} (${advice.difficulty})`, { size: 12, bold: true, color: BLUE, gap: 3 });
-      advice.questions.forEach((question) => flow.text(`Question: ${question}`, { indent: 10, gap: 2 }));
-      advice.talkingPoints.forEach((point) => flow.text(`- ${point}`, { indent: 10, gap: 2 }));
-      flow.text("The phone and email scripts for this item appear directly beneath its finding.", { size: 10.5, color: MUTED, gap: 4 });
-      advice.alternativeActions.forEach((action) => flow.text(`Alternative: ${action}`, { indent: 10, gap: 2 }));
+      flow.text(`${index + 1}. ${advice.findingTitle} (${advice.difficulty})`, { size: 16, bold: true, color: BLUE, gap: 6 });
+      advice.questions.forEach((question) => flow.text(`Question: ${question}`, { indent: 12, gap: 6 }));
+      advice.talkingPoints.forEach((point) => flow.text(`- ${point}`, { indent: 12, gap: 6 }));
+      flow.text("The complete phone and email scripts for this item appear in Your Action Scripts near the beginning of this report.", { size: 13, color: MUTED, gap: 7 });
+      advice.alternativeActions.forEach((action) => flow.text(`Alternative: ${action}`, { indent: 12, gap: 6 }));
       flow.label("Expected outcome", advice.expectedOutcome);
     });
   }
@@ -479,10 +470,10 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
   if (data.educationTopics?.length) {
     flow.section("Consumer Education");
     data.educationTopics.forEach((topic) => {
-      flow.text(topic.topic, { size: 13, bold: true, color: BLUE, gap: 3 });
+      flow.text(topic.topic, { size: 17, bold: true, color: BLUE, gap: 7 });
       flow.label("What it is", topic.whatIsIt);
       flow.label("Why it matters", topic.whyItMatters);
-      topic.questionsToAsk.forEach((question) => flow.text(`- ${question}`, { indent: 10, gap: 2 }));
+      topic.questionsToAsk.forEach((question) => flow.text(`- ${question}`, { indent: 12, gap: 6 }));
       flow.label("Learn more", topic.learnMore);
     });
   }
@@ -501,11 +492,11 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
     flow.metric("Trust score", `${data.trustScore.score}/100 - ${data.trustScore.rating}`);
     flow.text(data.trustScore.summary);
     data.trustScore.factors.forEach((factor) => flow.text(`${factor.name}: ${factor.score}/100 - ${factor.detail}`, { gap: 3 }));
-    flow.text(data.trustScore.disclaimer, { size: 10, color: MUTED });
+    flow.text(data.trustScore.disclaimer, { size: 12.5, color: MUTED });
   }
 
   flow.section("Important Notice");
-  flow.text("This report is based on information visible in the submitted document. Verify important findings against the original and seek qualified advice when appropriate. This report is not legal, financial, tax, or accounting advice.", { size: 10, color: MUTED });
+  flow.text("This report is based on information visible in the submitted document. Verify important findings against the original and seek qualified advice when appropriate. This report is not legal, financial, tax, or accounting advice.", { size: 12.5, color: MUTED });
   flow.finalize();
   return pdf.save();
 }
