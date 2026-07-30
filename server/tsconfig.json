@@ -15,7 +15,6 @@
     "sourceMap": true,
     "noUnusedLocals": false,
     "noUnusedParameters": true,
-    "ignoreDeprecations": "6.0",
     "baseUrl": "./",
     "paths": {
       "@/*": ["src/*"]
