@@ -54,32 +54,34 @@ export function ReportActions({ auditId }: ReportActionsProps) {
     try {
       const pdfUrl = apiUrl(`/analyze/${auditId}/pdf`);
       const fileName = `hiddenfeeai-audit-${auditId.slice(0, 8)}.pdf`;
-      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
-        || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
-      // Mobile browsers need a direct attachment response. On iPhone and iPad,
-      // Safari then shows its native confirmation asking whether to download
-      // the file. This path deliberately never invokes the Share API.
-      if (isMobile) {
-        const link = document.createElement("a");
-        link.href = pdfUrl;
-        link.download = fileName;
-        link.rel = "noopener";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        showFeedback("success", "Your browser will ask where to download the PDF.");
-        return;
-      }
-
-      // Desktop browsers receive a local blob URL with the download attribute,
-      // which saves the PDF as a file instead of opening Share or a new tab.
+      // Fetch first so the cross-origin Worker URL never becomes the browser's
+      // current page. Safari ignores `download` on cross-origin links, which was
+      // causing the "Frame load interrupted" screen.
       const response = await fetch(pdfUrl);
       if (!response.ok) {
         const payload = await response.json().catch(() => null) as { error?: string } | null;
         throw new Error(payload?.error || "Could not generate the PDF report.");
       }
       const blob = await response.blob();
+      if (!blob.size || !blob.type.includes("pdf")) throw new Error("The report service returned an invalid PDF.");
+      const file = new File([blob], fileName, { type: "application/pdf" });
+      const isAppleMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+        || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+      // iOS Safari's native file sheet reliably provides "Save to Files".
+      if (isAppleMobile && navigator.share && navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: "HiddenFeeAI Audit Report" });
+          showFeedback("success", "Choose Save to Files to download your PDF.");
+          return;
+        } catch (error) {
+          if (error instanceof Error && error.name === "AbortError") return;
+          // Fall through to the standard file download if native sharing fails.
+        }
+      }
+
+      // Desktop, Android and older Safari receive a same-origin blob URL with
+      // the download attribute, so the report saves instead of navigating away.
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
