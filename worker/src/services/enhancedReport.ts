@@ -102,31 +102,48 @@ class Flow {
 
   cover(report: AuditReport): void {
     this.page.drawRectangle({ x: 0, y: 0, width: PAGE_W, height: PAGE_H, color: rgb(...NAVY) });
-    this.page.drawCircle({ x: PAGE_W - 38, y: PAGE_H - 42, size: 175, color: rgb(...BLUE), opacity: 0.14 });
-    this.page.drawCircle({ x: PAGE_W - 80, y: 125, size: 142, color: rgb(...GOLD), opacity: 0.11 });
+    this.page.drawCircle({ x: PAGE_W - 24, y: PAGE_H - 20, size: 176, color: rgb(...BLUE), opacity: 0.15 });
+    this.page.drawCircle({ x: PAGE_W - 25, y: 100, size: 168, color: rgb(...GOLD), opacity: 0.1 });
+    this.page.drawRectangle({ x: 0, y: 0, width: PAGE_W, height: PAGE_H, color: rgb(0.02, 0.04, 0.08), opacity: 0.18 });
     this.page.drawRectangle({ x: 0, y: 0, width: 13, height: PAGE_H, color: rgb(...GOLD) });
-    drawBrandMark(this.page, MARGIN + 37, PAGE_H - 115, 1.65);
-    this.page.drawText("HIDDEN", { x: MARGIN + 72, y: PAGE_H - 123, size: 23, font: this.bold, color: rgb(1, 1, 1) });
-    this.page.drawText("FEE", { x: MARGIN + 166, y: PAGE_H - 123, size: 23, font: this.bold, color: rgb(...GOLD) });
-    this.page.drawText("AI", { x: MARGIN + 222, y: PAGE_H - 120, size: 11, font: this.bold, color: rgb(...GOLD) });
-    this.page.drawText("PRIVATE DOCUMENT REVIEW", { x: MARGIN + 28, y: PAGE_H - 190, size: 10, font: this.bold, color: rgb(0.49, 0.76, 1) });
-    const titleLines = this.wrap(clean(report.document_meta.document_type || "Professional document review"), this.bold, 29, WIDTH - 56).slice(0, 2);
-    titleLines.forEach((line, index) => this.page.drawText(line, { x: MARGIN + 28, y: PAGE_H - 240 - index * 36, size: 29, font: this.bold, color: rgb(1, 1, 1) }));
-    const titleDepth = titleLines.length * 36;
-    this.page.drawText("Evidence-led findings, clear financial impact, and practical next steps.", { x: MARGIN + 28, y: PAGE_H - 254 - titleDepth, size: 12, font: this.regular, color: rgb(0.82, 0.88, 0.95) });
+    drawBrandMark(this.page, MARGIN + 32, PAGE_H - 83, 1.35);
+    this.page.drawText("HIDDEN", { x: MARGIN + 60, y: PAGE_H - 90, size: 18, font: this.bold, color: rgb(1, 1, 1) });
+    this.page.drawText("FEE", { x: MARGIN + 134, y: PAGE_H - 90, size: 18, font: this.bold, color: rgb(...GOLD) });
+    this.page.drawText("AI", { x: MARGIN + 179, y: PAGE_H - 88, size: 8, font: this.bold, color: rgb(...GOLD) });
+    this.page.drawText("PRIVATE FINANCIAL AUDIT", { x: MARGIN + 28, y: PAGE_H - 145, size: 10, font: this.bold, color: rgb(0.49, 0.76, 1) });
+    const titleLines = this.wrap(clean(report.document_meta.document_type || "Professional document review"), this.bold, 48, WIDTH - 56).slice(0, 2);
+    titleLines.forEach((line, index) => this.page.drawText(line, { x: MARGIN + 28, y: PAGE_H - 207 - index * 54, size: 48, font: this.bold, color: rgb(1, 1, 1) }));
+    const titleDepth = titleLines.length * 54;
+    this.page.drawText("Executive assessment of costs, risks, and your strongest next steps.", { x: MARGIN + 28, y: PAGE_H - 220 - titleDepth, size: 14, font: this.regular, color: rgb(0.82, 0.88, 0.95) });
+
+    // Primary value card: the customer should understand the financial value immediately.
+    const heroY = 292;
+    this.page.drawRectangle({ x: MARGIN + 28, y: heroY, width: WIDTH - 56, height: 162, color: rgb(0.07, 0.16, 0.29), borderColor: rgb(0.36, 0.61, 0.91), borderWidth: 0.8 });
+    this.page.drawRectangle({ x: MARGIN + 28, y: heroY, width: 7, height: 162, color: rgb(...GOLD) });
+    this.page.drawText("POTENTIAL SAVINGS IDENTIFIED", { x: MARGIN + 52, y: heroY + 130, size: 11, font: this.bold, color: rgb(0.58, 0.8, 1) });
+    const savings = clean(money(report.potential_savings));
+    const savingsSize = Math.max(36, Math.min(58, (WIDTH - 155) / Math.max(this.bold.widthOfTextAtSize(savings, 1), 1)));
+    this.page.drawText(savings, { x: MARGIN + 50, y: heroY + 57, size: savingsSize, font: this.bold, color: rgb(1, 0.86, 0.34) });
+    this.page.drawText("Estimated opportunity from the items reviewed", { x: MARGIN + 52, y: heroY + 31, size: 11, font: this.regular, color: rgb(0.75, 0.84, 0.95) });
+    const riskColor = report.risk_score >= 70 ? RED : report.risk_score >= 40 ? ORANGE : GREEN;
+    this.page.drawText("AUDIT RISK", { x: PAGE_W - MARGIN - 150, y: heroY + 128, size: 9, font: this.bold, color: rgb(...MUTED) });
+    this.page.drawText(clean(report.risk_level), { x: PAGE_W - MARGIN - 150, y: heroY + 96, size: 22, font: this.bold, color: rgb(...riskColor) });
+    this.page.drawText(`${report.risk_score}/100`, { x: PAGE_W - MARGIN - 150, y: heroY + 67, size: 16, font: this.bold, color: rgb(1, 1, 1) });
+
     const stats = [
-      ["FINDINGS", String(report.findings.length)],
-      ["POTENTIAL SAVINGS", money(report.potential_savings)],
-      ["RISK LEVEL", clean(report.risk_level || "Review")],
-    ];
-    stats.forEach(([label, value], index) => {
+      ["FINDINGS", String(report.findings.length), BLUE],
+      ["EVIDENCE CONFIDENCE", `${report.confidence_level}%`, GREEN],
+      ["PAGES REVIEWED", String(report.document_meta.pages_reviewed || "N/A"), GOLD],
+    ] as const;
+    stats.forEach(([label, value, color], index) => {
       const x = MARGIN + 28 + index * 166;
-      this.page.drawRectangle({ x, y: 137, width: 150, height: 66, color: rgb(0.07, 0.14, 0.25), borderColor: rgb(0.25, 0.37, 0.52), borderWidth: 0.7 });
-      this.page.drawText(label, { x: x + 12, y: 181, size: 7, font: this.bold, color: rgb(0.48, 0.76, 1) });
-      this.page.drawText(clean(value), { x: x + 12, y: 155, size: index === 1 ? 15 : 18, font: this.bold, color: index === 2 ? rgb(...GOLD) : rgb(1, 1, 1) });
+      this.page.drawRectangle({ x, y: 190, width: 154, height: 72, color: rgb(0.06, 0.13, 0.23), borderColor: rgb(...BORDER), borderWidth: 0.7 });
+      this.page.drawRectangle({ x, y: 190, width: 154, height: 3, color: rgb(...color) });
+      this.page.drawText(label, { x: x + 13, y: 238, size: 8, font: this.bold, color: rgb(...MUTED) });
+      this.page.drawText(clean(value), { x: x + 13, y: 208, size: 22, font: this.bold, color: rgb(1, 1, 1) });
     });
-    this.page.drawText("Prepared by HiddenFeeAI", { x: MARGIN + 28, y: 78, size: 10, font: this.bold, color: rgb(...GOLD) });
-    this.page.drawText("A polished review for better, more confident decisions.", { x: MARGIN + 28, y: 58, size: 9, font: this.regular, color: rgb(0.67, 0.75, 0.85) });
+    this.page.drawText("Prepared by HiddenFeeAI", { x: MARGIN + 28, y: 133, size: 10, font: this.bold, color: rgb(...GOLD) });
+    this.page.drawText("Evidence-based review for a clearer, more confident decision.", { x: MARGIN + 28, y: 112, size: 10, font: this.regular, color: rgb(0.67, 0.75, 0.85) });
     this.y = 0;
   }
 
@@ -134,12 +151,14 @@ class Flow {
     this.section("Report Index", "A guided view of every category in your professional audit");
     const entries = [
       ["01", "Audit at a Glance", "Your document, risk score, savings, and coverage."],
-      ["02", "Executive Summary", "The key issues and what they mean."],
-      ["03", "Financial Impact", "Totals, questionable charges, and possible savings."],
-      ["04", "All Findings", "Evidence, explanations, and recommended actions."],
-      ["05", "Action Plan", "The highest-value next steps to take."],
-      ["06", "Negotiation Guidance", "Questions, talking points, and scripts."],
-      ["07", "Evidence and Reliability", "Confidence, source support, and limitations."],
+      ["02", "Report Deliverables", "The decision tools included in your audit."],
+      ["03", "Executive Summary", "The key issues and what they mean."],
+      ["04", "Financial Impact", "Totals, questionable charges, and possible savings."],
+      ["05", "All Findings", "Evidence, explanations, and recommended actions."],
+      ["06", "Action Plan", "The highest-value next steps to take."],
+      ["07", "Questions to Ask", "Focused questions for your provider or counterpart."],
+      ["08", "Negotiation Guidance", "Questions, talking points, and scripts."],
+      ["09", "Evidence and Reliability", "Confidence, source support, and limitations."],
     ];
     entries.forEach(([number, title, description], index) => {
       this.ensure(43);
@@ -321,6 +340,11 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
   flow.metric("Evidence confidence", `${report.confidence_level}%`, BLUE);
   flow.metric("Document coverage", `${report.document_meta.pages_reviewed} pages / ${report.document_meta.line_items_reviewed} line items`, BLUE);
 
+  flow.section("Report Deliverables", "The same decision tools included in your online report");
+  flow.text(`${report.findings.filter((finding) => Boolean(finding.evidence)).length} evidence-linked finding${report.findings.filter((finding) => Boolean(finding.evidence)).length === 1 ? "" : "s"} with the source context, why it matters, and a recommended action.`);
+  flow.text(`${report.findings.filter((finding) => Boolean(finding.negotiation_message || finding.negotiation_strategy)).length} finding${report.findings.filter((finding) => Boolean(finding.negotiation_message || finding.negotiation_strategy)).length === 1 ? "" : "s"} with negotiation language, talking points, or an escalation path.`);
+  flow.text("A complete action plan, questions to ask, document insights, and evidence-confidence details are included in the sections that follow.");
+
   flow.section("Executive Summary");
   if (data.executiveSummary) {
     flow.text(data.executiveSummary.riskSummary);
@@ -352,12 +376,31 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
   report.findings.forEach((finding, index) => flow.finding(finding, index));
 
   if (data.actionPlan) {
-    flow.section("Action Plan");
+    flow.section("Action Plan", "A practical sequence for review, negotiation, and follow-through");
     data.actionPlan.checklist?.forEach((item, index) => flow.text(`${index + 1}. ${item}`, { gap: 3 }));
-    Object.entries(data.actionPlan).forEach(([key, value]) => {
-      if (key === "checklist" || value == null || typeof value === "object") return;
-      flow.label(clean(key.replace(/([A-Z])/g, " $1")), value);
+    const phases = [
+      ["Before You Commit", data.actionPlan.beforeSigning],
+      ["During Negotiation", data.actionPlan.negotiationSteps],
+      ["After You Commit", data.actionPlan.afterSigning],
+      ["Ongoing Monitoring", data.actionPlan.ongoingMonitoring],
+    ] as const;
+    phases.forEach(([title, items]) => {
+      if (!items?.length) return;
+      flow.text(title, { size: 14, bold: true, color: GOLD, gap: 4 });
+      items.forEach((item, index) => {
+        flow.text(`${index + 1}. ${item.step} (${clean(item.urgency).replace(/_/g, " ")})`, { bold: true, gap: 2 });
+        flow.text(item.detail, { size: 10.5, color: MUTED, gap: 5 });
+      });
     });
+  }
+
+  const questions = Array.from(new Set([
+    ...(report.clean_document_summary?.questions_to_ask ?? []),
+    ...report.findings.map((finding) => `Why is "${clean(finding.title)}" included, and can it be reduced, removed, or documented in writing?`),
+  ].filter(Boolean)));
+  if (questions.length) {
+    flow.section("Questions to Ask", "Bring these focused questions to your provider or counterpart");
+    questions.forEach((question, index) => flow.text(`${index + 1}. ${question}`, { gap: 4 }));
   }
 
   if (data.negotiationAdvice?.size) {
