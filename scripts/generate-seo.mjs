@@ -29,7 +29,7 @@ await mkdir(publicDir, { recursive: true });
 await writeFile(path.join(publicDir, "sitemap.xml"), sitemap);
 await writeFile(path.join(publicDir, "sitemap.html"), htmlSitemap);
 await writeFile(path.join(publicDir, "rss.xml"), rss);
-await writeFile(path.join(publicDir, "sitemap-validation.json"), JSON.stringify({ generatedAt: new Date().toISOString(), canonicalUrlCount: dated.length, urls: dated.map(({ path, lastmod }) => ({ path, lastmod })), deletedUrls }, null, 2));
+await writeFile(path.join(publicDir, "sitemap-validation.json"), JSON.stringify({ generatedAt: new Date().toISOString().slice(0, 10), canonicalUrlCount: dated.length, urls: dated.map(({ path, lastmod }) => ({ path, lastmod })), deletedUrls }, null, 2));
 
 if (!existsSync(path.join(publicDir, "hiddenfeeai-indexnow-20260730.txt"))) {
   await writeFile(path.join(publicDir, "hiddenfeeai-indexnow-20260730.txt"), "hiddenfeeai-indexnow-20260730");
