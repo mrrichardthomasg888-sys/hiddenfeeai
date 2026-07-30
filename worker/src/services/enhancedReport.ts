@@ -26,16 +26,16 @@ const MARGIN = 42;
 const TOP = 58;
 const BOTTOM = 52;
 const WIDTH = PAGE_W - MARGIN * 2;
-const BODY: Color = [0.16, 0.2, 0.27];
-const MUTED: Color = [0.4, 0.45, 0.52];
+const BODY: Color = [0.95, 0.97, 1];
+const MUTED: Color = [0.68, 0.76, 0.88];
 const NAVY: Color = [0.035, 0.07, 0.13];
 const BLUE: Color = [0.16, 0.43, 0.82];
 const GOLD: Color = [0.86, 0.64, 0.12];
 const RED: Color = [0.78, 0.18, 0.18];
 const ORANGE: Color = [0.88, 0.42, 0.1];
 const GREEN: Color = [0.08, 0.55, 0.34];
-const BORDER: Color = [0.86, 0.89, 0.93];
-const PAPER: Color = [0.985, 0.99, 1];
+const BORDER: Color = [0.22, 0.36, 0.55];
+const PAPER: Color = [0.035, 0.07, 0.13];
 
 const clean = (value: unknown): string => String(value ?? "")
   .replace(/[\u{1F000}-\u{1FAFF}]/gu, "")
@@ -91,7 +91,8 @@ class Flow {
     this.pageNumber += 1;
     this.y = PAGE_H - TOP;
     this.page.drawRectangle({ x: 0, y: 0, width: PAGE_W, height: PAGE_H, color: rgb(...PAPER) });
-    this.page.drawRectangle({ x: 0, y: PAGE_H - 46, width: PAGE_W, height: 46, color: rgb(...NAVY) });
+    this.page.drawRectangle({ x: 0, y: PAGE_H - 46, width: PAGE_W, height: 46, color: rgb(0.02, 0.04, 0.08) });
+    this.page.drawRectangle({ x: 0, y: PAGE_H - 47, width: PAGE_W, height: 1, color: rgb(...GOLD) });
     drawBrandMark(this.page, MARGIN + 12, PAGE_H - 23, 0.7);
     this.page.drawText("HIDDEN", { x: MARGIN + 31, y: PAGE_H - 28, size: 10, font: this.bold, color: rgb(1, 1, 1) });
     this.page.drawText("FEE", { x: MARGIN + 70, y: PAGE_H - 28, size: 10, font: this.bold, color: rgb(...GOLD) });
@@ -143,10 +144,10 @@ class Flow {
     entries.forEach(([number, title, description], index) => {
       this.ensure(43);
       const y = this.y - 36;
-      this.page.drawRectangle({ x: MARGIN, y, width: WIDTH, height: 36, color: rgb(0.94, 0.97, 1), borderColor: rgb(...BORDER), borderWidth: 0.5 });
+      this.page.drawRectangle({ x: MARGIN, y, width: WIDTH, height: 36, color: rgb(0.07, 0.14, 0.25), borderColor: rgb(...BORDER), borderWidth: 0.5 });
       this.page.drawRectangle({ x: MARGIN, y, width: 42, height: 36, color: index % 2 === 0 ? rgb(...BLUE) : rgb(...GOLD) });
       this.page.drawText(number, { x: MARGIN + 11, y: y + 13, size: 9, font: this.bold, color: rgb(1, 1, 1) });
-      this.page.drawText(title, { x: MARGIN + 54, y: y + 20, size: 10.5, font: this.bold, color: rgb(...NAVY) });
+      this.page.drawText(title, { x: MARGIN + 54, y: y + 20, size: 11.5, font: this.bold, color: rgb(1, 1, 1) });
       this.page.drawText(description, { x: MARGIN + 54, y: y + 8, size: 7.8, font: this.regular, color: rgb(...MUTED) });
       this.y -= 42;
     });
@@ -188,7 +189,7 @@ class Flow {
   }
 
   text(value: unknown, options: { size?: number; bold?: boolean; color?: Color; indent?: number; width?: number; gap?: number } = {}): void {
-    const size = options.size ?? 10.5;
+    const size = options.size ?? 12;
     const font = options.bold ? this.bold : this.regular;
     const indent = options.indent ?? 0;
     const width = options.width ?? WIDTH - indent;
@@ -206,33 +207,33 @@ class Flow {
     const height = subtitle ? 54 : 38;
     this.ensure(height);
     this.y -= 3;
-    this.page.drawRectangle({ x: MARGIN, y: this.y - 28, width: WIDTH, height: 28, color: rgb(0.91, 0.96, 1) });
+    this.page.drawRectangle({ x: MARGIN, y: this.y - 30, width: WIDTH, height: 30, color: rgb(0.07, 0.18, 0.34), borderColor: rgb(0.22, 0.45, 0.76), borderWidth: 0.5 });
     this.page.drawRectangle({ x: MARGIN, y: this.y - 28, width: 6, height: 28, color: rgb(...BLUE) });
-    this.page.drawText(clean(title), { x: MARGIN + 16, y: this.y - 20, size: 18, font: this.bold, color: rgb(...NAVY) });
+    this.page.drawText(clean(title), { x: MARGIN + 16, y: this.y - 21, size: 19, font: this.bold, color: rgb(1, 1, 1) });
     this.y -= 34;
-    if (subtitle) this.text(subtitle, { size: 9.5, color: MUTED, gap: 10 }); else this.y -= 8;
+    if (subtitle) this.text(subtitle, { size: 11, color: MUTED, gap: 10 }); else this.y -= 8;
   }
 
   label(label: string, value: unknown): void {
     if (value == null || clean(value) === "") return;
-    this.text(`${label}: ${clean(value)}`, { size: 10, gap: 4 });
+    this.text(`${label}: ${clean(value)}`, { size: 11.5, gap: 5 });
   }
 
   metric(label: string, value: string, color: Color = BLUE): void {
     this.ensure(44);
-    this.page.drawRectangle({ x: MARGIN, y: this.y - 37, width: WIDTH, height: 37, color: rgb(0.95, 0.97, 0.99), borderColor: rgb(...BORDER), borderWidth: 0.6 });
+    this.page.drawRectangle({ x: MARGIN, y: this.y - 37, width: WIDTH, height: 37, color: rgb(0.06, 0.13, 0.23), borderColor: rgb(...BORDER), borderWidth: 0.6 });
     this.page.drawRectangle({ x: MARGIN, y: this.y - 37, width: 4, height: 37, color: rgb(...color) });
-    this.page.drawText(clean(label), { x: MARGIN + 14, y: this.y - 14, size: 9.2, font: this.regular, color: rgb(...MUTED) });
+    this.page.drawText(clean(label), { x: MARGIN + 14, y: this.y - 14, size: 10.4, font: this.regular, color: rgb(...MUTED) });
     const safeValue = clean(value);
-    this.page.drawText(safeValue, { x: PAGE_W - MARGIN - 10 - this.bold.widthOfTextAtSize(safeValue, 13.5), y: this.y - 17, size: 13.5, font: this.bold, color: rgb(...color) });
+    this.page.drawText(safeValue, { x: PAGE_W - MARGIN - 10 - this.bold.widthOfTextAtSize(safeValue, 15), y: this.y - 18, size: 15, font: this.bold, color: rgb(...color) });
     this.y -= 44;
   }
 
   finding(finding: Finding, index: number): void {
     const severityColor = finding.severity === "Critical" ? RED : finding.severity === "High" ? ORANGE : finding.severity === "Medium" ? GOLD : GREEN;
     this.ensure(40);
-    this.text(`${index + 1}. ${finding.title}`, { size: 13.5, bold: true, color: severityColor, gap: 3 });
-    this.text(`${finding.severity} | ${finding.confidence_score}% confidence | ${finding.amount == null ? "Amount not stated" : money(finding.amount)}${finding.page ? ` | Page ${finding.page}` : ""}`, { size: 9.2, color: MUTED, gap: 6 });
+    this.text(`${index + 1}. ${finding.title}`, { size: 15, bold: true, color: severityColor, gap: 4 });
+    this.text(`${finding.severity} | ${finding.confidence_score}% confidence | ${finding.amount == null ? "Amount not stated" : money(finding.amount)}${finding.page ? ` | Page ${finding.page}` : ""}`, { size: 10.5, color: MUTED, gap: 7 });
     this.label("Evidence", finding.evidence);
     this.label("Explanation", finding.explanation);
     this.label("Why it matters", finding.why_it_matters);
@@ -240,9 +241,9 @@ class Flow {
     this.label("Negotiation message", finding.negotiation_message);
     if (finding.negotiation_strategy) {
       this.label("Difficulty", finding.negotiation_strategy.difficulty);
-      finding.negotiation_strategy.steps?.forEach((step, i) => this.text(`Step ${i + 1}: ${step}`, { indent: 10, size: 9, gap: 2 }));
+      finding.negotiation_strategy.steps?.forEach((step, i) => this.text(`Step ${i + 1}: ${step}`, { indent: 10, size: 11, gap: 3 }));
       this.label("Script", finding.negotiation_strategy.script);
-      finding.negotiation_strategy.key_points?.forEach((point) => this.text(`- ${point}`, { indent: 10, size: 9, gap: 2 }));
+      finding.negotiation_strategy.key_points?.forEach((point) => this.text(`- ${point}`, { indent: 10, size: 11, gap: 3 }));
     }
     this.ensure(10);
     this.page.drawLine({ start: { x: MARGIN, y: this.y }, end: { x: PAGE_W - MARGIN, y: this.y }, thickness: 0.6, color: rgb(...BORDER) });
@@ -253,8 +254,19 @@ class Flow {
     const count = this.pdf.getPageCount();
     this.pdf.getPages().forEach((page, index) => {
       const footer = `Page ${index + 1} of ${count}`;
+      // Redraw the non-cover masthead last so it remains intact on every
+      // continuation page, even when a long section paginates at the boundary.
+      if (index > 0) {
+        page.drawRectangle({ x: 0, y: PAGE_H - 46, width: PAGE_W, height: 46, color: rgb(0.02, 0.04, 0.08) });
+        page.drawRectangle({ x: 0, y: PAGE_H - 47, width: PAGE_W, height: 1, color: rgb(...GOLD) });
+        drawBrandMark(page, MARGIN + 12, PAGE_H - 23, 0.7);
+        page.drawText("HIDDEN", { x: MARGIN + 31, y: PAGE_H - 28, size: 10, font: this.bold, color: rgb(1, 1, 1) });
+        page.drawText("FEE", { x: MARGIN + 70, y: PAGE_H - 28, size: 10, font: this.bold, color: rgb(...GOLD) });
+        page.drawText("AI", { x: MARGIN + 94, y: PAGE_H - 27, size: 6, font: this.bold, color: rgb(...GOLD) });
+        page.drawText("Professional Audit Report", { x: PAGE_W - MARGIN - 101, y: PAGE_H - 27, size: 8, font: this.regular, color: rgb(0.8, 0.86, 0.93) });
+      }
       page.drawLine({ start: { x: MARGIN, y: 42 }, end: { x: PAGE_W - MARGIN, y: 42 }, thickness: 0.5, color: rgb(...BORDER) });
-      page.drawText("HiddenFeeAI - Hidden Cost Review", { x: MARGIN, y: 27, size: 7, font: this.regular, color: rgb(...MUTED) });
+      page.drawText("HiddenFeeAI - Hidden Cost Review", { x: MARGIN, y: 27, size: 7.5, font: this.regular, color: rgb(...MUTED) });
       page.drawText(footer, { x: PAGE_W - MARGIN - this.regular.widthOfTextAtSize(footer, 8), y: 27, size: 8, font: this.regular, color: rgb(...MUTED) });
     });
   }
@@ -322,16 +334,16 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
   flow.metric("Corrected total", money(report.financial_impact.corrected_total), GREEN);
   data.savingsEstimates?.forEach((estimate) => {
     flow.text(`${estimate.feeName}: ${estimate.rangeLabel}`, { bold: true, gap: 2 });
-    flow.text(estimate.basis, { size: 8.8, gap: 2 });
-    flow.text(estimate.disclaimer, { size: 7.8, color: MUTED, gap: 5 });
+    flow.text(estimate.basis, { size: 10.5, gap: 3 });
+    flow.text(estimate.disclaimer, { size: 10, color: MUTED, gap: 6 });
   });
 
   if (data.prioritizedFindings?.length) {
     flow.section("Priority Order", "All ranked issues, not only the first three");
     data.prioritizedFindings.forEach((priority) => {
       flow.text(`${priority.rank}. ${clean(priority.priorityLabel)} - ${priority.finding.title}`, { bold: true, gap: 2 });
-      flow.text(priority.reason, { size: 8.8, color: MUTED, gap: 2 });
-      flow.text(priority.recommendedAction, { size: 9, gap: 5 });
+      flow.text(priority.reason, { size: 10.5, color: MUTED, gap: 3 });
+      flow.text(priority.recommendedAction, { size: 11, gap: 6 });
     });
   }
 
@@ -364,7 +376,7 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
   if (data.educationTopics?.length) {
     flow.section("Consumer Education");
     data.educationTopics.forEach((topic) => {
-      flow.text(topic.topic, { size: 12, bold: true, color: NAVY, gap: 2 });
+      flow.text(topic.topic, { size: 13, bold: true, color: BLUE, gap: 3 });
       flow.label("What it is", topic.whatIsIt);
       flow.label("Why it matters", topic.whyItMatters);
       topic.questionsToAsk.forEach((question) => flow.text(`- ${question}`, { indent: 10, gap: 2 }));
@@ -386,11 +398,11 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
     flow.metric("Trust score", `${data.trustScore.score}/100 - ${data.trustScore.rating}`);
     flow.text(data.trustScore.summary);
     data.trustScore.factors.forEach((factor) => flow.text(`${factor.name}: ${factor.score}/100 - ${factor.detail}`, { gap: 3 }));
-    flow.text(data.trustScore.disclaimer, { size: 8, color: MUTED });
+    flow.text(data.trustScore.disclaimer, { size: 10, color: MUTED });
   }
 
   flow.section("Important Notice");
-  flow.text("This report is based on information visible in the submitted document. Verify important findings against the original and seek qualified advice when appropriate. This report is not legal, financial, tax, or accounting advice.", { size: 8.5, color: MUTED });
+  flow.text("This report is based on information visible in the submitted document. Verify important findings against the original and seek qualified advice when appropriate. This report is not legal, financial, tax, or accounting advice.", { size: 10, color: MUTED });
   flow.finalize();
   return pdf.save();
 }
