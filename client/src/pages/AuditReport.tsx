@@ -363,7 +363,7 @@ export function AuditReport() {
         </Container>
       </div>
 
-      <Container className="relative z-10 pb-24 pt-7 sm:pt-10 lg:pb-10">
+      <Container className="relative z-10 pb-32 pt-7 sm:pb-32 sm:pt-10 lg:pb-28">
         <div className="mx-auto max-w-5xl space-y-10 sm:space-y-12">
 
           {/* ── PREMIUM REPORT HERO ── */}

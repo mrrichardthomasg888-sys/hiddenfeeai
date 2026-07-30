@@ -40,7 +40,11 @@ const PAPER: Color = [0.985, 0.99, 1];
 const clean = (value: unknown): string => String(value ?? "")
   .replace(/[\u{1F000}-\u{1FAFF}]/gu, "")
   .replace(/[\u2010-\u2015]/g, "-")
+  .replace(/[“”„‟]/g, '"')
+  .replace(/[‘’‚‛]/g, "'")
+  .replace(/\u2026/g, "...")
   .replace(/\u2022/g, "-")
+  .replace(/[^\x20-\x7E\xA0-\xFF]/g, "")
   .replace(/\s+/g, " ")
   .trim();
 
@@ -173,7 +177,35 @@ class Flow {
 }
 
 export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uint8Array> {
-  const report = data.auditReport;
+  const source = data.auditReport ?? ({} as AuditReport);
+  const report = {
+    ...source,
+    risk_score: Number.isFinite(source.risk_score) ? source.risk_score : 0,
+    risk_level: source.risk_level || "Review Recommended",
+    potential_savings: Number.isFinite(source.potential_savings) ? source.potential_savings : 0,
+    confidence_level: Number.isFinite(source.confidence_level) ? source.confidence_level : 0,
+    document_meta: {
+      document_type: "Document",
+      issuer: "",
+      payer: "",
+      analysis_date: new Date().toISOString(),
+      pages_reviewed: 0,
+      line_items_reviewed: 0,
+      report_id: "",
+      ...(source.document_meta ?? {}),
+    },
+    financial_impact: {
+      original_total: 0,
+      questionable_charges_total: 0,
+      corrected_total: 0,
+      ...(source.financial_impact ?? {}),
+    },
+    findings: Array.isArray(source.findings) ? source.findings : [],
+    math_errors: Array.isArray(source.math_errors) ? source.math_errors : [],
+    duplicate_charges: Array.isArray(source.duplicate_charges) ? source.duplicate_charges : [],
+    hidden_fees: Array.isArray(source.hidden_fees) ? source.hidden_fees : [],
+    contract_risks: Array.isArray(source.contract_risks) ? source.contract_risks : [],
+  } as AuditReport;
   const pdf = await PDFDocument.create();
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);

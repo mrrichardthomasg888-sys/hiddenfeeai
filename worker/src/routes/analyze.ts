@@ -195,22 +195,48 @@ analyzeRoute.get("/:auditId/pdf", async (c) => {
   const PDF_GENERATION_TIMEOUT_MS = 25_000; // 25 seconds, well within typical Worker limits
 
   try {
+    const sourceReport = job.report;
+    const pdfReport = {
+      ...sourceReport,
+      document_meta: {
+        document_type: "Document",
+        issuer: "",
+        payer: "",
+        analysis_date: new Date().toISOString(),
+        pages_reviewed: 0,
+        line_items_reviewed: 0,
+        report_id: auditId,
+        ...(sourceReport.document_meta ?? {}),
+      },
+      financial_impact: {
+        original_total: 0,
+        questionable_charges_total: 0,
+        corrected_total: 0,
+        ...(sourceReport.financial_impact ?? {}),
+      },
+      findings: Array.isArray(sourceReport.findings) ? sourceReport.findings : [],
+      math_errors: Array.isArray(sourceReport.math_errors) ? sourceReport.math_errors : [],
+      duplicate_charges: Array.isArray(sourceReport.duplicate_charges) ? sourceReport.duplicate_charges : [],
+      hidden_fees: Array.isArray(sourceReport.hidden_fees) ? sourceReport.hidden_fees : [],
+      contract_risks: Array.isArray(sourceReport.contract_risks) ? sourceReport.contract_risks : [],
+    } as AuditReport;
+
     // ── Assemble Full, Premium Report Data ──
     // This is where we call all the intelligence modules to create a rich dataset
     // for the premium PDF report, ensuring it's complete and impressive.
     // Safely generate intelligence modules — each is optional for PDF
     let executiveSummary, prioritizedFindings, trustScore, negotiationAdvice, educationTopics, actionPlan, savingsEstimates;
-    try { executiveSummary = generateExecutiveSummary(job.report); } catch { console.warn("[PDF] failed to generate executiveSummary"); }
-    const verified = verifiedFindings(job.report.findings);
+    try { executiveSummary = generateExecutiveSummary(pdfReport); } catch { console.warn("[PDF] failed to generate executiveSummary"); }
+    const verified = verifiedFindings(pdfReport.findings);
     try { prioritizedFindings = prioritizeFindings(verified); } catch { console.warn("[PDF] failed to generate prioritizedFindings"); }
-    try { trustScore = buildTrustScore(job.report); } catch { console.warn("[PDF] failed to generate trustScore"); }
+    try { trustScore = buildTrustScore(pdfReport); } catch { console.warn("[PDF] failed to generate trustScore"); }
     try { negotiationAdvice = new Map(verified.map((finding) => [finding.id, generateNegotiationAdvice(finding)])); } catch { console.warn("[PDF] failed to generate negotiationAdvice"); }
-    try { educationTopics = generateEducationTopics(job.report.findings); } catch { console.warn("[PDF] failed to generate educationTopics"); }
-    try { actionPlan = generateActionPlan(verified, job.report.document_meta.document_type); } catch { console.warn("[PDF] failed to generate actionPlan"); }
+    try { educationTopics = generateEducationTopics(pdfReport.findings); } catch { console.warn("[PDF] failed to generate educationTopics"); }
+    try { actionPlan = generateActionPlan(verified, pdfReport.document_meta.document_type); } catch { console.warn("[PDF] failed to generate actionPlan"); }
     try { savingsEstimates = estimateSavings(verified); } catch { console.warn("[PDF] failed to generate savingsEstimates"); }
 
     const enhancedData: EnhancedReportData = {
-      auditReport: job.report,
+      auditReport: pdfReport,
       executiveSummary,
       prioritizedFindings,
       trustScore,

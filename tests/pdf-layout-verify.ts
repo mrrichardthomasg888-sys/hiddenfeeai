@@ -42,4 +42,25 @@ await writeFile("tmp/pdfs/hiddenfeeai-layout-verification.pdf", pdfBytes);
 const reopened = await PDFDocument.load(pdfBytes);
 if (reopened.getPageCount() < 10) throw new Error(`Expected multi-page output, got ${reopened.getPageCount()} pages`);
 if (pdfBytes.byteLength < 20_000) throw new Error(`PDF unexpectedly small: ${pdfBytes.byteLength} bytes`);
-console.log(JSON.stringify({ pages: reopened.getPageCount(), bytes: pdfBytes.byteLength, findings: findings.length }));
+
+// Regression coverage for older jobs with sparse metadata and Gemini punctuation.
+const sparsePdf = await generateEnhancedPdf({
+  auditReport: {
+    findings: [{
+      id: "sparse-1",
+      title: "Smart quotes “and” an unsupported → glyph",
+      category: "Billing Error",
+      severity: "Medium",
+      status: "confirmed",
+      confidence_score: 80,
+      amount: null,
+      evidence: "Evidence from an older report.",
+      explanation: "Sparse reports must still produce a readable PDF.",
+      why_it_matters: "The customer needs a clear next step.",
+      recommended_action: "Ask for a written explanation.",
+    }],
+  } as unknown as AuditReport,
+});
+const sparseReopened = await PDFDocument.load(sparsePdf);
+if (sparseReopened.getPageCount() < 1) throw new Error("Sparse report PDF was not created");
+console.log(JSON.stringify({ pages: reopened.getPageCount(), bytes: pdfBytes.byteLength, findings: findings.length, sparsePages: sparseReopened.getPageCount() }));

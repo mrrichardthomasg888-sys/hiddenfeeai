@@ -49,21 +49,34 @@ export function ReportActions({ auditId }: ReportActionsProps) {
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     setIsDownloading(true);
     try {
       // Open the server PDF endpoint — triggers browser auto-download
-      window.location.href = apiUrl(`/analyze/${auditId}/pdf`);
+      const response = await fetch(apiUrl(`/analyze/${auditId}/pdf`));
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(payload?.error || "Could not generate the PDF report.");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `hiddenfeeai-audit-${auditId.slice(0, 8)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
       showFeedback("success", "PDF download started!");
-    } catch {
-      showFeedback("error", "Could not download PDF. Try again.");
+    } catch (error) {
+      showFeedback("error", error instanceof Error ? error.message : "Could not download PDF. Try again.");
     } finally {
       setIsDownloading(false);
     }
   };
 
   return (
-    <div className="report-actions print:hidden sticky bottom-0 z-50 border-t border-[#f4c542]/20 bg-[#0e1625]/95 shadow-[0_-18px_55px_rgba(0,0,0,.35)] backdrop-blur-2xl pb-[env(safe-area-inset-bottom)]">
+    <div className="report-actions print:hidden fixed inset-x-0 bottom-0 z-50 border-t border-[#f4c542]/20 bg-[#0e1625]/95 shadow-[0_-18px_55px_rgba(0,0,0,.35)] backdrop-blur-2xl pb-[env(safe-area-inset-bottom)]">
       {feedback && (
         <div
           className={`mx-auto flex max-w-4xl items-center justify-center gap-2 px-4 py-2 text-xs font-medium ${
