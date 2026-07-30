@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Download, Printer, Share2, Loader2, Check, AlertCircle } from "lucide-react";
-import { apiUrl } from "@/config/api";
 import { Button } from "@/components/ui/button";
 
 interface ReportActionsProps {
@@ -52,7 +51,7 @@ export function ReportActions({ auditId }: ReportActionsProps) {
   const handleDownload = async () => {
     setIsDownloading(true);
     try {
-      const pdfUrl = apiUrl(`/analyze/${auditId}/pdf`);
+      const pdfUrl = `/download/${encodeURIComponent(auditId)}`;
       const fileName = `hiddenfeeai-audit-${auditId.slice(0, 8)}.pdf`;
       // Fetch first so the cross-origin Worker URL never becomes the browser's
       // current page. Safari ignores `download` on cross-origin links, which was

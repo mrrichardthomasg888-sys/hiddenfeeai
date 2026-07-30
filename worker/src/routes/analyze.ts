@@ -216,6 +216,11 @@ analyzeRoute.post("/:auditId/start", async (c) => {
  */
 analyzeRoute.get("/:auditId/pdf", async (c) => {
   const { auditId } = c.req.param();
+  const fetchMode = c.req.header("Sec-Fetch-Mode") || "";
+  const fetchDest = c.req.header("Sec-Fetch-Dest") || "";
+  if (fetchMode === "navigate" || ["document", "frame", "iframe"].includes(fetchDest)) {
+    return c.redirect(`https://hiddenfeeai.com/download/${encodeURIComponent(auditId)}`, 302);
+  }
   const job = await getJob(auditId);
 
   if (!job) throw errors.jobNotFound();
