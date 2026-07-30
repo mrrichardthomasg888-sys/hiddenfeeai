@@ -293,7 +293,7 @@ export function UploadCard() {
             {file && (
               <div className="mt-5 flex w-full items-center gap-3 rounded-2xl border border-violet-400/15 bg-midnight-950/50 p-4 text-left">
                 {previewUrl ? (
-                  <img src={previewUrl} alt="Selected document preview" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+                  <img src={previewUrl} alt="Selected document preview" loading="lazy" decoding="async" width="56" height="56" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
                 ) : (
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500/15">
                   <FileCheck2 className="h-5 w-5 text-violet-300" />

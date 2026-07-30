@@ -1,0 +1,14 @@
+[
+  {"path":"/","title":"HiddenFeeAI AI Document Audit Software","priority":"1.0","changefreq":"weekly","source":"client/src/pages/Landing.tsx"},
+  {"path":"/faq","title":"HiddenFeeAI FAQ","priority":"0.8","changefreq":"weekly","source":"client/src/pages/FAQ.tsx"},
+  {"path":"/about","title":"About HiddenFeeAI","priority":"0.6","changefreq":"monthly","source":"client/src/pages/About.tsx"},
+  {"path":"/security","title":"HiddenFeeAI Security","priority":"0.6","changefreq":"monthly","source":"client/src/pages/Security.tsx"},
+  {"path":"/methodology","title":"HiddenFeeAI Audit Methodology","priority":"0.6","changefreq":"monthly","source":"client/src/pages/Methodology.tsx"},
+  {"path":"/accuracy","title":"HiddenFeeAI Accuracy and Limitations","priority":"0.6","changefreq":"monthly","source":"client/src/pages/Accuracy.tsx"},
+  {"path":"/changelog","title":"HiddenFeeAI Product Changelog","priority":"0.5","changefreq":"weekly","source":"client/src/pages/Changelog.tsx"},
+  {"path":"/contact","title":"Contact HiddenFeeAI Support","priority":"0.5","changefreq":"monthly","source":"client/src/pages/Contact.tsx"},
+  {"path":"/privacy","title":"HiddenFeeAI Privacy Policy","priority":"0.3","changefreq":"monthly","source":"client/src/pages/Privacy.tsx"},
+  {"path":"/terms","title":"HiddenFeeAI Terms of Service","priority":"0.3","changefreq":"monthly","source":"client/src/pages/Terms.tsx"},
+  {"path":"/refund","title":"HiddenFeeAI Refund Policy","priority":"0.3","changefreq":"monthly","source":"client/src/pages/Refund.tsx"},
+  {"path":"/sitemap","title":"HiddenFeeAI HTML Sitemap","priority":"0.2","changefreq":"monthly","source":"client/src/pages/HtmlSitemap.tsx"}
+]

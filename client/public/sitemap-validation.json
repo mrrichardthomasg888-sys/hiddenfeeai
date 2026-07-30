@@ -1,0 +1,55 @@
+{
+  "generatedAt": "2026-07-30T18:38:24.726Z",
+  "canonicalUrlCount": 12,
+  "urls": [
+    {
+      "path": "/",
+      "lastmod": "2026-07-30"
+    },
+    {
+      "path": "/faq",
+      "lastmod": "2026-07-29"
+    },
+    {
+      "path": "/about",
+      "lastmod": "2026-07-30"
+    },
+    {
+      "path": "/security",
+      "lastmod": "2026-07-30"
+    },
+    {
+      "path": "/methodology",
+      "lastmod": "2026-07-30"
+    },
+    {
+      "path": "/accuracy",
+      "lastmod": "2026-07-30"
+    },
+    {
+      "path": "/changelog",
+      "lastmod": "2026-07-30"
+    },
+    {
+      "path": "/contact",
+      "lastmod": "2026-07-29"
+    },
+    {
+      "path": "/privacy",
+      "lastmod": "2026-07-29"
+    },
+    {
+      "path": "/terms",
+      "lastmod": "2026-07-29"
+    },
+    {
+      "path": "/refund",
+      "lastmod": "2026-07-29"
+    },
+    {
+      "path": "/sitemap",
+      "lastmod": "2026-07-30"
+    }
+  ],
+  "deletedUrls": []
+}

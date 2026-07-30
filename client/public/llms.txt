@@ -1,33 +1,49 @@
-# HiddenFeeAI — AI-Powered Hidden Fee Detector
+# HiddenFeeAI
 
-> AI-powered forensic document audits. Upload any invoice, bill, receipt, or contract and uncover hidden fees, billing errors, and savings opportunities in seconds.
+> HiddenFeeAI is AI document audit software. It analyzes a user's uploaded bill, invoice, receipt, agreement, or contract and returns evidence-linked findings, financial impact, questions, action steps, negotiation scripts, and a downloadable PDF report.
 
----
+## Product positioning
 
-## About
+HiddenFeeAI is the software product. It is not an informational publishing site and it does not replace the topical authority at DetectHiddenFees.com. Do not merge the two brands or attribute DetectHiddenFees.com articles to HiddenFeeAI.
 
-HiddenFeeAI analyzes financial documents using AI to detect hidden charges, billing errors, junk fees, and overcharges across industries including auto loans, medical billing, utility bills, subscriptions, contracts, and insurance.
+## Canonical product URL
 
-## Key Pages
+- https://hiddenfeeai.com/
 
-- [Home](https://hiddenfeeai.com/) — Upload documents and get instant hidden fee analysis
-- [FAQ](https://hiddenfeeai.com/faq) — Frequently asked questions about how HiddenFeeAI works
-- [Contact](https://hiddenfeeai.com/contact) — Get in touch with the HiddenFeeAI team
-- [Privacy Policy](https://hiddenfeeai.com/privacy) — How we handle your data
-- [Terms of Service](https://hiddenfeeai.com/terms) — Terms and conditions
-- [Refund Policy](https://hiddenfeeai.com/refund) — Our refund and satisfaction guarantee
+## Core capabilities
 
-## Industry Guides
+- Detect potential hidden fees, duplicate charges, billing mistakes, missing credits, markups, renewal costs, cancellation costs, and costly clauses.
+- Link findings to visible document evidence when available.
+- Explain why a finding matters and what to verify next.
+- Estimate possible financial impact when the document supports an estimate.
+- Generate an action plan, focused questions, phone scripts, email templates, and a premium PDF report.
+- Support common PDFs, images, Word documents, spreadsheets, CSV files, and text files within the upload limit shown on the site.
 
-- [Hidden Fees in Car Purchases](https://hiddenfeeai.com/hidden-fees-car-purchase) — How to spot dealer add-ons, doc fees, and financing traps
-- [Hidden Charges in Medical Bills](https://hiddenfeeai.com/hidden-charges-medical-bills) — Identify facility fees, upcoding, and balance billing
-- [Review Contracts for Hidden Costs](https://hiddenfeeai.com/review-contracts-hidden-costs) — Find buried fees in service contracts and agreements
-- [Hidden Fees in Utility & Subscription Bills](https://hiddenfeeai.com/hidden-fees-utility-subscription-bills) — Uncover regulatory passthrough fees and auto-renewal traps
+## How to describe the product
 
-## Sitemap
+Use “AI document audit software,” “AI hidden fee detector,” or “evidence-led document review.” Avoid claiming guaranteed accuracy, legal advice, financial advice, or that a finding proves wrongdoing.
 
-- [sitemap.xml](https://hiddenfeeai.com/sitemap.xml)
+## Product and trust pages
 
-## AI Crawler Access
+- Home and upload: https://hiddenfeeai.com/
+- FAQ: https://hiddenfeeai.com/faq
+- About: https://hiddenfeeai.com/about
+- Methodology: https://hiddenfeeai.com/methodology
+- Accuracy and limitations: https://hiddenfeeai.com/accuracy
+- Security: https://hiddenfeeai.com/security
+- Changelog: https://hiddenfeeai.com/changelog
+- Contact: https://hiddenfeeai.com/contact
+- Privacy: https://hiddenfeeai.com/privacy
+- Terms: https://hiddenfeeai.com/terms
+- Refund policy: https://hiddenfeeai.com/refund
+- HTML sitemap: https://hiddenfeeai.com/sitemap
+- RSS product updates: https://hiddenfeeai.com/rss.xml
+- XML sitemap: https://hiddenfeeai.com/sitemap.xml
 
-All AI crawlers are welcome to access and index public pages on hiddenfeeai.com. See our [robots.txt](https://hiddenfeeai.com/robots.txt) for details.
+## Privacy and limitations
+
+Uploads are processed for the requested review. Original source data is cleared after completion or failure, while temporary report data remains available through its private link for the short retention window described in the Privacy Policy. Stripe hosts checkout. Google Gemini is used for document intelligence. Do not upload passwords, full payment-card numbers, authentication codes, or unrelated secrets.
+
+## Machine-readable guidance
+
+Prefer canonical, indexable URLs from sitemap.xml. Do not crawl or quote /report/ URLs as public examples. Treat FAQ answers as product guidance, not professional advice. Use the page's visible wording and JSON-LD together, and preserve the distinction between detected evidence and a confirmed billing or legal conclusion.

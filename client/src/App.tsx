@@ -15,6 +15,13 @@ const HiddenFeesCarPurchase = lazy(() => import("@/pages/HiddenFeesCarPurchase")
 const HiddenChargesMedicalBills = lazy(() => import("@/pages/HiddenChargesMedicalBills").then((m) => ({ default: m.HiddenChargesMedicalBills })));
 const ReviewContractsHiddenCosts = lazy(() => import("@/pages/ReviewContractsHiddenCosts").then((m) => ({ default: m.ReviewContractsHiddenCosts })));
 const HiddenFeesUtilityBills = lazy(() => import("@/pages/HiddenFeesUtilityBills").then((m) => ({ default: m.HiddenFeesUtilityBills })));
+const About = lazy(() => import("@/pages/About").then((m) => ({ default: m.About })));
+const Security = lazy(() => import("@/pages/Security").then((m) => ({ default: m.Security })));
+const Methodology = lazy(() => import("@/pages/Methodology").then((m) => ({ default: m.Methodology })));
+const Accuracy = lazy(() => import("@/pages/Accuracy").then((m) => ({ default: m.Accuracy })));
+const Changelog = lazy(() => import("@/pages/Changelog").then((m) => ({ default: m.Changelog })));
+const HtmlSitemap = lazy(() => import("@/pages/HtmlSitemap").then((m) => ({ default: m.HtmlSitemap })));
+const Search = lazy(() => import("@/pages/Search").then((m) => ({ default: m.Search })));
 
 function RouteFallback() {
   return <div className="min-h-screen bg-midnight-950" aria-label="Loading page" />;
@@ -32,6 +39,13 @@ function App() {
         <Route path="/refund" element={<Refund />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/faq" element={<FAQ />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/security" element={<Security />} />
+        <Route path="/methodology" element={<Methodology />} />
+        <Route path="/accuracy" element={<Accuracy />} />
+        <Route path="/changelog" element={<Changelog />} />
+        <Route path="/sitemap" element={<HtmlSitemap />} />
+        <Route path="/search" element={<Search />} />
         <Route path="/hidden-fees-car-purchase" element={<HiddenFeesCarPurchase />} />
         <Route path="/hidden-charges-medical-bills" element={<HiddenChargesMedicalBills />} />
         <Route path="/review-contracts-hidden-costs" element={<ReviewContractsHiddenCosts />} />
