@@ -87,7 +87,7 @@ app.get("/api/health/deep", async (c) => {
   const results: Record<string, unknown> = {
     worker: { status: "ok", timestamp: new Date().toISOString() },
     kv: { status: "unknown" },
-    gemini: { status: "unknown" },
+    analysis_engine: { status: "unknown" },
   };
 
   // KV check
@@ -110,12 +110,12 @@ app.get("/api/health/deep", async (c) => {
       const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${c.env.GEMINI_MODEL || "gemini-3.5-flash-lite"}?key=${geminiKey}`, {
         signal: AbortSignal.timeout(5000),
       });
-      results.gemini = { status: geminiResp.ok ? "ok" : "degraded", code: geminiResp.status };
+      results.analysis_engine = { status: geminiResp.ok ? "ok" : "degraded", code: geminiResp.status };
     } catch {
-      results.gemini = { status: "unavailable" };
+      results.analysis_engine = { status: "unavailable" };
     }
   } else {
-    results.gemini = { status: "not_configured" };
+    results.analysis_engine = { status: "not_configured" };
   }
 
   const allOk = Object.values(results).every((r: any) => r.status === "ok" || r.status === "not_configured");
