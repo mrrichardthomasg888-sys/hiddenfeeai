@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { PDFDocument, PDFName } from "pdf-lib";
 import { buildPremiumReport } from "../worker/src/services/premiumReport.js";
@@ -51,19 +51,36 @@ assert(premium.executiveOverview.confidence === 99, "0.99 confidence must render
 assert(premium.negotiationPlaybook.phoneScript.length > 50, "Negotiation Playbook must always contain a complete phone script");
 assert(premium.findings.every((item) => item.evidenceQuote && item.location && item.talkingPoint), "Every finding must link evidence and a concise talking point");
 assert(premium.executiveOverview.potentialSavings === 5000, "Canonical savings must match the source report");
+assert(premium.sectionOrder.length === 16, "Canonical report must define the complete premium section order");
+assert(premium.executiveDashboard.metrics.length === 7, "Executive dashboard must contain all seven required hero metrics");
+assert(premium.executiveDashboard.deliverables.length === 4, "Existing report deliverables must remain visible in the canonical model");
+assert(premium.executiveDashboard.negotiationSuccessReadiness <= 95, "Negotiation readiness must not imply guaranteed success");
+assert(premium.visualizations.contractScorecard.length >= 5 && premium.visualizations.industryBenchmark.length >= 5, "Scorecard and benchmark comparison must be complete");
+assert(Object.values(premium.checklists).every((items) => items.length >= 4), "Every professional checklist must contain actionable controls");
 
 const cleanPremium = buildPremiumReport(cleanReport);
 assert(cleanPremium.negotiationPlaybook.phoneScript.length > 50, "Clean contracts must still include negotiation guidance");
 assert(cleanPremium.positiveTerms.length > 0 && cleanPremium.missingProtections.length > 0 && cleanPremium.watchLater.length > 0, "Clean Contract Health Reports must remain valuable");
+assert(cleanPremium.sectionOrder.map((item) => item.key).join("|") === premium.sectionOrder.map((item) => item.key).join("|"), "Clean and finding-rich reports must use the same section architecture");
 
 const pdf = await generateEnhancedPdf({ auditReport: report, premiumReport: premium });
 const cleanPdf = await generateEnhancedPdf({ auditReport: cleanReport, premiumReport: cleanPremium });
 const parsedPdf = await PDFDocument.load(pdf);
 assert(Boolean(parsedPdf.catalog.get(PDFName.of("Outlines"))), "PDF must include navigation bookmarks");
-assert((parsedPdf.getPages()[1].node.Annots()?.size() ?? 0) >= 10, "PDF table of contents must contain clickable section links");
+const tocLinkCount = parsedPdf.getPages().reduce((sum, page) => sum + (page.node.Annots()?.size() ?? 0), 0);
+assert(tocLinkCount >= premium.sectionOrder.length, "PDF table of contents must link every canonical section");
 const rendered = await textOf(pdf);
 const cleanRendered = await textOf(cleanPdf);
-for (const heading of ["Executive Decision Brief", "Financial Impact Summary", "Top Urgent Actions", "Negotiation Playbook", "Timeline and Deadlines", "Prioritized Findings", "Detailed Evidence", "Positive Terms and Protections", "What Is Missing?", "Start Here Action Plan", "Provider Questions and Escalation", "Methodology, Confidence, and Limitations"]) assert(rendered.text.includes(heading), `PDF missing required section: ${heading}`);
+const normalizedText = rendered.text.replace(/\s+/g, " ");
+let previousSectionPosition = -1;
+for (const section of premium.sectionOrder) {
+  assert(rendered.text.includes(section.title), `PDF missing canonical section: ${section.title}`);
+  assert(normalizedText.includes(section.description), `PDF wording drifted for section description: ${section.title}`);
+  const sectionPosition = rendered.text.lastIndexOf(section.title);
+  assert(sectionPosition > previousSectionPosition, `PDF section order drifted at: ${section.title}`);
+  previousSectionPosition = sectionPosition;
+}
+for (const heading of ["Executive Dashboard", "AI Executive Insights", "Financial Impact and Cost Forecast", "Risk, Health, and Benchmark Scorecard", "Professional Review Checklists", "Industry Benchmark Comparison", "Cost Forecast", "Savings Timeline", "Priority Matrix", "Procurement Checklist", "Attorney Review Checklist", "Negotiation Checklist", "Renewal Readiness", "Invoice Monitoring Checklist"]) assert(rendered.text.includes(heading), `PDF missing premium value section: ${heading}`);
 assert(!rendered.text.includes("Your Action Scripts"), "Legacy per-finding script section must not render");
 assert(!rendered.text.includes("0 findings with negotiation language"), "PDF must not claim negotiation guidance is missing");
 assert((rendered.text.match(/PERSONALIZED PHONE SCRIPT/g) ?? []).length === 1, "Full phone script must render once for normal content");
@@ -72,8 +89,17 @@ assert((rendered.text.match(/DETAILED NEGOTIATION EMAIL/g) ?? []).length === 1, 
 assert(rendered.text.includes("99%"), "PDF confidence must display 99%, not 0.99%");
 assert(!rendered.text.includes("0.99%"), "PDF must not display fractional confidence as a percent");
 assert(rendered.text.includes("$5,000.00"), "PDF possible savings must match canonical web data");
+for (const metric of premium.executiveDashboard.metrics) assert(rendered.text.includes(metric.displayValue), `PDF and web dashboard value drifted: ${metric.label}`);
+for (const metric of premium.executiveDashboard.metrics) assert(normalizedText.includes(metric.supportingText), `PDF omitted canonical dashboard context: ${metric.label}`);
+for (const item of premium.executiveDashboard.deliverables) assert(rendered.text.includes(item.label), `PDF omitted existing report deliverable: ${item.label}`);
+assert(rendered.text.includes("Original total") && rendered.text.includes("Corrected total"), "PDF must preserve original and corrected financial calculations");
 assert(rendered.text.length > 5000, "PDF text must be searchable and complete");
 assert(cleanRendered.text.includes("No major hidden fee was confirmed") && cleanRendered.text.includes("Positive Terms and Protections") && cleanRendered.text.includes("What to Watch Later"), "Clean PDF must be a complete Contract Health Report");
+for (const section of cleanPremium.sectionOrder) assert(cleanRendered.text.includes(section.title), `Clean PDF missing canonical section: ${section.title}`);
+
+const webRenderer = await readFile("client/src/components/report/PremiumReportSections.tsx", "utf8");
+assert(webRenderer.includes("report.sectionOrder.map"), "Web renderer must iterate the canonical section order");
+assert(webRenderer.includes("report.executiveDashboard.metrics.map"), "Web dashboard must render canonical metrics without recalculation drift");
 
 await mkdir("tmp/pdfs", { recursive: true });
 await writeFile("tmp/pdfs/premium-report-regression.pdf", pdf);

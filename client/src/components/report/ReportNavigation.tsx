@@ -3,16 +3,16 @@ import { motion } from "framer-motion";
 import { LayoutDashboard, Search, FileText, MessageSquare, Shield, CircleDollarSign } from "lucide-react";
 
 const sections = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "discoveries", label: "Decision", icon: Search },
-  { id: "playbook", label: "Playbook", icon: MessageSquare },
+  { id: "executive-dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "executive-decision", label: "Decision", icon: Search },
+  { id: "negotiation-playbook", label: "Playbook", icon: MessageSquare },
   { id: "financial-impact", label: "Financial Impact", icon: CircleDollarSign },
   { id: "prioritized-findings", label: "Findings", icon: FileText },
   { id: "methodology", label: "Evidence", icon: Shield },
 ];
 
 export function ReportNavigation() {
-  const [active, setActive] = useState("overview");
+  const [active, setActive] = useState("executive-dashboard");
 
   useEffect(() => {
     const observer = new IntersectionObserver(

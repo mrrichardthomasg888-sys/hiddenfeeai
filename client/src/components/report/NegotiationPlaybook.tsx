@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Check, Copy, Mail, Phone, Scale, Shield, Target } from "lucide-react";
-import type { PremiumReport } from "@/types/audit";
+import type { PremiumReport, PremiumReportSection } from "@/types/audit";
 
 interface NegotiationPlaybookProps {
   report: PremiumReport;
+  section: PremiumReportSection;
 }
 
 function ListCard({ title, items, tone = "blue" }: { title: string; items: string[]; tone?: "blue" | "gold" | "green" }) {
@@ -35,7 +36,7 @@ function ScriptCard({ id, title, icon, text, onCopy, copied }: { id: string; tit
   );
 }
 
-export function NegotiationPlaybook({ report }: NegotiationPlaybookProps) {
+export function NegotiationPlaybook({ report, section }: NegotiationPlaybookProps) {
   const [copied, setCopied] = useState<string | null>(null);
   const playbook = report.negotiationPlaybook;
   const copy = async (text: string, id: string) => {
@@ -45,15 +46,15 @@ export function NegotiationPlaybook({ report }: NegotiationPlaybookProps) {
   };
 
   return (
-    <section className="relative overflow-hidden rounded-[2rem] border border-[#f4c542]/20 bg-[linear-gradient(145deg,rgba(244,197,66,.07),rgba(77,163,255,.04)_42%,rgba(255,255,255,.02))] p-6 sm:p-10">
+    <section id={section.key} aria-labelledby={`${section.key}-title`} className="report-section relative scroll-mt-28 overflow-hidden rounded-[2rem] border border-[#f4c542]/20 bg-[linear-gradient(145deg,rgba(244,197,66,.07),rgba(77,163,255,.04)_42%,rgba(255,255,255,.02))] p-6 shadow-[0_28px_90px_rgba(0,0,0,.18)] sm:p-10">
       <div className="pointer-events-none absolute right-[-10%] top-[-35%] h-72 w-72 rounded-full bg-[#4da3ff]/10 blur-[90px]" />
       <div className="relative">
         <div className="flex items-start gap-4">
           <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#f4c542]/25 bg-[#f4c542]/10"><Scale className="h-7 w-7 text-[#f4c542]" /></span>
           <div>
-            <p className="text-xs font-black uppercase tracking-[.18em] text-[#f8d96e]">Restored and expanded</p>
-            <h2 className="mt-1 text-3xl font-black tracking-[-.035em] text-white sm:text-4xl">Negotiation Playbook</h2>
-            <p className="mt-3 max-w-3xl text-base leading-7 text-[#dce4ec]">One personalized strategy for the entire document. Full scripts appear here once; each finding contains only its own short talking point.</p>
+            <p className="text-xs font-black uppercase tracking-[.18em] text-[#f8d96e]">{section.eyebrow}</p>
+            <h2 id={`${section.key}-title`} className="mt-1 text-3xl font-black tracking-[-.035em] text-white sm:text-4xl lg:text-[2.75rem]">{section.title}</h2>
+            <p className="mt-3 max-w-3xl text-base leading-7 text-[#dce4ec]">{section.description}</p>
           </div>
         </div>
 

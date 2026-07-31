@@ -8,12 +8,8 @@ import { Button } from "@/components/ui/button";
 import type { AuditReport, JobStatus } from "@/types/audit";
 
 // ── Premium report components ──
-import { PremiumReportHero } from "@/components/report/PremiumReportHero";
 import { ReportStickySummary } from "@/components/report/ReportStickySummary";
 import { ReportNavigation } from "@/components/report/ReportNavigation";
-import { ValueSummaryDashboard } from "@/components/report/ValueSummaryDashboard";
-import { NegotiationPlaybook } from "@/components/report/NegotiationPlaybook";
-import { AuditDeliverables } from "@/components/report/AuditDeliverables";
 import { PremiumReportSections } from "@/components/report/PremiumReportSections";
 import { BrandIdentity } from "@/components/brand/BrandIdentity";
 
@@ -292,20 +288,8 @@ export function AuditReport() {
 
   // Derive every displayed value from the canonical premium report.
   const premium = report.premiumReport;
-  const meta = report.documentMetadata;
   const totalIssues = premium.executiveOverview.totalFindings;
-  const hiddenFeesCount = premium.findings.filter((finding) => /fee|charge|surcharge|tax/i.test(`${finding.category} ${finding.title}`)).length;
   const potentialSavings = premium.executiveOverview.potentialSavings;
-  const criticalCount = premium.findings.filter((finding) => finding.severity === "Critical").length;
-  const severityCounts = {
-    Critical: criticalCount,
-    High: premium.findings.filter((finding) => finding.severity === "High").length,
-    Medium: premium.findings.filter((finding) => finding.severity === "Medium").length,
-    Low: premium.findings.filter((finding) => finding.severity === "Low").length,
-  };
-  const evidenceCount = premium.findings.filter((finding) => Boolean(finding.evidenceQuote && finding.location)).length;
-  const actionCount = Object.values(premium.actionPlan).flat().length;
-  const scriptCount = 3 + Number(Boolean(premium.negotiationPlaybook.renewalScript)) + Number(Boolean(premium.negotiationPlaybook.cancellationScript));
 
   return (
     <div id="overview" className="premium-page audit-report-page relative min-h-screen overflow-hidden bg-[#070b14] print:bg-[#070b14]">
@@ -356,59 +340,6 @@ export function AuditReport() {
       <Container className="relative z-10 pb-32 pt-7 sm:pb-32 sm:pt-10 lg:pb-28">
         <div className="mx-auto max-w-5xl space-y-10 sm:space-y-12">
 
-          {/* ── PREMIUM REPORT HERO ── */}
-          <PremiumReportHero
-            documentType={meta.documentType}
-            issuer={meta.issuer}
-            riskScore={premium.executiveOverview.riskScore}
-            riskLevel={report.riskCategory}
-            totalIssues={totalIssues}
-            potentialExposure={potentialSavings}
-            negotiationOpportunities={premium.negotiationPlaybook.priorityItems.length}
-            criticalCount={criticalCount}
-            hiddenFeesCount={hiddenFeesCount}
-            severityCounts={severityCounts}
-          />
-
-          <AuditDeliverables
-            evidenceCount={evidenceCount}
-            actionCount={actionCount}
-            scriptCount={scriptCount}
-            pagesReviewed={meta.pagesReviewed}
-          />
-
-          {/* ── VALUE SUMMARY DASHBOARD ── */}
-          <div id="summary-stats" className="scroll-mt-16">
-            <ValueSummaryDashboard
-              totalIssues={totalIssues}
-              hiddenFeesCount={hiddenFeesCount}
-              potentialSavings={potentialSavings}
-              confidenceLevel={premium.executiveOverview.confidence}
-            />
-          </div>
-
-          {/* ── EXECUTIVE SUMMARY ── */}
-          <div id="discoveries" className="scroll-mt-24 rounded-[2rem] border border-white/[0.08] bg-[linear-gradient(145deg,rgba(77,163,255,.07),rgba(255,255,255,.02))] p-6 sm:p-10">
-            <div className="flex flex-wrap items-start justify-between gap-5">
-              <div className="max-w-3xl">
-                <p className="text-xs font-black uppercase tracking-[.17em] text-[#73b8ff]">Executive decision brief</p>
-                <h2 className="mt-2 text-3xl font-black tracking-[-.035em] text-white sm:text-4xl">{premium.executiveOverview.decision}</h2>
-                <p className="mt-4 text-lg font-bold leading-8 text-white">{premium.executiveOverview.decisionReasoning}</p>
-                <p className="mt-3 leading-7 text-[#c8d3df]">{premium.executiveOverview.documentSummary}</p>
-              </div>
-              <div className="rounded-2xl border border-[#f4c542]/20 bg-[#f4c542]/[0.06] px-5 py-4 text-center"><p className="text-xs font-black uppercase tracking-[.13em] text-[#f8d96e]">Risk</p><p className="mt-1 text-2xl font-black text-white">{premium.executiveOverview.riskScore}/100</p></div>
-            </div>
-            <h3 className="mt-8 text-sm font-black uppercase tracking-[.15em] text-[#f8d96e]">Top three urgent actions</h3>
-            <ol className="mt-4 grid gap-3 lg:grid-cols-3">{premium.executiveOverview.urgentActions.slice(0, 3).map((action, index) => <li key={index} className="rounded-2xl border border-white/[0.08] bg-black/15 p-5 text-[15px] font-bold leading-7 text-white"><span className="mb-3 flex h-7 w-7 items-center justify-center rounded-full bg-[#f4c542]/15 text-xs font-black text-[#f8d96e]">{index + 1}</span>{action}</li>)}</ol>
-          </div>
-
-          {/* ── RISK MAP ── */}
-          <div id="playbook" className="scroll-mt-24">
-            <NegotiationPlaybook report={premium} />
-          </div>
-
-          {/* ── NEGOTIATION PLAYBOOK ── */}
-          {/* ── HIDDEN FEES ── */}
           <PremiumReportSections report={premium} />
 
           {/* ── QUESTIONABLE CHARGES ── */}

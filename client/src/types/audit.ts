@@ -210,6 +210,7 @@ export interface PremiumFinding {
   severity: Severity | "Informational";
   confidence: number;
   amount: number | null;
+  executiveSummary: string;
   explanation: string;
   whyItMatters: string;
   evidenceQuote: string;
@@ -222,6 +223,15 @@ export interface PremiumFinding {
   talkingPoint: string;
 }
 
+export type PremiumReportSectionKey = "executive-dashboard" | "executive-decision" | "negotiation-playbook" | "executive-insights" | "financial-impact" | "risk-scorecard" | "timeline" | "prioritized-findings" | "detailed-evidence" | "positive-terms" | "missing-protections" | "watch-later" | "professional-checklists" | "action-plan" | "provider-guidance" | "methodology";
+
+export interface PremiumReportSection {
+  key: PremiumReportSectionKey;
+  eyebrow: string;
+  title: string;
+  description: string;
+}
+
 export interface PremiumInsightItem {
   title: string;
   explanation: string;
@@ -231,6 +241,7 @@ export interface PremiumInsightItem {
 }
 
 export interface PremiumReport {
+  sectionOrder: PremiumReportSection[];
   reportId: string;
   documentType: string;
   issuer: string;
@@ -247,6 +258,25 @@ export interface PremiumReport {
     urgentActions: string[];
     decision: "Accept" | "Negotiate" | "Escalate" | "Request Clarification" | "Avoid";
     decisionReasoning: string;
+  };
+  executiveDashboard: {
+    metrics: Array<{ key: string; label: string; displayValue: string; supportingText: string; tone: "gold" | "red" | "blue" | "green" }>;
+    deliverables: Array<{ label: string; displayValue: string }>;
+    attentionScore: number;
+    contractHealthScore: number;
+    negotiationSuccessReadiness: number;
+    negotiationReadinessExplanation: string;
+    highPriorityFindings: number;
+    hiddenFeeCount: number;
+    financialExposure: number;
+  };
+  executiveInsights: {
+    insights: string[];
+    surprise: { title: string; explanation: string };
+    quickWins: string[];
+    riskIfIgnored: string[];
+    longTermCostProjection: string;
+    industryBenchmarkSummary: string;
   };
   financialImpact: {
     originalTotal: number;
@@ -276,6 +306,14 @@ export interface PremiumReport {
     renewalScript?: string;
     cancellationScript?: string;
   };
+  visualizations: {
+    costForecast: Array<{ label: string; value: number | null; displayValue: string; basis: string }>;
+    savingsTimeline: Array<{ label: string; value: number; displayValue: string; basis: string }>;
+    contractScorecard: Array<{ label: string; score: number; explanation: string }>;
+    hiddenFeeHeatMap: Array<{ category: string; count: number; amount: number; severity: string }>;
+    priorityMatrix: Array<{ findingId: string; title: string; urgency: string; financialImpact: string; quadrant: string }>;
+    industryBenchmark: Array<{ dimension: string; documentPosition: string; professionalBestPractice: string; gap: string }>;
+  };
   timeline: Array<{ event: string; date: string; location: string; evidence: string; recommendedAction: string }>;
   findings: PremiumFinding[];
   positiveTerms: PremiumInsightItem[];
@@ -284,6 +322,13 @@ export interface PremiumReport {
   actionPlan: { today: string[]; beforeSigning: string[]; duringNegotiation: string[]; afterSigning: string[]; beforeRenewal: string[] };
   providerQuestions: string[];
   escalationSteps: string[];
+  checklists: {
+    procurement: string[];
+    attorneyReview: string[];
+    negotiation: string[];
+    renewalReadiness: string[];
+    invoiceMonitoring: string[];
+  };
   methodology: { coverage: string; limitations: string[]; unreadableAreas: string[]; assumptions: string[]; humanConfirmation: string[] };
 }
 
