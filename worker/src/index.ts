@@ -76,12 +76,7 @@ app.get("/api/health", (c) => {
     status: "ok",
     timestamp: new Date().toISOString(),
     environment: c.env.ENVIRONMENT || "unknown",
-    version: "3.0.0-direct-gemini",
-    pipelines: {
-      legacy: false,
-      new: c.env.USE_NEW_PIPELINE === "true",
-      v2: c.env.USE_V2_PIPELINE === "true",
-    },
+    version: "3.0.0",
     store: c.env.ANALYSIS_KV ? "kv" : "memory",
     metrics: getMetricsSnapshot(),
   });
