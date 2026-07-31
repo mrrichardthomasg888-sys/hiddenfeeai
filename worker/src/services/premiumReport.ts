@@ -5,19 +5,17 @@ export type PremiumDecision = "Accept" | "Negotiate" | "Escalate" | "Request Cla
 export type PremiumReportSectionKey =
   | "executive-dashboard"
   | "executive-decision"
-  | "negotiation-playbook"
-  | "executive-insights"
+  | "detailed-findings"
   | "financial-impact"
-  | "risk-scorecard"
+  | "negotiation-playbook"
+  | "scripts"
   | "timeline"
-  | "prioritized-findings"
-  | "detailed-evidence"
-  | "positive-terms"
-  | "missing-protections"
-  | "watch-later"
+  | "protections"
+  | "executive-insights"
+  | "risk-scorecard"
   | "professional-checklists"
   | "action-plan"
-  | "provider-guidance"
+  | "watch-later"
   | "methodology";
 
 export interface PremiumReportSection {
@@ -28,22 +26,20 @@ export interface PremiumReportSection {
 }
 
 export const PREMIUM_REPORT_SECTIONS: PremiumReportSection[] = [
-  { key: "executive-dashboard", eyebrow: "Audit command center", title: "Executive Dashboard", description: "The financial stakes, attention level, document coverage, and strongest decision signals in one view." },
+  { key: "executive-dashboard", eyebrow: "15-second overview", title: "Executive Dashboard", description: "The seven highest-value signals from your document, at a glance." },
   { key: "executive-decision", eyebrow: "Leadership brief", title: "Executive Decision Brief", description: "The recommended decision, reasoning, and three actions that matter most right now." },
-  { key: "negotiation-playbook", eyebrow: "Premium negotiation assets", title: "Negotiation Playbook", description: "One consolidated strategy and script set for the entire document, personalized to the evidence and financial exposure." },
+  { key: "detailed-findings", eyebrow: "Core document findings", title: "Detailed Findings", description: "The single canonical findings section: every issue, its evidence, financial impact, and what to do next." },
+  { key: "financial-impact", eyebrow: "Cost intelligence", title: "Financial Impact & Savings", description: "Confirmed amounts, recurring exposure, possible savings, and forecast values with the calculation basis kept visible." },
+  { key: "negotiation-playbook", eyebrow: "Premium negotiation assets", title: "Negotiation Playbook", description: "One consolidated strategy for the entire document, personalized to the evidence and financial exposure." },
+  { key: "scripts", eyebrow: "Ready-to-use language", title: "Phone Scripts & Email Templates", description: "One complete set of personalized scripts and templates for the document, without repeating them after each finding." },
+  { key: "timeline", eyebrow: "Important dates", title: "Important Dates & Deadlines", description: "Renewal, cancellation, notice, price-change, trial, and other dates appear only when supporting evidence was returned." },
+  { key: "protections", eyebrow: "Terms worth preserving", title: "Positive Terms & Missing Protections", description: "Favorable language to retain and absent or unclear protections to request." },
   { key: "executive-insights", eyebrow: "Decision intelligence", title: "AI Executive Insights", description: "The most important patterns, surprises, quick wins, consequences, and long-term implications surfaced by the audit." },
-  { key: "financial-impact", eyebrow: "Cost intelligence", title: "Financial Impact and Cost Forecast", description: "Confirmed amounts, recurring exposure, possible savings, and forecast values with the calculation basis kept visible." },
-  { key: "risk-scorecard", eyebrow: "Risk architecture", title: "Risk, Health, and Benchmark Scorecard", description: "Risk, contract health, negotiation readiness, priority distribution, fee concentration, and best-practice gaps." },
-  { key: "timeline", eyebrow: "Important dates", title: "Timeline and Deadlines", description: "Renewal, cancellation, notice, price-change, trial, and other dates appear only when supporting evidence was returned." },
-  { key: "prioritized-findings", eyebrow: "Executive issue register", title: "Prioritized Findings", description: "Every issue begins with a concise executive summary and is ranked by severity and evidence confidence." },
-  { key: "detailed-evidence", eyebrow: "Evidence room", title: "Detailed Evidence", description: "Exact quotes, locations, financial impact, actions, questions, negotiability, and replacement language for every finding." },
-  { key: "positive-terms", eyebrow: "Terms worth preserving", title: "Positive Terms and Protections", description: "Favorable language and protections to retain through revisions, negotiation, signing, and renewal." },
-  { key: "missing-protections", eyebrow: "Protection gaps", title: "What Is Missing?", description: "Absent or unclear pricing, definitions, service protections, renewal language, and cancellation instructions to request." },
-  { key: "watch-later", eyebrow: "Ongoing monitoring", title: "What to Watch Later", description: "Future invoices, renewals, usage limits, late fees, add-ons, and policy changes that deserve continued attention." },
-  { key: "professional-checklists", eyebrow: "Execution controls", title: "Professional Review Checklists", description: "Procurement, attorney review, negotiation, renewal readiness, and invoice monitoring controls tailored to this audit." },
-  { key: "action-plan", eyebrow: "Ranked next steps", title: "Start Here Action Plan", description: "Actions organized by contract stage: today, before signing, during negotiation, after signing, and before renewal." },
-  { key: "provider-guidance", eyebrow: "Provider strategy", title: "Provider Questions and Escalation", description: "Focused questions, escalation steps, and the written record needed when the first answer is not enough." },
-  { key: "methodology", eyebrow: "Evidence and reliability", title: "Methodology, Confidence, and Limitations", description: "Document coverage, uncertainty, assumptions, unreadable areas, and items requiring human confirmation." },
+  { key: "risk-scorecard", eyebrow: "Risk architecture", title: "Contract Health, Risk Scorecards & Benchmarks", description: "Risk, contract health, negotiation readiness, priority distribution, fee concentration, and best-practice gaps." },
+  { key: "professional-checklists", eyebrow: "Execution controls", title: "Procurement / Attorney / Negotiation Checklists", description: "Professional review, renewal readiness, and invoice monitoring controls tailored to this audit." },
+  { key: "action-plan", eyebrow: "Ranked next steps", title: "Ranked Action Plan", description: "Actions organized by contract stage: today, before signing, during negotiation, after signing, and before renewal." },
+  { key: "watch-later", eyebrow: "Ongoing monitoring", title: "Ongoing Monitoring", description: "Future invoices, renewals, usage limits, late fees, add-ons, and policy changes that deserve continued attention." },
+  { key: "methodology", eyebrow: "Evidence and reliability", title: "Methodology & Limitations", description: "Document coverage, uncertainty, assumptions, unreadable areas, and items requiring human confirmation." },
 ];
 
 export interface PremiumFinding {
@@ -350,7 +346,7 @@ export function buildPremiumReport(report: AuditReport): PremiumReport {
       pagesReviewed: Math.max(0, Number(report.document_meta?.pages_reviewed) || 0),
       confidence,
       documentSummary: insights.document_summary || (findings.length
-        ? `The review identified ${findings.length} evidence-linked item${findings.length === 1 ? "" : "s"}. Use the prioritized findings and consolidated playbook before accepting or paying disputed terms.`
+        ? `The review identified ${findings.length} evidence-linked item${findings.length === 1 ? "" : "s"}. Use the Detailed Findings and consolidated playbook before accepting or paying disputed terms.`
         : "No major hidden fee was confirmed in the structured findings. The health-check sections below still identify protections to preserve, details to verify, and future risks to monitor."),
       urgentActions,
       decision,

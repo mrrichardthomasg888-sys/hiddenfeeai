@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Search, FileText, MessageSquare, Shield, CircleDollarSign } from "lucide-react";
+import { LayoutDashboard, Search, FileText, MessageSquare, Shield, CircleDollarSign, CalendarClock } from "lucide-react";
 
 const sections = [
   { id: "executive-dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "executive-decision", label: "Decision", icon: Search },
-  { id: "negotiation-playbook", label: "Playbook", icon: MessageSquare },
+  { id: "detailed-findings", label: "Findings", icon: FileText },
   { id: "financial-impact", label: "Financial Impact", icon: CircleDollarSign },
-  { id: "prioritized-findings", label: "Findings", icon: FileText },
+  { id: "negotiation-playbook", label: "Playbook", icon: MessageSquare },
+  { id: "timeline", label: "Dates", icon: CalendarClock },
   { id: "methodology", label: "Evidence", icon: Shield },
 ];
 

@@ -76,11 +76,28 @@ export function NegotiationPlaybook({ report, section }: NegotiationPlaybookProp
         <div className="mt-4 grid gap-4 lg:grid-cols-2"><ListCard title="Escalation path" items={playbook.escalationPath} /><ListCard title="Follow-up schedule" items={playbook.followUpSchedule} tone="green" /></div>
         <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/[0.04] p-5 sm:p-6"><div className="flex items-center gap-2 text-xs font-black uppercase tracking-[.14em] text-red-300"><Shield className="h-4 w-4" />Walk-away threshold</div><p className="mt-3 leading-7 text-[#dce4ec]">{playbook.walkAwayThreshold}</p></div>
 
-        <div className="mt-8 space-y-4">
-          <ScriptCard id="phone" title="Personalized phone script" icon="phone" text={playbook.phoneScript} onCopy={copy} copied={copied} />
-          <div className="grid gap-4 lg:grid-cols-2"><ScriptCard id="short-email" title="Short executive email" icon="mail" text={playbook.shortEmail} onCopy={copy} copied={copied} /><ScriptCard id="detailed-email" title="Detailed negotiation email" icon="mail" text={playbook.detailedEmail} onCopy={copy} copied={copied} /></div>
-          {(playbook.renewalScript || playbook.cancellationScript) && <div className="grid gap-4 lg:grid-cols-2">{playbook.renewalScript && <ScriptCard id="renewal" title="Renewal negotiation script" icon="phone" text={playbook.renewalScript} onCopy={copy} copied={copied} />}{playbook.cancellationScript && <ScriptCard id="cancel" title="Cancellation / opt-out script" icon="phone" text={playbook.cancellationScript} onCopy={copy} copied={copied} />}</div>}
-        </div>
+      </div>
+    </section>
+  );
+}
+
+export function PhoneScripts({ report, section }: NegotiationPlaybookProps) {
+  const [copied, setCopied] = useState<string | null>(null);
+  const playbook = report.negotiationPlaybook;
+  const copy = async (text: string, id: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopied(id);
+    window.setTimeout(() => setCopied(null), 2200);
+  };
+  return (
+    <section id={section.key} aria-labelledby={`${section.key}-title`} className="report-section scroll-mt-28 rounded-[2rem] border border-white/[0.08] bg-[linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.015))] p-6 shadow-[0_28px_90px_rgba(0,0,0,.18)] sm:p-10">
+      <p className="text-xs font-black uppercase tracking-[.18em] text-[#73b8ff]">{section.eyebrow}</p>
+      <h2 id={`${section.key}-title`} className="mt-2 max-w-4xl text-3xl font-black tracking-[-.04em] text-white sm:text-4xl lg:text-[2.75rem]">{section.title}</h2>
+      <p className="mt-3 max-w-4xl text-base leading-7 text-[#c8d3df]">{section.description}</p>
+      <div className="mt-8 space-y-4">
+        <ScriptCard id="phone" title="Personalized phone script" icon="phone" text={playbook.phoneScript} onCopy={copy} copied={copied} />
+        <div className="grid gap-4 lg:grid-cols-2"><ScriptCard id="short-email" title="Short executive email" icon="mail" text={playbook.shortEmail} onCopy={copy} copied={copied} /><ScriptCard id="detailed-email" title="Detailed negotiation email" icon="mail" text={playbook.detailedEmail} onCopy={copy} copied={copied} /></div>
+        {(playbook.renewalScript || playbook.cancellationScript) && <div className="grid gap-4 lg:grid-cols-2">{playbook.renewalScript && <ScriptCard id="renewal" title="Renewal negotiation script" icon="phone" text={playbook.renewalScript} onCopy={copy} copied={copied} />}{playbook.cancellationScript && <ScriptCard id="cancel" title="Cancellation / opt-out script" icon="phone" text={playbook.cancellationScript} onCopy={copy} copied={copied} />}</div>}
       </div>
     </section>
   );

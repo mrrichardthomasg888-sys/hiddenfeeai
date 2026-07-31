@@ -362,6 +362,10 @@ class Flow {
     this.label("Walk-away threshold", playbook.walkAwayThreshold);
     this.text("Follow-up schedule", { size: 17, bold: true, color: GOLD, gap: 7 });
     playbook.followUpSchedule.forEach((item) => this.text(`- ${item}`, { indent: 12, size: 13.5, gap: 5 }));
+  }
+
+  scripts(report: PremiumReport): void {
+    const playbook = report.negotiationPlaybook;
     this.scriptCard("PERSONALIZED PHONE SCRIPT", playbook.phoneScript, [0.49, 0.76, 1]);
     this.scriptCard("SHORT EXECUTIVE EMAIL", playbook.shortEmail, [1, 0.82, 0.3]);
     this.scriptCard("DETAILED NEGOTIATION EMAIL", playbook.detailedEmail, [1, 0.82, 0.3]);
@@ -378,6 +382,7 @@ class Flow {
     this.ensure(70);
     this.text(`${index + 1}. ${finding.title}`, { size: 18, bold: true, color: severityColor, gap: 5 });
     this.text(`${finding.severity} | ${finding.confidence}% confidence | ${finding.category} | ${finding.amount == null ? "Amount not stated" : money(finding.amount)} | ${finding.location}`, { size: 12.5, color: MUTED, gap: 9 });
+    this.label("Executive summary", finding.executiveSummary);
     this.label("Exact evidence quote", finding.evidenceQuote);
     this.label("Plain-English explanation", finding.explanation);
     this.label("Why it matters", finding.whyItMatters);
@@ -539,11 +544,6 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
     switch (section.key) {
       case "executive-dashboard": {
         premium.executiveDashboard.metrics.forEach((item) => flow.metricWithSupport(item.label, item.displayValue, item.supportingText, item.tone === "red" ? RED : item.tone === "green" ? GREEN : item.tone === "gold" ? GOLD : BLUE));
-        flow.score("Attention Score", premium.executiveDashboard.attentionScore, "Higher means more urgent review is warranted.", premium.executiveDashboard.attentionScore >= 70 ? RED : GOLD);
-        flow.score("Contract Health", premium.executiveDashboard.contractHealthScore, "Inverse of the report attention score.", GREEN);
-        flow.score("Negotiation Success Readiness", premium.executiveDashboard.negotiationSuccessReadiness, premium.executiveDashboard.negotiationReadinessExplanation, BLUE);
-        flow.text("Report deliverables", { size: 17, bold: true, color: GOLD, gap: 6 });
-        premium.executiveDashboard.deliverables.forEach((item) => flow.label(item.label, item.displayValue));
         break;
       }
       case "executive-decision":
@@ -556,6 +556,9 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
         break;
       case "negotiation-playbook":
         flow.playbook(premium);
+        break;
+      case "scripts":
+        flow.scripts(premium);
         break;
       case "executive-insights":
         premium.executiveInsights.insights.forEach((item, index) => flow.text(`${index + 1}. ${item}`, { bold: true, gap: 8 }));
@@ -589,6 +592,8 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
         flow.score("Professional Risk Gauge", premium.executiveDashboard.attentionScore, "The audit's canonical attention score.", premium.executiveDashboard.attentionScore >= 70 ? RED : GOLD);
         flow.score("Contract Health Gauge", premium.executiveDashboard.contractHealthScore, "The inverse health view of the same attention score.", GREEN);
         flow.score("AI Confidence Visualization", premium.executiveOverview.confidence, "Normalized evidence confidence, never a legal certainty.", BLUE);
+        flow.text("Report deliverables", { size: 17, bold: true, color: GOLD, gap: 6 });
+        premium.executiveDashboard.deliverables.forEach((item) => flow.label(item.label, item.displayValue));
         flow.text("Contract Scorecard", { size: 17, bold: true, color: BLUE, gap: 8 });
         premium.visualizations.contractScorecard.forEach((item) => flow.score(item.label, item.score, item.explanation, BLUE));
         flow.text("Hidden Fee Heat Map", { size: 17, bold: true, color: GOLD, gap: 7 });
@@ -613,7 +618,7 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
           flow.label("Source", item.location); flow.label("Evidence", item.evidence); flow.label("Action", item.recommendedAction);
         });
         break;
-      case "prioritized-findings":
+      case "detailed-findings":
         if (!premium.findings.length) {
           flow.text("No major hidden fee was confirmed", { bold: true, color: GREEN });
           flow.text("This remains a complete Contract Health Report. Use the protections, missing-details, monitoring, checklists, questions, and renewal controls below.");
@@ -622,20 +627,13 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
           const group = premium.findings.filter((finding) => finding.severity === severity);
           if (!group.length) return;
           flow.text(`${severity} (${group.length})`, { size: 18, bold: true, color: severity === "Critical" ? RED : severity === "High" ? ORANGE : severity === "Medium" ? GOLD : GREEN, gap: 7 });
-          group.forEach((finding) => {
-            flow.text(`${finding.title} - ${finding.confidence}% confidence - ${finding.amount == null ? "Amount not stated" : money(finding.amount)}`, { bold: true, gap: 2 });
-            flow.text(finding.executiveSummary, { size: 13.5, color: MUTED, gap: 8 });
-          });
+          group.forEach((finding) => flow.premiumFinding(finding, premium.findings.indexOf(finding)));
         });
         break;
-      case "detailed-evidence":
-        if (!premium.findings.length) flow.text("No detailed adverse finding was generated. The report still documents coverage, limitations, favorable terms, missing protections, and the controls needed for human confirmation.");
-        premium.findings.forEach((finding, index) => flow.premiumFinding(finding, index));
-        break;
-      case "positive-terms":
+      case "protections":
+        flow.text("Positive Terms", { size: 17, bold: true, color: GREEN, gap: 6 });
         renderInsightItems(premium.positiveTerms, GREEN, "Next step");
-        break;
-      case "missing-protections":
+        flow.text("Missing Protections", { size: 17, bold: true, color: GOLD, gap: 6 });
         renderInsightItems(premium.missingProtections, GOLD, "Next step");
         break;
       case "watch-later":
@@ -651,12 +649,6 @@ export async function generateEnhancedPdf(data: EnhancedReportData): Promise<Uin
         phases.forEach(([title, items]) => { flow.text(title, { size: 17, bold: true, color: GOLD, gap: 6 }); items.forEach((item, index) => flow.text(`${index + 1}. ${item}`, { indent: 12, size: 13.5, gap: 5 })); });
         break;
       }
-      case "provider-guidance":
-        flow.text("Provider-specific questions", { size: 17, bold: true, color: BLUE, gap: 7 });
-        premium.providerQuestions.forEach((question, index) => flow.text(`${index + 1}. ${question}`, { gap: 5 }));
-        flow.text("Escalation steps", { size: 17, bold: true, color: GOLD, gap: 7 });
-        premium.escalationSteps.forEach((item, index) => flow.text(`${index + 1}. ${item}`, { indent: 12, gap: 5 }));
-        break;
       case "methodology":
         flow.text(`${premium.documentType}${premium.issuer ? ` | ${premium.issuer}` : ""}${premium.payer ? ` | ${premium.payer}` : ""}`, { size: 12.5, color: MUTED, gap: 4 });
         flow.text(`Report ID: ${premium.reportId || "Not available"} | Analysis date: ${premium.analysisDate}`, { size: 11.5, color: MUTED, gap: 10 });

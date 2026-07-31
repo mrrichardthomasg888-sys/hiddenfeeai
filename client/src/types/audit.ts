@@ -223,7 +223,7 @@ export interface PremiumFinding {
   talkingPoint: string;
 }
 
-export type PremiumReportSectionKey = "executive-dashboard" | "executive-decision" | "negotiation-playbook" | "executive-insights" | "financial-impact" | "risk-scorecard" | "timeline" | "prioritized-findings" | "detailed-evidence" | "positive-terms" | "missing-protections" | "watch-later" | "professional-checklists" | "action-plan" | "provider-guidance" | "methodology";
+export type PremiumReportSectionKey = "executive-dashboard" | "executive-decision" | "detailed-findings" | "financial-impact" | "negotiation-playbook" | "scripts" | "timeline" | "protections" | "executive-insights" | "risk-scorecard" | "professional-checklists" | "action-plan" | "watch-later" | "methodology";
 
 export interface PremiumReportSection {
   key: PremiumReportSectionKey;
