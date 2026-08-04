@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { prepareUploadFile, uploadDocument } from "@/lib/upload";
 import { DocumentScanner, type ScanPdfMetadata } from "@/components/landing/DocumentScanner";
+import { UploadProgressPanel, type UploadFileSummary, type UploadStage } from "@/components/landing/UploadProgressPanel";
 
 const ACCEPTED_EXTENSIONS = [
   // PDF
@@ -47,6 +48,11 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function fileTypeLabel(file: File): string {
+  const extension = getExtension(file.name).toUpperCase();
+  return extension ? `${extension} file` : file.type || "Document";
+}
+
 type CardState = "idle" | "uploading" | "extracting" | "awaiting_payment" | "analyzing" | "complete" | "error";
 
 const ANALYSIS_STEPS = [
@@ -63,22 +69,69 @@ export function UploadCard() {
   const [file, setFile] = useState<File | null>(null);
   const [state, setState] = useState<CardState>("idle");
   const [auditId, setAuditId] = useState<string | null>(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [fileError, setFileError] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [progressStage, setProgressStage] = useState<UploadStage>("uploading");
+  const [pendingScanPageCount, setPendingScanPageCount] = useState<number | null>(null);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [analyzeStep, setAnalyzeStep] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannerCollapsed, setScannerCollapsed] = useState(false);
   const [scanUpload, setScanUpload] = useState<ScanPdfMetadata | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadControllerRef = useRef<AbortController | null>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
+  const progressHeadingRef = useRef<HTMLHeadingElement>(null);
+  const fileErrorRef = useRef<HTMLDivElement>(null);
+  const processingLockRef = useRef(false);
+  const paymentLockRef = useRef(false);
+  const processingScrolledRef = useRef(false);
+  const errorScrolledRef = useRef(false);
+  const validationErrorScrolledRef = useRef<string | null>(null);
+
+  const processingActive = state === "uploading" || state === "extracting" || state === "analyzing";
 
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent("hiddenfee:workflow", { detail: { active: state !== "idle" && state !== "error" } }));
+    window.dispatchEvent(new CustomEvent("hiddenfee:workflow", { detail: { active: processingActive || paying } }));
     return () => { window.dispatchEvent(new CustomEvent("hiddenfee:workflow", { detail: { active: false } })); };
-  }, [state]);
+  }, [paying, processingActive]);
+
+  useEffect(() => {
+    if (!processingActive) return;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [processingActive]);
+
+  const setProgressTarget = useCallback((node: HTMLDivElement | null) => {
+    progressRef.current = node;
+    if (!node) return;
+    const shouldScrollForError = state === "error" && !errorScrolledRef.current;
+    const shouldScrollForProcessing = processingActive && !processingScrolledRef.current;
+    if (!shouldScrollForError && !shouldScrollForProcessing) return;
+    if (shouldScrollForError) errorScrolledRef.current = true;
+    if (shouldScrollForProcessing) processingScrolledRef.current = true;
+    window.requestAnimationFrame(() => {
+      const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+      node.scrollIntoView({ behavior, block: "start" });
+      progressHeadingRef.current?.focus({ preventScroll: true });
+    });
+  }, [processingActive, state]);
+
+  useEffect(() => {
+    if (!fileError || validationErrorScrolledRef.current === fileError) return;
+    validationErrorScrolledRef.current = fileError;
+    window.requestAnimationFrame(() => {
+      const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+      fileErrorRef.current?.scrollIntoView({ behavior, block: "start" });
+      fileErrorRef.current?.focus({ preventScroll: true });
+    });
+  }, [fileError]);
 
   useEffect(() => {
     const openScanner = () => {
@@ -99,6 +152,7 @@ export function UploadCard() {
   }, [file]);
 
   const handleFiles = useCallback(async (files: FileList | null) => {
+    if (processingLockRef.current) return;
     const selected = files?.[0];
     if (!selected) return;
 
@@ -108,15 +162,28 @@ export function UploadCard() {
       return;
     }
 
+    if (selected.size > MAX_SIZE_BYTES) {
+      setFileError(`File is too large. Maximum size is ${MAX_SIZE_MB} MB.`);
+      return;
+    }
+
+    processingLockRef.current = true;
+    processingScrolledRef.current = false;
+    errorScrolledRef.current = false;
+    setFile(selected);
+    setScanUpload(null);
+    setPendingScanPageCount(null);
     setFileError(null);
     setErrorMessage(null);
+    setProgressStage("uploading");
     setState("uploading");
-    setUploadProgress(5);
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
     const prepared = await prepareUploadFile(selected);
 
     if (prepared.size > MAX_SIZE_BYTES) {
       setFileError(`File is too large. Maximum size is ${MAX_SIZE_MB} MB.`);
       setState("idle");
+      processingLockRef.current = false;
       return;
     }
 
@@ -125,21 +192,21 @@ export function UploadCard() {
   }, []);
 
   const startUpload = async (fileToUpload: File, scanMetadata?: ScanPdfMetadata) => {
-    const uploadController = scanMetadata ? new AbortController() : null;
+    const uploadController = new AbortController();
     uploadControllerRef.current = uploadController;
     setScanUpload(scanMetadata ?? null);
+    setProgressStage("uploading");
     setState("uploading");
-    setUploadProgress(0);
 
-    const stageTimer = window.setInterval(() => setUploadProgress((value) => Math.min(88, value + 8)), 4000);
     try {
-      setUploadProgress(20);
       const data = await uploadDocument(fileToUpload, { signal: uploadController?.signal });
-      setUploadProgress(100);
       if (scanMetadata) {
         window.dispatchEvent(new CustomEvent("hiddenfee:scan-metric", { detail: { event: "upload_succeeded", ...scanMetadata, fileSize: fileToUpload.size, auditId: data.auditId } }));
+        setScannerOpen(false);
+        setScannerCollapsed(false);
       }
       setAuditId(data.auditId);
+      setProgressStage("reading");
       setState("extracting");
 
       // Poll until extraction complete → payment gate
@@ -147,6 +214,7 @@ export function UploadCard() {
       const pollInterval = setInterval(async () => {
         if (Date.now() - pollingStartedAt > 15 * 60_000) {
           clearInterval(pollInterval);
+          processingLockRef.current = false;
           setState("error");
           setErrorMessage("Document preparation timed out before every page or worksheet could be verified. Please try again.");
           return;
@@ -158,9 +226,11 @@ export function UploadCard() {
             if (!job) throw new Error("Invalid processing response");
             if (job.status === "extracted") {
               clearInterval(pollInterval);
+              processingLockRef.current = false;
               setState("awaiting_payment");
             } else if (job.status === "error") {
               clearInterval(pollInterval);
+              processingLockRef.current = false;
               setState("error");
               setErrorMessage(job.error || "Document processing failed.");
             }
@@ -172,30 +242,54 @@ export function UploadCard() {
         window.dispatchEvent(new CustomEvent("hiddenfee:scan-metric", { detail: { event: "upload_failed", ...scanMetadata, fileSize: fileToUpload.size, reason: err instanceof Error ? err.message : "unknown" } }));
       }
       if ((err as { code?: string })?.code === "canceled") {
-        setFile(null);
-        setScanUpload(null);
-        setState("idle");
-        setUploadProgress(0);
+        processingLockRef.current = false;
+        setState("error");
+        setErrorMessage(scanMetadata ? "Upload canceled. Your scanned pages are still available." : "Upload canceled. Your selected file is still available.");
         return;
       }
+      processingLockRef.current = false;
       setState("error");
       setErrorMessage(err instanceof Error ? err.message : "Upload failed.");
     } finally {
-      window.clearInterval(stageTimer);
       if (uploadControllerRef.current === uploadController) uploadControllerRef.current = null;
     }
   };
 
+  const handleScannerPreparing = (pageCount: number) => {
+    if (processingLockRef.current) return false;
+    processingLockRef.current = true;
+    processingScrolledRef.current = false;
+    errorScrolledRef.current = false;
+    setPendingScanPageCount(pageCount);
+    setScanUpload(null);
+    setFile(null);
+    setFileError(null);
+    setErrorMessage(null);
+    setProgressStage("preparing_scans");
+    setState("uploading");
+    setScannerCollapsed(true);
+    return true;
+  };
+
+  const handleScanPreparationError = (message: string) => {
+    processingLockRef.current = false;
+    setErrorMessage(message);
+    setState("error");
+  };
+
   const handleScannedPdf = (scannedPdf: File, metadata: ScanPdfMetadata) => {
-    setScannerOpen(false);
     setFileError(null);
     setErrorMessage(null);
     setFile(scannedPdf);
+    setScanUpload(metadata);
+    setPendingScanPageCount(metadata.pageCount);
+    setProgressStage("uploading");
     void startUpload(scannedPdf, metadata);
   };
 
   const handlePayment = async () => {
-    if (!auditId) return;
+    if (!auditId || paymentLockRef.current) return;
+    paymentLockRef.current = true;
     setPaying(true);
     setPayError(null);
 
@@ -217,17 +311,55 @@ export function UploadCard() {
     } catch (err) {
       setPayError(err instanceof Error ? err.message : "Something went wrong.");
       setPaying(false);
+      paymentLockRef.current = false;
     }
   };
 
   const reset = () => {
     uploadControllerRef.current?.abort();
     uploadControllerRef.current = null;
-    setFile(null); setState("idle"); setUploadProgress(0);
+    processingLockRef.current = false;
+    paymentLockRef.current = false;
+    processingScrolledRef.current = false;
+    errorScrolledRef.current = false;
+    setFile(null); setState("idle");
     setFileError(null); setErrorMessage(null); setAuditId(null);
     setPayError(null); setPaying(false); setAnalyzeStep(0);
     setScanUpload(null);
+    setPendingScanPageCount(null);
+    setScannerCollapsed(false);
+    setScannerOpen(false);
+    if (inputRef.current) inputRef.current.value = "";
   };
+
+  const retryUpload = () => {
+    if (!file || processingLockRef.current) return;
+    processingLockRef.current = true;
+    processingScrolledRef.current = false;
+    errorScrolledRef.current = false;
+    setErrorMessage(null);
+    setProgressStage("uploading");
+    setState("uploading");
+    void startUpload(file, scanUpload ?? undefined);
+  };
+
+  const returnToScanner = () => {
+    processingLockRef.current = false;
+    setErrorMessage(null);
+    setFile(null);
+    setScanUpload(null);
+    setState("idle");
+    setScannerCollapsed(false);
+  };
+
+  const chooseAnotherFile = () => {
+    reset();
+    window.requestAnimationFrame(() => inputRef.current?.click());
+  };
+
+  const progressFile: UploadFileSummary = file
+    ? { name: file.name, type: fileTypeLabel(file), size: file.size, pageCount: scanUpload?.pageCount }
+    : { name: "HiddenFeeAI scanned document", type: "PDF file", pageCount: pendingScanPageCount ?? undefined };
 
   return (
     <div
@@ -299,7 +431,7 @@ export function UploadCard() {
             <p className="mt-4 text-center text-sm font-semibold leading-6 text-[#c8d3df]">PDFs, documents, spreadsheets, clear scans, and phone photos supported</p>
 
             {fileError && (
-              <div role="alert" aria-live="polite" className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-risk-critical/10 px-4 py-3 text-sm font-medium text-risk-critical">
+              <div ref={fileErrorRef} tabIndex={-1} role="alert" aria-live="polite" className="mt-4 scroll-mt-[calc(6rem+env(safe-area-inset-top))] flex items-center justify-center gap-2 rounded-xl bg-risk-critical/10 px-4 py-3 text-sm font-medium text-risk-critical outline-none">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 {fileError}
               </div>
@@ -315,29 +447,15 @@ export function UploadCard() {
           </motion.div>
         )}
 
-        {/* UPLOADING */}
-        {state === "uploading" && (
-          <motion.div key="uploading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="flex flex-col items-center gap-4 py-6 text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
-            <p className="text-lg font-semibold text-violet-100">{uploadProgress < 55 ? "Uploading document securely..." : "Preparing your document for review..."}</p>
-            <div className="w-full max-w-xs">
-              <div className="h-2 rounded-full bg-violet-500/10">
-                <div className="h-full rounded-full bg-violet-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
-              </div>
-              <p className="mt-1.5 text-xs text-violet-400/60">{uploadProgress}%</p>
-            </div>
-            {scanUpload && <Button variant="outline" size="sm" onClick={() => uploadControllerRef.current?.abort()}>Cancel upload</Button>}
-          </motion.div>
-        )}
-
-        {/* EXTRACTING */}
-        {state === "extracting" && (
-          <motion.div key="extracting" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="flex flex-col items-center gap-4 py-6 text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
-            <p className="text-lg font-semibold text-violet-100">Reading document...</p>
-            <p className="text-sm text-violet-300/60">Reading charges, totals, tables, and terms</p>
+        {(state === "uploading" || state === "extracting") && (
+          <motion.div key="progress" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <UploadProgressPanel
+              stage={progressStage}
+              file={progressFile}
+              containerRef={setProgressTarget}
+              headingRef={progressHeadingRef}
+            />
+            {scanUpload && state === "uploading" && <div className="text-center"><Button variant="outline" size="sm" onClick={() => uploadControllerRef.current?.abort()}>Cancel upload</Button></div>}
           </motion.div>
         )}
 
@@ -471,21 +589,33 @@ export function UploadCard() {
 
         {/* ERROR */}
         {state === "error" && (
-          <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="flex flex-col items-center gap-3 py-8 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-risk-critical/10">
-              <AlertCircle className="h-8 w-8 text-risk-critical" />
-            </div>
-            <p className="text-lg font-semibold text-violet-100">Something went wrong</p>
-            <p className="max-w-xs text-sm text-violet-300/60">{errorMessage || "Please try again."}</p>
-            <Button variant="outline" size="sm" onClick={reset}>Try again</Button>
+          <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <UploadProgressPanel
+              stage={progressStage}
+              file={progressFile}
+              error={errorMessage || "Please try again."}
+              isScan={scannerOpen}
+              containerRef={setProgressTarget}
+              headingRef={progressHeadingRef}
+              onRetry={file ? retryUpload : undefined}
+              onReturnToScanner={scannerOpen ? returnToScanner : undefined}
+              onChooseAnother={chooseAnotherFile}
+            />
           </motion.div>
         )}
       </AnimatePresence>
 
-      <input ref={inputRef} id="file-upload-input" type="file" accept={ACCEPTED_EXTENSIONS.map((ext) => `.${ext}`).join(",")} className="hidden" onChange={(e) => handleFiles(e.target.files)} />
+      <input ref={inputRef} id="file-upload-input" type="file" accept={ACCEPTED_EXTENSIONS.map((ext) => `.${ext}`).join(",")} className="hidden" disabled={processingActive} onChange={(e) => handleFiles(e.target.files)} />
       {scannerOpen && (
-        <DocumentScanner maxFileSizeBytes={MAX_SIZE_BYTES} onCancel={() => setScannerOpen(false)} onConfirm={handleScannedPdf} />
+        <DocumentScanner
+          maxFileSizeBytes={MAX_SIZE_BYTES}
+          collapsed={scannerCollapsed}
+          onCancel={() => { setScannerOpen(false); setScannerCollapsed(false); setPendingScanPageCount(null); }}
+          onPreparing={handleScannerPreparing}
+          onPreparationStage={setProgressStage}
+          onPreparationError={handleScanPreparationError}
+          onConfirm={handleScannedPdf}
+        />
       )}
     </div>
   );

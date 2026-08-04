@@ -199,7 +199,7 @@ describe("DocumentScanner", () => {
     const { stream, track } = fakeStream();
     Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: vi.fn(async () => stream) } });
     const onConfirm = vi.fn();
-    render(<DocumentScanner maxFileSizeBytes={25 * 1024 * 1024} onCancel={vi.fn()} onConfirm={onConfirm} />);
+    const { unmount } = render(<DocumentScanner maxFileSizeBytes={25 * 1024 * 1024} onCancel={vi.fn()} onConfirm={onConfirm} />);
 
     const capture = await screen.findByRole("button", { name: "Capture page 1" });
     await waitFor(() => expect((capture as HTMLButtonElement).disabled).toBe(false));
@@ -238,6 +238,8 @@ describe("DocumentScanner", () => {
     expect(pdfMockState.addImageCalls).toBe(1);
     expect(track.stop).toHaveBeenCalled();
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:scan-1");
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith("blob:scan-2");
+    unmount();
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:scan-2");
   });
 

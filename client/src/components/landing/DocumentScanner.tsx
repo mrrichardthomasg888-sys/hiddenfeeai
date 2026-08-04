@@ -81,7 +81,11 @@ export interface ScanPdfMetadata {
 
 interface DocumentScannerProps {
   maxFileSizeBytes: number;
+  collapsed?: boolean;
   onCancel: () => void;
+  onPreparing?: (pageCount: number) => boolean;
+  onPreparationStage?: (stage: "preparing_scans" | "creating_document") => void;
+  onPreparationError?: (message: string) => void;
   onConfirm: (file: File, metadata: ScanPdfMetadata) => void;
 }
 
@@ -259,7 +263,7 @@ function svgImageTransform(width: number, height: number, rotation: QuarterTurn)
   return undefined;
 }
 
-export function DocumentScanner({ maxFileSizeBytes, onCancel, onConfirm }: DocumentScannerProps) {
+export function DocumentScanner({ maxFileSizeBytes, collapsed = false, onCancel, onPreparing, onPreparationStage, onPreparationError, onConfirm }: DocumentScannerProps) {
   const [mode, setMode] = useState<ScannerMode>("camera");
   const [pages, setPages] = useState<ScanPage[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -287,6 +291,7 @@ export function DocumentScanner({ maxFileSizeBytes, onCancel, onConfirm }: Docum
   const activeRef = useRef(true);
   const cameraRequestRef = useRef(0);
   const captureBusyRef = useRef(false);
+  const generationBusyRef = useRef(false);
   const autoCaptureRef = useRef(true);
   const captureRef = useRef<((source?: "manual" | "auto") => Promise<void>) | undefined>(undefined);
 
@@ -351,10 +356,11 @@ export function DocumentScanner({ maxFileSizeBytes, onCancel, onConfirm }: Docum
   }, [stopCamera]);
 
   useEffect(() => {
+    if (collapsed) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = previousOverflow; };
-  }, []);
+  }, [collapsed]);
 
   useEffect(() => {
     if (mode === "camera") void startCamera();
@@ -610,24 +616,38 @@ export function DocumentScanner({ maxFileSizeBytes, onCancel, onConfirm }: Docum
   };
 
   const continueToAnalysis = async () => {
-    if (!pages.length || pages.some((page) => page.issues.some((issue) => issue.severity === "blocking"))) return;
+    if (generationBusyRef.current || !pages.length || pages.some((page) => page.issues.some((issue) => issue.severity === "blocking"))) return;
+    generationBusyRef.current = true;
+    if (onPreparing && !onPreparing(pages.length)) {
+      generationBusyRef.current = false;
+      return;
+    }
     setMode("generating");
     setPdfError(null);
     try {
+      onPreparationStage?.("preparing_scans");
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+      onPreparationStage?.("creating_document");
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
       const result = await createScanPdf(pages);
       window.dispatchEvent(new CustomEvent("hiddenfee:scan-metric", { detail: { event: "pdf_created", ...result.metadata, fileSize: result.file.size } }));
       if (result.file.size > maxFileSizeBytes) {
-        setPdfError(`The combined document is ${formatFileSize(result.file.size)}, which exceeds the existing ${formatFileSize(maxFileSizeBytes)} upload limit. No pages were removed.`);
+        const message = `The combined document is ${formatFileSize(result.file.size)}, which exceeds the existing ${formatFileSize(maxFileSizeBytes)} upload limit. No pages were removed.`;
+        setPdfError(message);
         setMode("review");
+        onPreparationError?.(message);
+        generationBusyRef.current = false;
         return;
       }
-      pagesRef.current.forEach((page) => URL.revokeObjectURL(page.url));
-      pagesRef.current = [];
-      setPages([]);
       onConfirm(result.file, result.metadata);
-    } catch (error) {
-      setPdfError(error instanceof Error ? error.message : "Your document could not be prepared. Your pages are still available.");
       setMode("review");
+      generationBusyRef.current = false;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Your document could not be prepared. Your pages are still available.";
+      setPdfError(message);
+      setMode("review");
+      onPreparationError?.(message);
+      generationBusyRef.current = false;
     }
   };
 
@@ -643,7 +663,7 @@ export function DocumentScanner({ maxFileSizeBytes, onCancel, onConfirm }: Docum
   const cropCorners: Array<[CropCorner, string]> = [["topLeft", "top left"], ["topRight", "top right"], ["bottomRight", "bottom right"], ["bottomLeft", "bottom left"]];
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex flex-col bg-[#050911] text-white" role="dialog" aria-modal="true" aria-labelledby="scan-title">
+    <div className={`${collapsed ? "hidden" : "fixed inset-0 z-[100] flex flex-col bg-[#050911] text-white"}`} role="dialog" aria-modal="true" aria-labelledby="scan-title">
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#081220] px-4 py-3 sm:px-6">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -784,7 +804,7 @@ export function DocumentScanner({ maxFileSizeBytes, onCancel, onConfirm }: Docum
         </main>
       )}
 
-      {mode === "generating" && <main className="flex min-h-0 flex-1 items-center justify-center p-6 text-center"><div><Loader2 className="mx-auto h-10 w-10 animate-spin text-[#73b8ff]" /><h3 className="mt-4 text-xl font-black">Preparing your document</h3><p className="mt-2 text-sm font-semibold text-[#c8d3df]">Combining {pages.length} page{pages.length === 1 ? "" : "s"} in the reviewed order, then continuing to analysis...</p></div></main>}
+      {mode === "generating" && <main className="flex min-h-0 flex-1 items-center justify-center p-6 text-center"><div><Loader2 className="mx-auto h-10 w-10 animate-spin text-[#73b8ff]" /><h3 className="mt-4 text-xl font-black">Preparing Pages…</h3><p className="mt-2 text-sm font-semibold text-[#c8d3df]">Combining {pages.length} page{pages.length === 1 ? "" : "s"} in the reviewed order, then continuing to analysis...</p><Button variant="violet" size="lg" className="mt-5" disabled><Loader2 className="h-5 w-5 animate-spin" /> Preparing Pages…</Button></div></main>}
     </div>,
     document.body,
   );

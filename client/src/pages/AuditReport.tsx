@@ -24,41 +24,36 @@ interface JobState {
 
 type PageState = "loading" | "verifying_payment" | "analyzing" | "error" | "report";
 
-// Processing stage labels shown during analysis
-const ANALYSIS_STEPS = [
-  "Uploading document",
-  "Reading document content",
-  "Understanding financial structure",
-  "Reviewing every charge",
-  "Detecting hidden fees",
-  "Preparing questions and scripts",
-  "Building your Professional Audit Report",
-  "Preparing downloadable PDF",
-  "Finalizing results",
-];
+function currentAnalysisStage(pageState: PageState, status?: JobStatus): string {
+  if (pageState === "verifying_payment") return "Verifying your purchase…";
+  if (status === "reading") return "Reading document…";
+  if (status === "building_report") return "Building your report…";
+  if (status === "processing" || status === "analyzing") return "Reviewing charges, totals, tables, and terms…";
+  if (status === "paid" || status === "extracted") return "Starting your document review…";
+  return "Loading your document review…";
+}
 
-function getDocumentAwareSteps(fileName?: string): string[] {
-  const extension = fileName?.split(".").pop()?.toLowerCase();
-  const readingStep = extension === "pdf"
-    ? "Reading every PDF page"
-    : ["png", "jpg", "jpeg", "webp", "heic", "heif", "tiff", "tif", "bmp", "gif"].includes(extension ?? "")
-      ? "Reading the original image at full quality"
-      : ["docx", "doc"].includes(extension ?? "")
-        ? "Extracting paragraphs, clauses, and tables"
-        : ["xlsx", "xls", "csv"].includes(extension ?? "")
-          ? "Reading worksheets, rows, and totals"
-          : "Reading the complete document";
-  return [
-    readingStep,
-    "Mapping charges, terms, and how they affect what you pay",
-    "Checking calculations and duplicate line items",
-    "Detecting hidden fees and disclosure gaps",
-    "Evaluating contract and renewal risk",
-    "Linking each finding to document evidence",
-    "Building your prioritized action plan",
-    "Writing negotiation scripts and counter-responses",
-    "Preparing your Professional Audit Report",
-  ];
+const analysisStartRequests = new Map<string, Promise<boolean>>();
+const forcedAnalysisStarts = new Set<string>();
+
+function startAnalysisOnce(auditId: string, force = false): Promise<boolean> {
+  if (force && forcedAnalysisStarts.has(auditId)) {
+    return analysisStartRequests.get(auditId) ?? Promise.resolve(false);
+  }
+  if (!force) {
+    const active = analysisStartRequests.get(auditId);
+    if (active) return active;
+  }
+  if (force) forcedAnalysisStarts.add(auditId);
+  const request = fetch(apiUrl(`/analyze/${auditId}/start`), { method: "POST" })
+    .then((response) => response.ok || response.status === 202)
+    .catch(() => false);
+  analysisStartRequests.set(auditId, request);
+  void request.then((started) => {
+    forcedAnalysisStarts.delete(auditId);
+    if (!started) analysisStartRequests.delete(auditId);
+  });
+  return request;
 }
 
 export function AuditReport() {
@@ -69,18 +64,14 @@ export function AuditReport() {
   const [pageState, setPageState] = useState<PageState>("loading");
   const [job, setJob] = useState<JobState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [analysisAnimStep, setAnalysisAnimStep] = useState(0);
 
   const retryAnalysis = async () => {
     if (!auditId) return;
     setErrorMessage(null);
     setPageState("analyzing");
     try {
-      const response = await fetch(apiUrl(`/analyze/${auditId}/start`), { method: "POST" });
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({})) as { error?: string };
-        throw new Error(body.error || "The audit could not be restarted.");
-      }
+      const restarted = await startAnalysisOnce(auditId, true);
+      if (!restarted) throw new Error("The audit could not be restarted.");
       window.location.reload();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "The audit could not be restarted.");
@@ -115,26 +106,14 @@ export function AuditReport() {
         }
 
         setPageState("analyzing");
-        try {
-          const startRes = await fetch(apiUrl(`/analyze/${auditId}/start`), { method: "POST" });
-          if (startRes.ok || startRes.status === 202) {
-            analysisStarted = true;
-          }
-        } catch {
-          // Will retry in poll loop
-        }
+        analysisStarted = await startAnalysisOnce(auditId);
       }
 
       pollForReport();
     };
 
     const startAnalysis = async (): Promise<boolean> => {
-      try {
-        const startRes = await fetch(apiUrl(`/analyze/${auditId}/start`), { method: "POST" });
-        return startRes.ok || startRes.status === 202;
-      } catch {
-        return false;
-      }
+      return startAnalysisOnce(auditId);
     };
 
     const pollForReport = async () => {
@@ -180,24 +159,13 @@ export function AuditReport() {
 
     initialize();
 
-    // Animate analysis steps
-    const animInterval = setInterval(() => {
-      setAnalysisAnimStep((prev) => (prev < ANALYSIS_STEPS.length - 1 ? prev + 1 : prev));
-    }, 2200);
-    return () => clearInterval(animInterval);
   }, [auditId, paidParam, sessionId]);
 
   // ── Loading / analyzing state ──────────────────────────────────────────────
   if (pageState === "loading" || pageState === "verifying_payment" || pageState === "analyzing") {
     const isVerifying = pageState === "verifying_payment";
-    const steps = isVerifying
-      ? ["Processing payment", "Verifying your purchase", "Starting your document review", "Preparing your report"]
-      : getDocumentAwareSteps(job?.fileName);
     const activeFileName = job?.fileName;
-
-    const currentStep = isVerifying
-      ? Math.min(Math.floor(Date.now() / 1000) % 4, 3)
-      : analysisAnimStep;
+    const activeStage = currentAnalysisStage(pageState, job?.status);
 
     return (
       <div className="premium-page relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#070b14] px-5 py-12">
@@ -226,28 +194,11 @@ export function AuditReport() {
             </div>
           )}
 
-          <div className="mt-8 space-y-2.5 text-left">
-            {steps.map((step, i) => (
-              <div
-                key={step}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-bold transition-colors sm:text-base ${
-                  i < currentStep
-                    ? "bg-[#36d399]/[0.05] text-white"
-                    : i === currentStep
-                    ? "bg-[#f4c542]/[0.07] text-white"
-                    : "text-[#c8d3df]"
-                }`}
-              >
-                {i < currentStep ? (
-                  <CheckCircle2 className="h-5 w-5 shrink-0 text-savings-400" />
-                ) : i === currentStep ? (
-                  <span className="h-5 w-5 shrink-0 animate-pulse rounded-full bg-[#f4c542] shadow-[0_0_14px_rgba(244,197,66,.4)]" />
-                ) : (
-                  <span className="h-5 w-5 shrink-0 rounded-full border-2 border-white/15" />
-                )}
-                {step}
-              </div>
-            ))}
+          <div className="mt-8 rounded-xl bg-[#f4c542]/[0.07] px-4 py-3 text-left text-sm font-bold text-white sm:text-base" role="status" aria-live="polite" aria-atomic="true">
+            <span className="flex items-center gap-3">
+              <span className="h-5 w-5 shrink-0 animate-pulse rounded-full bg-[#f4c542] shadow-[0_0_14px_rgba(244,197,66,.4)]" />
+              {activeStage}
+            </span>
           </div>
 
           <p className="mt-8 text-sm font-medium leading-[1.7] text-[#c8d3df]">
