@@ -273,7 +273,7 @@ export function UploadCard() {
                   </div>
                   <div>
                     <p className="text-xl font-extrabold tracking-tight text-white">Scan With Camera</p>
-                    <p className="mt-2 text-sm font-semibold leading-6 text-[#dce4ec]">Turn paper pages into one PDF</p>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-[#dce4ec]">Capture paper pages for analysis</p>
                   </div>
                 </button>
               )}

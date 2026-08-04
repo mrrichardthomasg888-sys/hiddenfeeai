@@ -22,7 +22,7 @@ function completeReport(pageCount = 2) {
     financial_impact: { original_total: 0, questionable_charges_total: 0, corrected_total: 0 },
     findings: [],
     premium_insights: {
-      document_summary: "Two-page scan reviewed.", confirmed_charges: 0, recurring_monthly_exposure: 0,
+      document_summary: `${pageCount}-page scan reviewed.`, confirmed_charges: 0, recurring_monthly_exposure: 0,
       estimated_annual_exposure: 0, contract_term_exposure: null, calculation_explanation: "No charges.",
       timeline: [], positive_terms: [], missing_protections: [], watch_items: [], provider_questions: [], escalation_steps: [],
       final_decision: "Accept", decision_reasoning: "No material issues in test fixture.", unreadable_areas: [], assumptions: [],
@@ -76,12 +76,12 @@ afterEach(() => {
 });
 
 describe("production Worker upload contract with mocked processors", () => {
-  it("accepts a scanned PDF and carries every page through upload, payment, analysis, and report", async () => {
+  it.each([1, 2, 5, 10])("accepts a %i-page scanned PDF and carries every page through upload, payment, analysis, and report", async (pageCount) => {
     const env = testEnv();
-    const externalFetch = mockGemini({ pages: 2 });
+    const externalFetch = mockGemini({ pages: pageCount });
     vi.stubGlobal("fetch", externalFetch);
 
-    const uploadResponse = await upload(env, new File(["%PDF-scanned-two-pages"], "HiddenFeeAI-scan.pdf", { type: "application/pdf" }));
+    const uploadResponse = await upload(env, new File([`%PDF-scanned-${pageCount}-pages`], "HiddenFeeAI-scan.pdf", { type: "application/pdf" }));
     expect(uploadResponse.status).toBe(201);
     const uploaded = await uploadResponse.json() as { auditId: string; status: string; fileName: string; fileSize: number };
     expect(uploaded.auditId).toBeTruthy();
@@ -108,7 +108,7 @@ describe("production Worker upload contract with mocked processors", () => {
     const finalResponse = await app.request(`http://localhost/api/analyze/${uploaded.auditId}`, undefined, env);
     const finalJob = await finalResponse.json() as any;
     expect(finalJob.status).toBe("complete");
-    expect(finalJob.report.documentMetadata.pagesReviewed).toBe(2);
+    expect(finalJob.report.documentMetadata.pagesReviewed).toBe(pageCount);
     expect(finalJob.report.premiumReport).toBeDefined();
     expect(externalFetch.mock.calls.some(([url, init]) => String(url).includes("files/scanner-test") && init?.method === "DELETE")).toBe(true);
   });
@@ -133,4 +133,3 @@ describe("production Worker upload contract with mocked processors", () => {
     expect((await response.json() as any).error).toMatch(/couldn't prepare/i);
   });
 });
-

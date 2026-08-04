@@ -57,12 +57,26 @@ interface DocumentScannerProps {
   onConfirm: (file: File, metadata: ScanPdfMetadata) => void;
 }
 
-type ScannerMode = "camera" | "review" | "generating" | "ready";
+type ScannerMode = "camera" | "review" | "generating";
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function thumbnailStatus(page: ScanPage): { label: string; blocking: boolean } {
+  const issue = page.issues.find((candidate) => candidate.severity === "blocking") ?? page.issues[0];
+  if (!issue) return { label: "Looks clear", blocking: false };
+  const labels: Record<ScanIssue["code"], string> = {
+    blurry: "Image may be blurry—retake recommended.",
+    dark: "Image may be dark—retake recommended.",
+    cropped: "Page edges may be cropped—check all four corners.",
+    glare: "Glare may hide text—retake recommended.",
+    low_resolution: issue.severity === "blocking" ? "Resolution too low—retake required." : "Low resolution—retake recommended.",
+    duplicate: "Possible duplicate—confirm both pages belong.",
+  };
+  return { label: labels[issue.code], blocking: issue.severity === "blocking" };
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
@@ -161,7 +175,6 @@ export function DocumentScanner({ maxFileSizeBytes, onCancel, onConfirm }: Docum
   const [captureBusy, setCaptureBusy] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
-  const [generated, setGenerated] = useState<{ file: File; metadata: ScanPdfMetadata } | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const pagesRef = useRef<ScanPage[]>([]);
@@ -331,7 +344,6 @@ export function DocumentScanner({ maxFileSizeBytes, onCancel, onConfirm }: Docum
     const next = pages.filter((_, pageIndex) => pageIndex !== index);
     setPages(next);
     setSelectedIndex((current) => selectionAfterDelete(pages.length, index, current));
-    setGenerated(null);
   };
 
   const movePage = (index: number, direction: -1 | 1) => {
@@ -339,41 +351,37 @@ export function DocumentScanner({ maxFileSizeBytes, onCancel, onConfirm }: Docum
     if (destination < 0 || destination >= pages.length) return;
     setPages(moveListItem(pages, index, direction));
     setSelectedIndex(destination);
-    setGenerated(null);
   };
 
   const rotatePage = (index: number) => {
     setPages((current) => current.map((page, pageIndex) => pageIndex === index
       ? { ...page, rotation: rotateClockwise(page.rotation) }
       : page));
-    setGenerated(null);
   };
 
-  const generatePdf = async () => {
+  const continueToAnalysis = async () => {
     if (!pages.length || pages.some((page) => page.issues.some((issue) => issue.severity === "blocking"))) return;
     setMode("generating");
     setPdfError(null);
     try {
       const result = await createScanPdf(pages);
-      setGenerated(result);
-      setMode("ready");
       window.dispatchEvent(new CustomEvent("hiddenfee:scan-metric", { detail: { event: "pdf_created", ...result.metadata, fileSize: result.file.size } }));
+      if (result.file.size > maxFileSizeBytes) {
+        setPdfError(`The combined document is ${formatFileSize(result.file.size)}, which exceeds the existing ${formatFileSize(maxFileSizeBytes)} upload limit. No pages were removed.`);
+        setMode("review");
+        return;
+      }
+      pagesRef.current.forEach((page) => URL.revokeObjectURL(page.url));
+      pagesRef.current = [];
+      setPages([]);
+      onConfirm(result.file, result.metadata);
     } catch (error) {
-      setPdfError(error instanceof Error ? error.message : "The PDF could not be created. Your pages are still available.");
+      setPdfError(error instanceof Error ? error.message : "Your document could not be prepared. Your pages are still available.");
       setMode("review");
     }
   };
 
-  const confirm = () => {
-    if (!generated || generated.file.size > maxFileSizeBytes) return;
-    pagesRef.current.forEach((page) => URL.revokeObjectURL(page.url));
-    pagesRef.current = [];
-    setPages([]);
-    onConfirm(generated.file, generated.metadata);
-  };
-
   const blockingCount = useMemo(() => pages.reduce((total, page) => total + page.issues.filter((issue) => issue.severity === "blocking").length, 0), [pages]);
-  const warningCount = useMemo(() => pages.reduce((total, page) => total + page.issues.filter((issue) => issue.severity === "warning").length, 0), [pages]);
   const selected = pages[selectedIndex];
   const nextPageNumber = retakeIndex === null ? pages.length + 1 : retakeIndex + 1;
 
@@ -385,7 +393,7 @@ export function DocumentScanner({ maxFileSizeBytes, onCancel, onConfirm }: Docum
             <ScanLine className="h-5 w-5 text-[#73b8ff]" />
             <h2 id="scan-title" className="truncate text-base font-black sm:text-lg">Scan With Camera <span className="ml-1 rounded-full border border-[#f4c542]/25 bg-[#f4c542]/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-[#f8d96e]">Beta</span></h2>
           </div>
-          <p className="mt-0.5 text-xs font-semibold text-[#c8d3df]">Pages stay on this device until you confirm the PDF upload.</p>
+          <p className="mt-0.5 text-xs font-semibold text-[#c8d3df]">Pages stay on this device until you continue to analysis.</p>
         </div>
         <button type="button" onClick={cancel} className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-white/15 bg-white/5" aria-label="Cancel scan and delete captured pages"><X className="h-5 w-5" /></button>
       </header>
@@ -419,65 +427,52 @@ export function DocumentScanner({ maxFileSizeBytes, onCancel, onConfirm }: Docum
       )}
 
       {mode === "review" && (
-        <main className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-6 sm:py-6">
-          <div className="mx-auto max-w-5xl">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div><h3 className="text-xl font-black">Review the complete document</h3><p className="mt-1 text-sm font-semibold text-[#c8d3df]">Check every thumbnail. Pages are included in the order shown.</p></div>
-              <div className="flex gap-2"><Button variant="outline" onClick={() => { setRetakeIndex(null); setMode("camera"); }} disabled={pages.length >= MAX_SCAN_PAGES}><Camera className="h-4 w-4" /> Add page</Button><Button variant="violet" onClick={() => void generatePdf()} disabled={!pages.length || blockingCount > 0}><FileCheck2 className="h-4 w-4" /> Create PDF</Button></div>
+        <main className="min-h-0 flex-1 overflow-y-auto px-3 py-3 pb-[calc(18px+env(safe-area-inset-bottom))] sm:px-6 sm:py-5">
+          <div className="mx-auto max-w-3xl">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0"><h3 className="text-lg font-black sm:text-xl">Review the complete document</h3><p className="mt-0.5 text-xs font-semibold leading-5 text-[#c8d3df] sm:text-sm">Pages will be analyzed in the order shown.</p></div>
+              <Button variant="outline" size="sm" className="shrink-0" onClick={() => { setRetakeIndex(null); setMode("camera"); }} disabled={pages.length >= MAX_SCAN_PAGES}><Camera className="h-4 w-4" /> Add Page</Button>
             </div>
 
-            {(blockingCount > 0 || warningCount > 0 || pdfError) && (
-              <div className={`mt-4 rounded-2xl border p-4 text-sm font-semibold ${blockingCount > 0 || pdfError ? "border-red-400/30 bg-red-400/10 text-red-100" : "border-amber-300/25 bg-amber-300/10 text-amber-100"}`} role="alert">
-                <div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" /><span>{pdfError || (blockingCount > 0 ? `${blockingCount} unreadable quality issue${blockingCount === 1 ? "" : "s"} must be fixed before PDF creation. No pages will be discarded.` : `${warningCount} quality warning${warningCount === 1 ? "" : "s"}. Review the affected pages before continuing.`)}</span></div>
-              </div>
-            )}
-
             {pages.length === 0 ? (
-              <div className="mt-8 rounded-3xl border border-dashed border-white/20 p-10 text-center"><p className="font-bold">No pages captured.</p><Button variant="outline" className="mt-4" onClick={() => setMode("camera")}><Camera className="h-4 w-4" /> Capture page 1</Button></div>
+              <div className="mt-4 rounded-2xl border border-dashed border-white/20 p-6 text-center"><p className="font-bold">No pages captured.</p><Button variant="outline" className="mt-3" onClick={() => setMode("camera")}><Camera className="h-4 w-4" /> Capture page 1</Button></div>
             ) : (
               <>
-                <div className="mt-5 grid min-h-[280px] place-items-center overflow-hidden rounded-3xl border border-white/10 bg-black/35 p-4 sm:min-h-[430px]">
-                  {selected && <img src={selected.url} alt={`Full preview of page ${selectedIndex + 1}`} className="max-h-[62vh] max-w-full object-contain transition-transform" style={{ transform: `rotate(${selected.rotation}deg)`, maxWidth: selected.rotation % 180 ? "70%" : "100%", maxHeight: selected.rotation % 180 ? "45vw" : "62vh" }} />}
-                </div>
+                <ol className="mt-3 grid grid-cols-2 gap-2.5" aria-label="Captured page thumbnails">
+                  {pages.map((page, index) => {
+                    const status = thumbnailStatus(page);
+                    return (
+                      <li key={page.id}>
+                        <button type="button" onClick={() => setSelectedIndex(index)} className={`h-full w-full overflow-hidden rounded-xl border p-2 text-left transition ${status.blocking ? "border-red-400/70 bg-red-400/10" : page.issues.length ? "border-amber-300/60 bg-amber-300/[0.08]" : selectedIndex === index ? "border-[#73b8ff] bg-[#4da3ff]/10 ring-1 ring-[#4da3ff]/40" : "border-white/12 bg-white/[0.035]"}`} aria-label={`Review page ${index + 1}, ${status.label}`}>
+                          <div className="grid h-28 place-items-center overflow-hidden rounded-lg bg-black/45 sm:h-36"><img src={page.url} alt="" className="max-h-full max-w-full object-contain" style={{ transform: `rotate(${page.rotation}deg)`, maxWidth: page.rotation % 180 ? "72%" : "100%" }} /></div>
+                          <span className="mt-2 flex items-center justify-between gap-2 text-xs font-black"><span>Page {index + 1}</span>{page.issues.length ? <AlertTriangle className={`h-4 w-4 shrink-0 ${status.blocking ? "text-red-300" : "text-amber-300"}`} /> : <Check className="h-4 w-4 shrink-0 text-[#76ecba]" />}</span>
+                          <span className={`mt-1 block text-[11px] font-bold leading-4 ${status.blocking ? "text-red-200" : page.issues.length ? "text-amber-100" : "text-[#9ddfc5]"}`}>{status.label}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ol>
 
                 {selected && (
-                  <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3"><p className="font-black">Page {selectedIndex + 1} of {pages.length}</p><div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => movePage(selectedIndex, -1)} disabled={selectedIndex === 0}><ArrowLeft className="h-4 w-4" /> Earlier</Button><Button variant="outline" size="sm" onClick={() => movePage(selectedIndex, 1)} disabled={selectedIndex === pages.length - 1}>Later <ArrowRight className="h-4 w-4" /></Button><Button variant="outline" size="sm" onClick={() => rotatePage(selectedIndex)}><RotateCw className="h-4 w-4" /> Rotate</Button><Button variant="outline" size="sm" onClick={() => { setRetakeIndex(selectedIndex); setMode("camera"); }}><RefreshCcw className="h-4 w-4" /> Retake</Button><Button variant="outline" size="sm" onClick={() => deletePage(selectedIndex)}><Trash2 className="h-4 w-4" /> Delete</Button></div></div>
-                    {selected.issues.length > 0 ? <ul className="mt-3 space-y-2">{selected.issues.map((issue, issueIndex) => <li key={`${issue.code}-${issueIndex}`} className={`flex items-start gap-2 text-sm font-semibold ${issue.severity === "blocking" ? "text-red-200" : "text-amber-100"}`}><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{issue.message}</li>)}</ul> : <p className="mt-3 flex items-center gap-2 text-sm font-bold text-[#76ecba]"><Check className="h-4 w-4" /> No obvious capture problems detected. Zoom in and confirm small text yourself.</p>}
-                  </div>
+                  <section className="mt-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3" aria-label={`Edit page ${selectedIndex + 1}`}>
+                    <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-black">Selected: Page {selectedIndex + 1}</p><p className="text-[11px] font-semibold text-[#aebdca]">Tap any thumbnail to edit that page.</p></div><span className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-bold text-[#c8d3df]">{selectedIndex + 1} of {pages.length}</span></div>
+                    <div className="mt-3 grid max-h-[42vh] min-h-48 place-items-center overflow-hidden rounded-xl bg-black/40 p-2"><img src={selected.url} alt={`Full preview of page ${selectedIndex + 1}`} className="max-h-[40vh] max-w-full object-contain transition-transform" style={{ transform: `rotate(${selected.rotation}deg)`, maxWidth: selected.rotation % 180 ? "72%" : "100%" }} /></div>
+                    {selected.issues.length > 0 ? <ul className="mt-2 space-y-1.5">{selected.issues.map((issue, issueIndex) => <li key={`${issue.code}-${issueIndex}`} className={`flex items-start gap-2 rounded-lg px-2.5 py-2 text-xs font-bold ${issue.severity === "blocking" ? "bg-red-400/10 text-red-200" : "bg-amber-300/10 text-amber-100"}`}><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{issue.message}</li>)}</ul> : <p className="mt-2 flex items-center gap-2 text-xs font-bold text-[#76ecba]"><Check className="h-4 w-4" /> No obvious capture problems detected.</p>}
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5"><Button variant="outline" size="sm" onClick={() => movePage(selectedIndex, -1)} disabled={selectedIndex === 0}><ArrowLeft className="h-4 w-4" /> Earlier</Button><Button variant="outline" size="sm" onClick={() => movePage(selectedIndex, 1)} disabled={selectedIndex === pages.length - 1}>Later <ArrowRight className="h-4 w-4" /></Button><Button variant="outline" size="sm" onClick={() => rotatePage(selectedIndex)}><RotateCw className="h-4 w-4" /> Rotate</Button><Button variant="outline" size="sm" onClick={() => { setRetakeIndex(selectedIndex); setMode("camera"); }}><RefreshCcw className="h-4 w-4" /> Retake</Button><Button variant="outline" size="sm" className="col-span-2 text-red-100 sm:col-span-1" onClick={() => deletePage(selectedIndex)}><Trash2 className="h-4 w-4" /> Delete</Button></div>
+                  </section>
                 )}
 
-                <ol className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5" aria-label="Captured page thumbnails">
-                  {pages.map((page, index) => (
-                    <li key={page.id}><button type="button" onClick={() => setSelectedIndex(index)} className={`relative w-full overflow-hidden rounded-2xl border bg-black/30 p-2 text-left ${selectedIndex === index ? "border-[#73b8ff] ring-2 ring-[#4da3ff]/30" : "border-white/10"}`} aria-label={`Review page ${index + 1}${page.issues.length ? `, ${page.issues.length} quality warning` : ""}`}><div className="grid aspect-[3/4] place-items-center overflow-hidden rounded-xl bg-black/50"><img src={page.url} alt="" className="max-h-full max-w-full object-contain" style={{ transform: `rotate(${page.rotation}deg)`, maxWidth: page.rotation % 180 ? "72%" : "100%" }} /></div><span className="mt-2 flex items-center justify-between text-xs font-black"><span>Page {index + 1}</span>{page.issues.length > 0 ? <AlertTriangle className={`h-4 w-4 ${page.issues.some((issue) => issue.severity === "blocking") ? "text-red-300" : "text-amber-300"}`} /> : <Check className="h-4 w-4 text-[#76ecba]" />}</span></button></li>
-                  ))}
-                </ol>
+                {(blockingCount > 0 || pdfError) && <div className="mt-3 flex items-start gap-2 rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-xs font-bold text-red-100" role="alert"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span>{pdfError || `${blockingCount} unreadable page issue${blockingCount === 1 ? "" : "s"} must be retaken before analysis. No pages will be discarded.`}</span></div>}
+                <Button variant="violet" size="lg" className="mt-3 w-full" onClick={() => void continueToAnalysis()} disabled={!pages.length || blockingCount > 0}><FileCheck2 className="h-5 w-5" /> Continue to Analysis</Button>
+                <p className="mt-2 text-center text-[11px] font-semibold leading-4 text-[#9eacba]">Your pages are combined securely in the order shown and sent directly to HiddenFeeAI. No download required.</p>
               </>
             )}
           </div>
         </main>
       )}
 
-      {mode === "generating" && <main className="flex min-h-0 flex-1 items-center justify-center p-6 text-center"><div><Loader2 className="mx-auto h-10 w-10 animate-spin text-[#73b8ff]" /><h3 className="mt-5 text-xl font-black">Creating your PDF</h3><p className="mt-2 text-sm font-semibold text-[#c8d3df]">Compressing {pages.length} page{pages.length === 1 ? "" : "s"} without OCR or analysis…</p></div></main>}
+      {mode === "generating" && <main className="flex min-h-0 flex-1 items-center justify-center p-6 text-center"><div><Loader2 className="mx-auto h-10 w-10 animate-spin text-[#73b8ff]" /><h3 className="mt-4 text-xl font-black">Preparing your document</h3><p className="mt-2 text-sm font-semibold text-[#c8d3df]">Combining {pages.length} page{pages.length === 1 ? "" : "s"} in the order reviewed, then continuing to analysis…</p></div></main>}
 
-      {mode === "ready" && generated && (
-        <main className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-4 sm:p-6">
-          <div className="w-full max-w-lg rounded-3xl border border-white/12 bg-[#0c1728] p-5 shadow-2xl sm:p-8">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#36d399]/15"><FileCheck2 className="h-8 w-8 text-[#76ecba]" /></div>
-            <h3 className="mt-5 text-center text-2xl font-black">PDF ready for your confirmation</h3>
-            <p className="mt-2 text-center text-sm font-semibold leading-6 text-[#c8d3df]">Nothing has been sent for analysis yet.</p>
-            <dl className="mt-6 divide-y divide-white/10 rounded-2xl border border-white/10 bg-black/20 px-4">
-              <div className="flex items-start justify-between gap-4 py-3"><dt className="text-sm font-semibold text-[#c8d3df]">Filename</dt><dd className="break-all text-right text-sm font-black">{generated.file.name}</dd></div>
-              <div className="flex items-center justify-between gap-4 py-3"><dt className="text-sm font-semibold text-[#c8d3df]">Pages</dt><dd className="text-sm font-black">{generated.metadata.pageCount}</dd></div>
-              <div className="flex items-center justify-between gap-4 py-3"><dt className="text-sm font-semibold text-[#c8d3df]">File size</dt><dd className="text-sm font-black">{formatFileSize(generated.file.size)}</dd></div>
-            </dl>
-            {generated.file.size > maxFileSizeBytes && <div role="alert" className="mt-4 flex items-start gap-2 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm font-bold text-red-100"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />The PDF exceeds the existing {formatFileSize(maxFileSizeBytes)} upload limit. Nothing was uploaded and no pages were removed. Go back to review or cancel and use Upload Document with a smaller pre-compressed PDF.</div>}
-            <p className="mt-5 text-sm font-semibold leading-6 text-[#c8d3df]">By confirming, you send this PDF into HiddenFeeAI’s existing upload and analysis flow. The local camera images are deleted when upload begins.</p>
-            <Button variant="violet" size="lg" className="mt-5 w-full" onClick={confirm} disabled={generated.file.size > maxFileSizeBytes}><Check className="h-5 w-5" /> Confirm and send for analysis</Button>
-            <Button variant="outline" className="mt-3 w-full" onClick={() => { setGenerated(null); setMode("review"); }}><ArrowLeft className="h-4 w-4" /> Back to pages</Button>
-          </div>
-        </main>
-      )}
     </div>,
     document.body,
   );
