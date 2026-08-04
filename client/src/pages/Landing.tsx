@@ -18,15 +18,17 @@ export function Landing() {
     <div className="premium-page min-h-screen bg-midnight-950">
       <Nav />
       {paymentCanceled && <div role="status" className="border-b border-[#fbbf24]/25 bg-[#fbbf24]/10 px-5 py-3 text-center text-sm font-bold text-[#ffe8a3]">Checkout was canceled. You were not charged. Upload your document again when you are ready.</div>}
-      <Hero />
-      <ReportShowcase />
-      <HowItWorks />
-      <CapabilityGrid />
-      <SecurityCard />
-      <PricingCard />
-      <DocumentCoverage />
-      <ConversionFAQ />
-      <FinalCTA />
+      <main>
+        <Hero />
+        <ReportShowcase />
+        <HowItWorks />
+        <CapabilityGrid />
+        <SecurityCard />
+        <PricingCard />
+        <DocumentCoverage />
+        <ConversionFAQ />
+        <FinalCTA />
+      </main>
       <Footer />
     </div>
   );

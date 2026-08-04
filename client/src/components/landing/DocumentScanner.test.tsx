@@ -16,6 +16,7 @@ vi.mock("jspdf", () => ({
 }));
 
 import { applyModestCameraZoom, DocumentScanner } from "@/components/landing/DocumentScanner";
+import { MobileAuditBar } from "@/components/landing/MobileAuditBar";
 import { UploadCard } from "@/components/landing/UploadCard";
 
 interface FakeTrack {
@@ -109,6 +110,8 @@ beforeEach(() => {
   vi.stubGlobal("createImageBitmap", vi.fn(async () => ({ width: 1_500, height: 2_000, close: vi.fn() })));
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+  vi.stubGlobal("IntersectionObserver", class { observe() {} unobserve() {} disconnect() {} });
+  Object.defineProperty(Element.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
   vi.spyOn(URL, "createObjectURL").mockImplementation(() => `blob:scan-${++objectUrlIndex}`);
   vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
 });
@@ -120,6 +123,32 @@ afterEach(() => {
 });
 
 describe("DocumentScanner", () => {
+  it("keeps upload and scan available through the tablet breakpoint while desktop gets scan guidance", () => {
+    render(<MemoryRouter><UploadCard /></MemoryRouter>);
+    expect(screen.getByRole("button", { name: /Upload Document/i })).toBeTruthy();
+    const scan = screen.getByRole("button", { name: /Scan With Camera/i });
+    expect(scan.className).toContain("lg:hidden");
+    const guidance = screen.getByTestId("desktop-scan-guidance");
+    expect(guidance.className).toContain("hidden");
+    expect(guidance.className).toContain("lg:flex");
+    expect(screen.getByText(/Open this page on your phone to use the camera scanner/i)).toBeTruthy();
+  });
+
+  it("shows equal-height Upload and Scan actions in the mobile and tablet sticky CTA", async () => {
+    const openScanner = vi.fn();
+    window.addEventListener("hiddenfee:open-scanner", openScanner);
+    render(<MemoryRouter><div id="upload" /><MobileAuditBar /></MemoryRouter>);
+    const bar = screen.getByTestId("sticky-audit-cta");
+    expect(bar.className).toContain("lg:hidden");
+    expect(bar.className).not.toContain("sm:hidden");
+    expect(screen.getByRole("button", { name: "Upload a document to start your audit" }).className).toContain("h-12");
+    const scan = screen.getByRole("button", { name: "Scan Beta" });
+    expect(scan.className).toContain("h-12");
+    await userEvent.click(scan);
+    expect(openScanner).toHaveBeenCalledTimes(1);
+    window.removeEventListener("hiddenfee:open-scanner", openScanner);
+  });
+
   it("does not request permission until Scan With Camera is selected", async () => {
     const getUserMedia = vi.fn(async () => { throw new DOMException("Denied", "NotAllowedError"); });
     Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia } });

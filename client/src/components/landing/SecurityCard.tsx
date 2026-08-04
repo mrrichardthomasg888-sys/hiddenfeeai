@@ -36,7 +36,7 @@ export function SecurityCard() {
           <div className="grid gap-5 sm:grid-cols-2">
             {protections.map(({ icon: Icon, title, desc }, index) => (
               <article key={title} className="rounded-[26px] border border-[#cbd7e2] bg-white p-7 shadow-[0_20px_55px_rgba(15,23,42,.09)] sm:p-8">
-                <div className="flex items-center justify-between"><span className="flex h-13 w-13 items-center justify-center rounded-2xl bg-[#eaf4ff]"><Icon className="h-6 w-6 text-[#1769aa]" /></span><span className="text-xs font-black tracking-[.15em] text-[#7b8da1]">0{index + 1}</span></div>
+                <div className="flex items-center justify-between"><span className="flex h-13 w-13 items-center justify-center rounded-2xl bg-[#eaf4ff]"><Icon className="h-6 w-6 text-[#1769aa]" /></span><span className="text-xs font-black tracking-[.15em] text-[#526980]">0{index + 1}</span></div>
                 <h3 className="mt-7 text-xl font-black text-[#07111f]">{title}</h3>
                 <p className="mt-3 text-base font-semibold leading-[1.7] text-[#425466]">{desc}</p>
               </article>
