@@ -20,6 +20,9 @@
     "seo:prerender": "node scripts/prerender-seo.mjs",
     "build": "npm run seo:generate && npm run build --workspace client && npm run seo:prerender && npm run build --workspace server",
     "build:worker": "npm run build --workspace worker",
+    "test:scanner": "node --test tests/scan-quality.test.mjs",
+    "test:worker-upload": "vitest run tests/worker-upload.integration.test.ts",
+    "benchmark:scanner-pdf": "node tests/benchmark-scanner-pdf.mjs",
     "android:sync": "npm run build --workspace client && npx cap sync",
     "android:open": "npx cap open android",
     "android:run": "npx cap run android"
@@ -27,7 +30,8 @@
   "devDependencies": {
     "@types/pdfkit": "^0.17.6",
     "@types/sharp": "^0.31.1",
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

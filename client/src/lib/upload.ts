@@ -57,8 +57,11 @@ async function responseError(response: Response): Promise<UploadError> {
   return new UploadError(message, code, response.status);
 }
 
-export async function uploadDocument(file: File): Promise<{ auditId: string; fileName?: string }> {
+export async function uploadDocument(file: File, options: { signal?: AbortSignal } = {}): Promise<{ auditId: string; fileName?: string }> {
   const controller = new AbortController();
+  const forwardAbort = () => controller.abort();
+  if (options.signal?.aborted) controller.abort();
+  else options.signal?.addEventListener("abort", forwardAbort, { once: true });
   const timeout = window.setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
   const formData = new FormData();
   formData.append("file", file, file.name);
@@ -80,11 +83,15 @@ export async function uploadDocument(file: File): Promise<{ auditId: string; fil
   } catch (error) {
     if (error instanceof UploadError) throw error;
     if (error instanceof DOMException && error.name === "AbortError") {
+      if (options.signal?.aborted) {
+        throw new UploadError("Upload canceled.", "canceled");
+      }
       throw new UploadError("The upload timed out. Try a smaller file or a faster connection.", "timeout");
     }
     throw new UploadError("The upload could not reach the service. Check your connection and try again.", "network_error");
   } finally {
     window.clearTimeout(timeout);
+    options.signal?.removeEventListener("abort", forwardAbort);
   }
 }
 import { apiUrl } from "@/config/api";

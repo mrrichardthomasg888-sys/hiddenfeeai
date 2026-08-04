@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { apiUrl } from "@/config/api";
@@ -12,10 +12,14 @@ import {
   CreditCard,
   FileCheck2,
   Trash2,
+  Camera,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { prepareUploadFile, uploadDocument } from "@/lib/upload";
+import type { ScanPdfMetadata } from "@/components/landing/DocumentScanner";
+
+const DocumentScanner = lazy(() => import("@/components/landing/DocumentScanner").then((module) => ({ default: module.DocumentScanner })));
 
 const ACCEPTED_EXTENSIONS = [
   // PDF
@@ -33,6 +37,9 @@ const ACCEPTED_EXTENSIONS = [
 ];
 const MAX_SIZE_MB = 25;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+const SCAN_BETA_ENABLED = import.meta.env.DEV
+  || import.meta.env.VITE_ENABLE_DOCUMENT_SCANNER === "true"
+  || new URLSearchParams(window.location.search).get("scanBeta") === "1";
 
 function getExtension(filename: string): string {
   const parts = filename.split(".");
@@ -68,7 +75,10 @@ export function UploadCard() {
   const [payError, setPayError] = useState<string | null>(null);
   const [analyzeStep, setAnalyzeStep] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanUpload, setScanUpload] = useState<ScanPdfMetadata | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const uploadControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("hiddenfee:workflow", { detail: { active: state !== "idle" && state !== "error" } }));
@@ -111,15 +121,21 @@ export function UploadCard() {
     await startUpload(prepared);
   }, []);
 
-  const startUpload = async (fileToUpload: File) => {
+  const startUpload = async (fileToUpload: File, scanMetadata?: ScanPdfMetadata) => {
+    const uploadController = scanMetadata ? new AbortController() : null;
+    uploadControllerRef.current = uploadController;
+    setScanUpload(scanMetadata ?? null);
     setState("uploading");
     setUploadProgress(0);
 
     const stageTimer = window.setInterval(() => setUploadProgress((value) => Math.min(88, value + 8)), 4000);
     try {
       setUploadProgress(20);
-      const data = await uploadDocument(fileToUpload);
+      const data = await uploadDocument(fileToUpload, { signal: uploadController?.signal });
       setUploadProgress(100);
+      if (scanMetadata) {
+        window.dispatchEvent(new CustomEvent("hiddenfee:scan-metric", { detail: { event: "upload_succeeded", ...scanMetadata, fileSize: fileToUpload.size, auditId: data.auditId } }));
+      }
       setAuditId(data.auditId);
       setState("extracting");
 
@@ -149,11 +165,30 @@ export function UploadCard() {
         } catch { /* continue polling */ }
       }, 1000);
     } catch (err) {
+      if (scanMetadata) {
+        window.dispatchEvent(new CustomEvent("hiddenfee:scan-metric", { detail: { event: "upload_failed", ...scanMetadata, fileSize: fileToUpload.size, reason: err instanceof Error ? err.message : "unknown" } }));
+      }
+      if ((err as { code?: string })?.code === "canceled") {
+        setFile(null);
+        setScanUpload(null);
+        setState("idle");
+        setUploadProgress(0);
+        return;
+      }
       setState("error");
       setErrorMessage(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       window.clearInterval(stageTimer);
+      if (uploadControllerRef.current === uploadController) uploadControllerRef.current = null;
     }
+  };
+
+  const handleScannedPdf = (scannedPdf: File, metadata: ScanPdfMetadata) => {
+    setScannerOpen(false);
+    setFileError(null);
+    setErrorMessage(null);
+    setFile(scannedPdf);
+    void startUpload(scannedPdf, metadata);
   };
 
   const handlePayment = async () => {
@@ -183,9 +218,12 @@ export function UploadCard() {
   };
 
   const reset = () => {
+    uploadControllerRef.current?.abort();
+    uploadControllerRef.current = null;
     setFile(null); setState("idle"); setUploadProgress(0);
     setFileError(null); setErrorMessage(null); setAuditId(null);
     setPayError(null); setPaying(false); setAnalyzeStep(0);
+    setScanUpload(null);
   };
 
   return (
@@ -208,19 +246,38 @@ export function UploadCard() {
         {/* IDLE — upload drop zone */}
         {state === "idle" && (
           <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              className="flex min-h-[280px] w-full flex-col items-center justify-center gap-5 rounded-[22px] border border-dashed border-[#73b8ff]/55 bg-[#4da3ff]/[0.055] px-6 py-11 text-center transition-all duration-300 hover:border-[#73b8ff]/85 hover:bg-[#4da3ff]/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4da3ff]"
-            >
-              <div className="flex h-20 w-20 items-center justify-center rounded-[22px] border border-violet-300/30 bg-gradient-to-br from-violet-500/20 to-cyan-400/10 shadow-[0_0_26px_rgba(77,163,255,.14),inset_0_1px_rgba(255,255,255,.1)]">
-                <UploadCloud className="h-10 w-10 text-violet-200" strokeWidth={1.75} />
-              </div>
-              <div>
-                <p className="text-2xl font-extrabold tracking-tight text-white">Upload your document</p>
-                <p className="mt-2 text-base font-semibold leading-7 text-[#dce4ec]">Drag and drop, tap, or choose a photo</p>
-              </div>
-            </button>
+            <div className={cn("grid gap-3", SCAN_BETA_ENABLED && "sm:grid-cols-2")}>
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className="flex min-h-[220px] w-full flex-col items-center justify-center gap-4 rounded-[22px] border border-dashed border-[#73b8ff]/55 bg-[#4da3ff]/[0.055] px-5 py-8 text-center transition-all duration-300 hover:border-[#73b8ff]/85 hover:bg-[#4da3ff]/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4da3ff]"
+              >
+                <div className="flex h-16 w-16 items-center justify-center rounded-[20px] border border-violet-300/30 bg-gradient-to-br from-violet-500/20 to-cyan-400/10 shadow-[0_0_26px_rgba(77,163,255,.14),inset_0_1px_rgba(255,255,255,.1)]">
+                  <UploadCloud className="h-8 w-8 text-violet-200" strokeWidth={1.75} />
+                </div>
+                <div>
+                  <p className="text-xl font-extrabold tracking-tight text-white">Upload Document</p>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-[#dce4ec]">Choose a saved file or photo</p>
+                </div>
+              </button>
+
+              {SCAN_BETA_ENABLED && (
+                <button
+                  type="button"
+                  onClick={() => setScannerOpen(true)}
+                  className="flex min-h-[220px] w-full flex-col items-center justify-center gap-4 rounded-[22px] border border-[#f4c542]/35 bg-[#f4c542]/[0.055] px-5 py-8 text-center transition-all duration-300 hover:border-[#f4c542]/65 hover:bg-[#f4c542]/[0.09] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f4c542]"
+                >
+                  <div className="relative flex h-16 w-16 items-center justify-center rounded-[20px] border border-[#f4c542]/30 bg-[#f4c542]/10">
+                    <Camera className="h-8 w-8 text-[#f8d96e]" strokeWidth={1.75} />
+                    <span className="absolute -right-3 -top-2 rounded-full bg-[#f4c542] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#111827]">Beta</span>
+                  </div>
+                  <div>
+                    <p className="text-xl font-extrabold tracking-tight text-white">Scan With Camera</p>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-[#dce4ec]">Turn paper pages into one PDF</p>
+                  </div>
+                </button>
+              )}
+            </div>
 
             <div className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-xs font-semibold text-[#c8d3df]">
               {["PDF", "PNG / JPG / WEBP", "HEIC / TIFF", "DOCX / DOC", "XLSX / XLS", "CSV", "TXT / RTF"].map(
@@ -264,6 +321,7 @@ export function UploadCard() {
               </div>
               <p className="mt-1.5 text-xs text-violet-400/60">{uploadProgress}%</p>
             </div>
+            {scanUpload && <Button variant="outline" size="sm" onClick={() => uploadControllerRef.current?.abort()}>Cancel upload</Button>}
           </motion.div>
         )}
 
@@ -420,6 +478,11 @@ export function UploadCard() {
       </AnimatePresence>
 
       <input ref={inputRef} id="file-upload-input" type="file" accept={ACCEPTED_EXTENSIONS.map((ext) => `.${ext}`).join(",")} className="hidden" onChange={(e) => handleFiles(e.target.files)} />
+      {scannerOpen && (
+        <Suspense fallback={<div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#050911] text-white"><Loader2 className="h-8 w-8 animate-spin text-[#73b8ff]" /><span className="ml-3 font-bold">Opening scanner…</span></div>}>
+          <DocumentScanner maxFileSizeBytes={MAX_SIZE_BYTES} onCancel={() => setScannerOpen(false)} onConfirm={handleScannedPdf} />
+        </Suspense>
+      )}
     </div>
   );
 }
