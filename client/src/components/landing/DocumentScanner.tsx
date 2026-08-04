@@ -655,7 +655,7 @@ export function DocumentScanner({ maxFileSizeBytes, onCancel, onConfirm }: Docum
           </div>
           <div className="shrink-0 border-t border-white/10 bg-[#081220] px-3 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 sm:px-5">
             <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
-              <label className="flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 text-xs font-bold text-[#d9e3ec]"><input type="checkbox" checked={autoCapture} onChange={(event) => setAutoCapture(event.target.checked)} className="h-4 w-4 accent-[#4da3ff]" /> Auto-capture</label>
+              <label className="flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 text-xs font-bold text-[#d9e3ec]"><input type="checkbox" checked={autoCapture} onChange={(event) => setAutoCapture(event.target.checked)} className="h-4 w-4 accent-[#4da3ff]" /> Assisted auto-capture</label>
               <p className="text-right text-[11px] font-semibold leading-4 text-[#aebdca]">Manual capture always available<br />{pages.length}/{MAX_SCAN_PAGES} accepted</p>
             </div>
             <div className="mt-2 flex items-center justify-center gap-4">
