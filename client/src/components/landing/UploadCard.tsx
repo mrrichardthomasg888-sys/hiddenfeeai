@@ -403,18 +403,17 @@ export function UploadCard() {
               >
                 <div className="relative flex h-16 w-16 items-center justify-center rounded-[20px] border border-[#f4c542]/30 bg-[#f4c542]/10">
                   <Camera className="h-8 w-8 text-[#f8d96e]" strokeWidth={1.75} aria-hidden="true" />
-                  <span className="absolute -right-3 -top-2 rounded-full bg-[#f4c542] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#111827]">Beta</span>
                 </div>
                 <div>
-                  <p className="text-xl font-extrabold tracking-tight text-white">Scan With Camera</p>
-                  <p className="mt-2 text-sm font-semibold leading-6 text-[#dce4ec]">Capture paper pages for analysis</p>
+                  <p className="text-xl font-extrabold tracking-tight text-white">Scan Document</p>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-[#dce4ec]">Use your camera to scan one or multiple pages for AI analysis.</p>
                 </div>
               </button>
             </div>
 
             <div data-testid="desktop-scan-guidance" className="mt-4 hidden items-start justify-center gap-3 rounded-2xl border border-white/[0.09] bg-white/[0.025] px-4 py-3 text-left lg:flex">
               <Smartphone className="mt-0.5 h-5 w-5 shrink-0 text-[#73b8ff]" aria-hidden="true" />
-              <p className="max-w-lg text-sm font-semibold leading-6 text-[#c8d3df]">Need to scan a paper document? Open this page on your phone to use the camera scanner.</p>
+              <p className="max-w-lg text-sm font-semibold leading-6 text-[#c8d3df]">Need to scan a paper document? Open this page on your phone to use Scan Document.</p>
             </div>
 
             <div className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-xs font-semibold text-[#c8d3df]">

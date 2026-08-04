@@ -668,7 +668,7 @@ export function DocumentScanner({ maxFileSizeBytes, collapsed = false, onCancel,
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <ScanLine className="h-5 w-5 text-[#73b8ff]" />
-            <h2 id="scan-title" className="truncate text-base font-black sm:text-lg">Scan With Camera <span className="ml-1 rounded-full border border-[#f4c542]/25 bg-[#f4c542]/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-[#f8d96e]">Beta</span></h2>
+            <h2 id="scan-title" className="truncate text-base font-black sm:text-lg">Scan Document</h2>
           </div>
           <p className="mt-0.5 text-xs font-semibold text-[#c8d3df]">Camera frames stay on this device. Only accepted pages are uploaded.</p>
         </div>

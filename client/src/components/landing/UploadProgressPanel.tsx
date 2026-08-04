@@ -98,7 +98,7 @@ export function UploadProgressPanel({
         {error && (
           <div className="flex w-full max-w-lg flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
             {onRetry && <Button variant="violet" onClick={onRetry}>Retry Upload</Button>}
-            {isScan && onReturnToScanner && <Button variant="outline" onClick={onReturnToScanner}>Return to Scanner</Button>}
+            {isScan && onReturnToScanner && <Button variant="outline" onClick={onReturnToScanner}>Return to Scan Document</Button>}
             {onChooseAnother && <Button variant="outline" onClick={onChooseAnother}>Choose Another File</Button>}
           </div>
         )}

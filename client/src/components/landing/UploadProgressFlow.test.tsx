@@ -156,7 +156,7 @@ describe("shared upload progress experience", () => {
   it("collapses the scanner, shows progress before PDF creation, and blocks double taps", async () => {
     uploadMocks.upload.mockReturnValue(deferredUpload().promise);
     render(<MemoryRouter><UploadCard /></MemoryRouter>);
-    await userEvent.click(screen.getByRole("button", { name: /Scan With Camera/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Scan Document/i }));
     const continueButton = screen.getByRole("button", { name: "Mock Continue to Analysis" });
 
     fireEvent.click(continueButton);
@@ -176,13 +176,13 @@ describe("shared upload progress experience", () => {
 
   it("returns to intact scanner pages after PDF creation fails", async () => {
     render(<MemoryRouter><UploadCard /></MemoryRouter>);
-    await userEvent.click(screen.getByRole("button", { name: /Scan With Camera/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Scan Document/i }));
     fireEvent.click(screen.getByRole("button", { name: "Mock Continue to Analysis" }));
     scannerHarness.fail?.("Synthetic PDF failure");
 
     expect(await screen.findByText("Synthetic PDF failure")).toBeTruthy();
     expect(screen.getByTestId("scanner-shell").getAttribute("data-collapsed")).toBe("true");
-    await userEvent.click(screen.getByRole("button", { name: "Return to Scanner" }));
+    await userEvent.click(screen.getByRole("button", { name: "Return to Scan Document" }));
     expect(screen.getByTestId("scanner-shell").getAttribute("data-collapsed")).toBe("false");
     expect(uploadMocks.upload).not.toHaveBeenCalled();
   });
@@ -190,14 +190,14 @@ describe("shared upload progress experience", () => {
   it("keeps the scanner available after its generated PDF upload fails", async () => {
     uploadMocks.upload.mockRejectedValueOnce(new Error("Scan upload interrupted"));
     render(<MemoryRouter><UploadCard /></MemoryRouter>);
-    await userEvent.click(screen.getByRole("button", { name: /Scan With Camera/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Scan Document/i }));
     fireEvent.click(screen.getByRole("button", { name: "Mock Continue to Analysis" }));
     scannerHarness.confirm?.();
 
     expect(await screen.findByText("Scan upload interrupted")).toBeTruthy();
     expect(screen.getByText("HiddenFeeAI-scan.pdf")).toBeTruthy();
     expect(screen.getByTestId("scanner-shell").getAttribute("data-collapsed")).toBe("true");
-    await userEvent.click(screen.getByRole("button", { name: "Return to Scanner" }));
+    await userEvent.click(screen.getByRole("button", { name: "Return to Scan Document" }));
     expect(screen.getByTestId("scanner-shell").getAttribute("data-collapsed")).toBe("false");
   });
 

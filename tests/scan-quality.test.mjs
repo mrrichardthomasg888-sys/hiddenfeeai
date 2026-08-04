@@ -22,7 +22,7 @@ function issue(result, code) {
   return result.issues.find((candidate) => candidate.code === code);
 }
 
-test("the beta page limit is 20", () => {
+test("the scanner page limit is 20", () => {
   assert.equal(MAX_SCAN_PAGES, 20);
 });
 

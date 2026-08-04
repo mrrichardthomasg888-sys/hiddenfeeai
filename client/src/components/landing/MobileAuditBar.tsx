@@ -59,7 +59,7 @@ export function MobileAuditBar() {
         className="inline-flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border border-[#f4c542]/45 bg-[#f4c542]/[0.08] px-3 text-sm font-black text-[#f8d96e] transition hover:bg-[#f4c542]/[0.14] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#78bbff]"
       >
         <Camera className="h-4 w-4 shrink-0" aria-hidden="true" />
-        Scan <span className="text-[9px] uppercase tracking-wider">Beta</span>
+        Scan Document
       </button>
     </div>
   );

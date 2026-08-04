@@ -126,12 +126,12 @@ describe("DocumentScanner", () => {
   it("keeps upload and scan available through the tablet breakpoint while desktop gets scan guidance", () => {
     render(<MemoryRouter><UploadCard /></MemoryRouter>);
     expect(screen.getByRole("button", { name: /Upload Document/i })).toBeTruthy();
-    const scan = screen.getByRole("button", { name: /Scan With Camera/i });
+    const scan = screen.getByRole("button", { name: /Scan Document/i });
     expect(scan.className).toContain("lg:hidden");
     const guidance = screen.getByTestId("desktop-scan-guidance");
     expect(guidance.className).toContain("hidden");
     expect(guidance.className).toContain("lg:flex");
-    expect(screen.getByText(/Open this page on your phone to use the camera scanner/i)).toBeTruthy();
+    expect(screen.getByText(/Open this page on your phone to use Scan Document/i)).toBeTruthy();
   });
 
   it("shows equal-height Upload and Scan actions in the mobile and tablet sticky CTA", async () => {
@@ -142,19 +142,19 @@ describe("DocumentScanner", () => {
     expect(bar.className).toContain("lg:hidden");
     expect(bar.className).not.toContain("sm:hidden");
     expect(screen.getByRole("button", { name: "Upload a document to start your audit" }).className).toContain("h-12");
-    const scan = screen.getByRole("button", { name: "Scan Beta" });
+    const scan = screen.getByRole("button", { name: "Scan Document" });
     expect(scan.className).toContain("h-12");
     await userEvent.click(scan);
     expect(openScanner).toHaveBeenCalledTimes(1);
     window.removeEventListener("hiddenfee:open-scanner", openScanner);
   });
 
-  it("does not request permission until Scan With Camera is selected", async () => {
+  it("does not request permission until Scan Document is selected", async () => {
     const getUserMedia = vi.fn(async () => { throw new DOMException("Denied", "NotAllowedError"); });
     Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia } });
     render(<MemoryRouter><UploadCard /></MemoryRouter>);
     expect(getUserMedia).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole("button", { name: /Scan With Camera/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Scan Document/i }));
     await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(1));
   });
 

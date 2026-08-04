@@ -7,7 +7,7 @@ const requireFromClient = createRequire(new URL("../client/package.json", import
 const { jsPDF } = requireFromClient("jspdf");
 
 const pageCount = Number(process.argv[2] || 20);
-const outputPath = path.resolve(process.argv[3] || "tmp/pdfs/scanner-beta-benchmark.pdf");
+const outputPath = path.resolve(process.argv[3] || "tmp/pdfs/scanner-production-benchmark.pdf");
 const width = 1_455;
 const height = 2_000;
 const startedAt = performance.now();
@@ -21,7 +21,7 @@ function pageSvg(pageNumber) {
     const amount = ((pageNumber * 97 + index * 13) % 800 + 12).toFixed(2);
     return `<text x="130" y="${y}" font-family="Arial" font-size="22" fill="#172033">Service line ${String(index + 1).padStart(2, "0")}: documented charge and description</text><text x="1190" y="${y}" text-anchor="end" font-family="Arial" font-size="22" fill="#172033">$${amount}</text><line x1="125" y1="${y + 10}" x2="1200" y2="${y + 10}" stroke="#d7dde7" stroke-width="1"/>`;
   }).join("");
-  return Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#f8f6ef"/><rect x="75" y="70" width="1305" height="1860" rx="8" fill="#fff" stroke="#c8ced8" stroke-width="3"/><text x="125" y="165" font-family="Arial" font-size="48" font-weight="700" fill="#101827">Physical Document Sample</text><text x="125" y="220" font-family="Arial" font-size="25" fill="#4c596e">Scanner beta compression and readability benchmark</text><text x="1200" y="165" text-anchor="end" font-family="Arial" font-size="34" font-weight="700" fill="#245b9b">Page ${pageNumber}</text><line x1="125" y1="280" x2="1200" y2="280" stroke="#245b9b" stroke-width="5"/><text x="125" y="360" font-family="Arial" font-size="27" font-weight="700" fill="#172033">Account summary and itemized charges</text>${rows}<text x="125" y="1840" font-family="Arial" font-size="18" fill="#5c6678">Small-print verification: Every captured page must remain legible after JPEG and PDF compression.</text></svg>`);
+  return Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#f8f6ef"/><rect x="75" y="70" width="1305" height="1860" rx="8" fill="#fff" stroke="#c8ced8" stroke-width="3"/><text x="125" y="165" font-family="Arial" font-size="48" font-weight="700" fill="#101827">Physical Document Sample</text><text x="125" y="220" font-family="Arial" font-size="25" fill="#4c596e">Scanner compression and readability benchmark</text><text x="1200" y="165" text-anchor="end" font-family="Arial" font-size="34" font-weight="700" fill="#245b9b">Page ${pageNumber}</text><line x1="125" y1="280" x2="1200" y2="280" stroke="#245b9b" stroke-width="5"/><text x="125" y="360" font-family="Arial" font-size="27" font-weight="700" fill="#172033">Account summary and itemized charges</text>${rows}<text x="125" y="1840" font-family="Arial" font-size="18" fill="#5c6678">Small-print verification: Every captured page must remain legible after JPEG and PDF compression.</text></svg>`);
 }
 
 for (let page = 1; page <= pageCount; page += 1) {
