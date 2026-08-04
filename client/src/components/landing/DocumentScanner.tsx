@@ -195,7 +195,7 @@ async function createScanPdf(pages: ScanPage[]): Promise<{ file: File; metadata:
 
 function detectionLabel(detection: DocumentDetectionResult | null, stableProgress: number, autoCapture: boolean, detectionSupported: boolean): string {
   if (!detectionSupported) return "Automatic detection unavailable - use manual capture";
-  if (!detection?.quad) return "Find all four page corners";
+  if (!detection?.quad) return "Move the page inside the guide - manual capture is ready";
   if (detection.warnings.length) return detection.warnings[0]!.message;
   if (!autoCapture) return "Page detected - manual capture ready";
   if (stableProgress > 0) return `Hold still - ${Math.round(stableProgress * 100)}%`;
@@ -635,7 +635,14 @@ export function DocumentScanner({ maxFileSizeBytes, onCancel, onConfirm }: Docum
         <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="relative min-h-0 flex-1 bg-black">
             <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-contain" aria-label="Camera preview" />
-            <div className="pointer-events-none absolute inset-[5%] rounded-2xl border border-dashed border-white/35" />
+            {!detection?.quad && (
+              <div className="pointer-events-none absolute inset-[5%] rounded-2xl border border-dashed border-white/45" aria-label="Manual page framing guide">
+                <span className="absolute left-0 top-0 h-7 w-7 -translate-x-px -translate-y-px rounded-tl-xl border-l-4 border-t-4 border-[#f8d96e]" />
+                <span className="absolute right-0 top-0 h-7 w-7 translate-x-px -translate-y-px rounded-tr-xl border-r-4 border-t-4 border-[#f8d96e]" />
+                <span className="absolute bottom-0 left-0 h-7 w-7 -translate-x-px translate-y-px rounded-bl-xl border-b-4 border-l-4 border-[#f8d96e]" />
+                <span className="absolute bottom-0 right-0 h-7 w-7 translate-x-px translate-y-px rounded-br-xl border-b-4 border-r-4 border-[#f8d96e]" />
+              </div>
+            )}
             {detection?.quad && (
               <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 ${detection.frameWidth} ${detection.frameHeight}`} preserveAspectRatio="xMidYMid meet" aria-label="Detected page outline">
                 <polygon points={[detection.quad.topLeft, detection.quad.topRight, detection.quad.bottomRight, detection.quad.bottomLeft].map((point) => `${point.x},${point.y}`).join(" ")} fill="rgba(77,163,255,.10)" stroke={detection.canAutoCapture ? "#76ecba" : "#f8d96e"} strokeWidth="3" strokeLinejoin="round" />

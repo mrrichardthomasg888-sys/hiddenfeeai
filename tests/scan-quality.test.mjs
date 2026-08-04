@@ -108,6 +108,22 @@ test("a high-contrast paper rectangle produces four supported page corners", () 
   assert.ok(result.quad.bottomRight.x >= 135 && result.quad.bottomRight.x <= 145);
 });
 
+test("edge detection outlines a darker page on a lighter surface", () => {
+  const width = 160;
+  const height = 120;
+  const pixels = rgba(width, height, (x, y) => {
+    const onPage = x >= 20 && x <= 140 && y >= 10 && y <= 110;
+    const text = onPage && x >= 34 && x <= 126 && y % 15 < 2;
+    return text ? [55, 55, 55] : onPage ? [172, 172, 172] : [224, 224, 224];
+  });
+  const result = detectDocumentPage(pixels, width, height);
+  assert.ok(result.quad, "the page boundary should not depend on a bright page");
+  assert.equal(result.warnings.find((warning) => warning.code === "missing_corners"), undefined);
+  assert.ok(result.quad.topLeft.x >= 14 && result.quad.topLeft.x <= 27);
+  assert.ok(result.quad.topLeft.y >= 5 && result.quad.topLeft.y <= 16);
+  assert.ok(result.quad.bottomRight.x >= 133 && result.quad.bottomRight.x <= 146);
+});
+
 test("low-contrast scenes fail safely to manual cropping", () => {
   const width = 160;
   const height = 120;
