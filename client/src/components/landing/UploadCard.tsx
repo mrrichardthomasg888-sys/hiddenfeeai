@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { apiUrl } from "@/config/api";
@@ -17,9 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { prepareUploadFile, uploadDocument } from "@/lib/upload";
-import type { ScanPdfMetadata } from "@/components/landing/DocumentScanner";
-
-const DocumentScanner = lazy(() => import("@/components/landing/DocumentScanner").then((module) => ({ default: module.DocumentScanner })));
+import { DocumentScanner, type ScanPdfMetadata } from "@/components/landing/DocumentScanner";
 
 const ACCEPTED_EXTENSIONS = [
   // PDF
@@ -479,9 +477,7 @@ export function UploadCard() {
 
       <input ref={inputRef} id="file-upload-input" type="file" accept={ACCEPTED_EXTENSIONS.map((ext) => `.${ext}`).join(",")} className="hidden" onChange={(e) => handleFiles(e.target.files)} />
       {scannerOpen && (
-        <Suspense fallback={<div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#050911] text-white"><Loader2 className="h-8 w-8 animate-spin text-[#73b8ff]" /><span className="ml-3 font-bold">Opening scanner…</span></div>}>
-          <DocumentScanner maxFileSizeBytes={MAX_SIZE_BYTES} onCancel={() => setScannerOpen(false)} onConfirm={handleScannedPdf} />
-        </Suspense>
+        <DocumentScanner maxFileSizeBytes={MAX_SIZE_BYTES} onCancel={() => setScannerOpen(false)} onConfirm={handleScannedPdf} />
       )}
     </div>
   );
