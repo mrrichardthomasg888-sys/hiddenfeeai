@@ -23,6 +23,7 @@
     "test:scanner": "node --test tests/scan-quality.test.mjs",
     "test:worker-upload": "vitest run tests/worker-upload.integration.test.ts",
     "benchmark:scanner-pdf": "node tests/benchmark-scanner-pdf.mjs",
+    "benchmark:scanner-detection": "node tests/benchmark-document-detection.mjs",
     "android:sync": "npm run build --workspace client && npx cap sync",
     "android:open": "npx cap open android",
     "android:run": "npx cap run android"

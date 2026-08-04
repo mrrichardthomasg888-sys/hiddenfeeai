@@ -69,8 +69,11 @@ async function capturePages(count: number) {
     const capture = await screen.findByRole("button", { name: `Capture page ${page}` });
     await waitFor(() => expect((capture as HTMLButtonElement).disabled).toBe(false));
     await userEvent.click(capture);
+    expect(await screen.findByText("Review crop")).toBeTruthy();
+    expect(screen.getAllByRole("slider", { name: /crop corner/i })).toHaveLength(4);
+    await userEvent.click(screen.getByRole("button", { name: /Accept Page/i }));
     expect(await screen.findByRole("button", { name: new RegExp(`Review page ${page},`, "i") })).toBeTruthy();
-    if (page < count) await userEvent.click(screen.getByRole("button", { name: /Add Page/i }));
+    if (page < count) await userEvent.click(screen.getByRole("button", { name: /^\+ Add Page$/ }));
   }
 }
 
@@ -91,6 +94,16 @@ beforeEach(() => {
     fillRect: vi.fn(),
     translate: vi.fn(),
     rotate: vi.fn(),
+    save: vi.fn(),
+    restore: vi.fn(),
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    closePath: vi.fn(),
+    clip: vi.fn(),
+    setTransform: vi.fn(),
+    imageSmoothingEnabled: true,
+    imageSmoothingQuality: "high",
   }) as unknown as CanvasRenderingContext2D);
   vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation((callback) => callback(new Blob(["jpeg-page"], { type: "image/jpeg" })));
   vi.stubGlobal("createImageBitmap", vi.fn(async () => ({ width: 1_500, height: 2_000, close: vi.fn() })));
@@ -125,6 +138,23 @@ describe("DocumentScanner", () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
+  it("falls back cleanly when the browser has no camera API", async () => {
+    Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: undefined });
+    render(<DocumentScanner maxFileSizeBytes={25 * 1024 * 1024} onCancel={vi.fn()} onConfirm={vi.fn()} />);
+    expect(await screen.findByText(/Camera scanning is unavailable/i)).toBeTruthy();
+  });
+
+  it("lets the user disable auto-capture without disabling manual capture", async () => {
+    Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: vi.fn(async () => fakeStream().stream) } });
+    render(<DocumentScanner maxFileSizeBytes={25 * 1024 * 1024} onCancel={vi.fn()} onConfirm={vi.fn()} />);
+    const autoCapture = await screen.findByRole("checkbox", { name: /Auto-capture/i });
+    expect((autoCapture as HTMLInputElement).checked).toBe(true);
+    await userEvent.click(autoCapture);
+    expect((autoCapture as HTMLInputElement).checked).toBe(false);
+    const manualCapture = screen.getByRole("button", { name: "Capture page 1" });
+    await waitFor(() => expect((manualCapture as HTMLButtonElement).disabled).toBe(false));
+  });
+
   it("captures, reviews, rotates, and continues directly to analysis", async () => {
     const { stream, track } = fakeStream();
     Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: vi.fn(async () => stream) } });
@@ -134,12 +164,25 @@ describe("DocumentScanner", () => {
     const capture = await screen.findByRole("button", { name: "Capture page 1" });
     await waitFor(() => expect((capture as HTMLButtonElement).disabled).toBe(false));
     await userEvent.click(capture);
+    expect(await screen.findByText("Review crop")).toBeTruthy();
+    const cropCorners = screen.getAllByRole("slider", { name: /crop corner/i });
+    expect(cropCorners).toHaveLength(4);
+    const originalCorner = cropCorners[0]!.getAttribute("aria-valuetext");
+    fireEvent.keyDown(cropCorners[0]!, { key: "ArrowRight" });
+    expect(screen.getAllByRole("slider", { name: /crop corner/i })[0]!.getAttribute("aria-valuetext")).not.toBe(originalCorner);
+    expect(screen.getByRole("button", { name: /Reset Crop/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Retake" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: /Rotate/i }));
+    expect(document.querySelector("image")?.getAttribute("transform")).toContain("matrix(0 1 -1 0");
+    await userEvent.click(screen.getByRole("button", { name: /Accept Page/i }));
     expect(await screen.findByText("Review the complete document")).toBeTruthy();
     expect(screen.getByText("Selected: Page 1")).toBeTruthy();
     const thumbnails = screen.getByRole("list", { name: "Captured page thumbnails" });
     const continueButton = screen.getByRole("button", { name: /Continue to Analysis/i });
     const editor = screen.getByRole("region", { name: "Edit page 1" });
-    expect(thumbnails.className).toContain("grid-cols-2");
+    expect(thumbnails.className).toContain("overflow-x-auto");
+    expect(screen.getByRole("button", { name: "+ Add Page" }).className).toContain("w-full");
+    expect(screen.getByRole("button", { name: "Add another page" })).toBeTruthy();
     expect(continueButton.className).toContain("w-full");
     expect(thumbnails.compareDocumentPosition(continueButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(editor.compareDocumentPosition(continueButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -154,15 +197,34 @@ describe("DocumentScanner", () => {
     expect(pdfMockState.addPageCalls).toBe(0);
     expect(pdfMockState.addImageCalls).toBe(1);
     expect(track.stop).toHaveBeenCalled();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:scan-1");
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:scan-2");
   });
 
-  it.each([1, 2, 5, 10])("preserves all %i pages through background assembly and analysis handoff", async (pageCount) => {
+  it("keeps the uncropped original available when crop creation fails", async () => {
+    Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: vi.fn(async () => fakeStream().stream) } });
+    render(<DocumentScanner maxFileSizeBytes={25 * 1024 * 1024} onCancel={vi.fn()} onConfirm={vi.fn()} />);
+    const capture = await screen.findByRole("button", { name: "Capture page 1" });
+    await waitFor(() => expect((capture as HTMLButtonElement).disabled).toBe(false));
+    await userEvent.click(capture);
+    vi.mocked(createImageBitmap).mockRejectedValueOnce(new Error("Synthetic crop failure"));
+    await userEvent.click(await screen.findByRole("button", { name: /Accept Page/i }));
+    expect(await screen.findByText("Synthetic crop failure")).toBeTruthy();
+    expect(screen.getByLabelText("Uncropped original for page 1")).toBeTruthy();
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith("blob:scan-1");
+  });
+
+  it.each([1, 2, 5, 10, 20])("preserves all %i pages through background assembly and analysis handoff", async (pageCount) => {
     Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: vi.fn(async () => fakeStream().stream) } });
     const onConfirm = vi.fn();
     render(<DocumentScanner maxFileSizeBytes={25 * 1024 * 1024} onCancel={vi.fn()} onConfirm={onConfirm} />);
 
     await capturePages(pageCount);
     expect(screen.getAllByRole("button", { name: /Review page \d+,/i })).toHaveLength(pageCount);
+    if (pageCount === 20) {
+      expect((screen.getByRole("button", { name: /^\+ Add Page$/ }) as HTMLButtonElement).disabled).toBe(true);
+      expect((screen.getByRole("button", { name: "Add another page" }) as HTMLButtonElement).disabled).toBe(true);
+    }
     await userEvent.click(screen.getByRole("button", { name: /Continue to Analysis/i }));
     await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
 
@@ -171,7 +233,7 @@ describe("DocumentScanner", () => {
     expect(metadata.pageCount).toBe(pageCount);
     expect(pdfMockState.addImageCalls).toBe(pageCount);
     expect(pdfMockState.addPageCalls).toBe(pageCount - 1);
-  });
+  }, 15_000);
 
   it("warns about duplicate pages without silently dropping either page", async () => {
     const first = fakeStream();
@@ -182,9 +244,11 @@ describe("DocumentScanner", () => {
 
     await waitFor(() => expect((screen.getByRole("button", { name: "Capture page 1" }) as HTMLButtonElement).disabled).toBe(false));
     await userEvent.click(screen.getByRole("button", { name: "Capture page 1" }));
-    await userEvent.click(await screen.findByRole("button", { name: /Add page/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /Accept Page/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /^\+ Add Page$/ }));
     await waitFor(() => expect((screen.getByRole("button", { name: "Capture page 2" }) as HTMLButtonElement).disabled).toBe(false));
     await userEvent.click(screen.getByRole("button", { name: "Capture page 2" }));
+    await userEvent.click(await screen.findByRole("button", { name: /Accept Page/i }));
 
     expect(await screen.findByText(/resembles page 1/i)).toBeTruthy();
     expect(screen.getByText("Selected: Page 2")).toBeTruthy();
@@ -205,7 +269,7 @@ describe("DocumentScanner", () => {
 
     const reordered = screen.getAllByRole("button", { name: /Review page \d+,/i });
     expect(reordered[0]?.getAttribute("aria-label")).toMatch(/Review page 1, Image may be blurry/i);
-    expect(reordered[0]?.querySelector("img")?.getAttribute("src")).toBe("blob:scan-2");
+    expect(reordered[0]?.querySelector("img")?.getAttribute("src")).toBe("blob:scan-4");
     await userEvent.click(screen.getByRole("button", { name: /Continue to Analysis/i }));
     await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
     const metadata = onConfirm.mock.calls[0]?.[1] as { pageCount: number } | undefined;
@@ -220,6 +284,7 @@ describe("DocumentScanner", () => {
     render(<DocumentScanner maxFileSizeBytes={64} onCancel={vi.fn()} onConfirm={onConfirm} />);
     await waitFor(() => expect((screen.getByRole("button", { name: "Capture page 1" }) as HTMLButtonElement).disabled).toBe(false));
     await userEvent.click(screen.getByRole("button", { name: "Capture page 1" }));
+    await userEvent.click(await screen.findByRole("button", { name: /Accept Page/i }));
     await userEvent.click(await screen.findByRole("button", { name: /Continue to Analysis/i }));
     expect(await screen.findByText(/exceeds the existing/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /Continue to Analysis/i })).toBeTruthy();
@@ -230,10 +295,11 @@ describe("DocumentScanner", () => {
   it("keeps captured pages available after PDF creation fails", async () => {
     const { stream } = fakeStream();
     Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: vi.fn(async () => stream) } });
-    vi.mocked(createImageBitmap).mockRejectedValueOnce(new Error("Synthetic PDF failure"));
     render(<DocumentScanner maxFileSizeBytes={25 * 1024 * 1024} onCancel={vi.fn()} onConfirm={vi.fn()} />);
     await waitFor(() => expect((screen.getByRole("button", { name: "Capture page 1" }) as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(screen.getByRole("button", { name: "Capture page 1" }));
+    await userEvent.click(await screen.findByRole("button", { name: /Accept Page/i }));
+    vi.mocked(createImageBitmap).mockRejectedValueOnce(new Error("Synthetic PDF failure"));
     await userEvent.click(await screen.findByRole("button", { name: /Continue to Analysis/i }));
     expect(await screen.findByText("Synthetic PDF failure")).toBeTruthy();
     expect(screen.getByText("Selected: Page 1")).toBeTruthy();

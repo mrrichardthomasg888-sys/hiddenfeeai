@@ -3,6 +3,9 @@ export type ScanIssueCode =
   | "dark"
   | "cropped"
   | "glare"
+  | "shadows"
+  | "perspective"
+  | "missing_corners"
   | "low_resolution"
   | "duplicate";
 
@@ -22,6 +25,7 @@ export interface ScanQualityMetrics {
   edgeInkRatio: number;
   edgeDetailRatio: number;
   glareImbalance: number;
+  shadowImbalance: number;
   megapixels: number;
 }
 
@@ -148,6 +152,7 @@ export function analyzeScanQuality(
   let clippedBrightPixels = 0;
   let midtonePixels = 0;
   const quadrantBright = [0, 0, 0, 0];
+  const quadrantLuminance = [0, 0, 0, 0];
   const quadrantCount = [0, 0, 0, 0];
 
   for (let y = 0; y < sampleHeight; y += 1) {
@@ -160,6 +165,7 @@ export function analyzeScanQuality(
       if (value >= 70 && value <= 225) midtonePixels += 1;
       const quadrant = (y >= sampleHeight / 2 ? 2 : 0) + (x >= sampleWidth / 2 ? 1 : 0);
       quadrantCount[quadrant]! += 1;
+      quadrantLuminance[quadrant]! += value;
       if (value > 248) quadrantBright[quadrant]! += 1;
     }
   }
@@ -188,6 +194,8 @@ export function analyzeScanQuality(
   const edgeDetailRatio = edgePixels ? edgeDetail / edgePixels : 0;
   const quadrantRatios = quadrantBright.map((value, index) => value / Math.max(1, quadrantCount[index]!));
   const glareImbalance = Math.max(...quadrantRatios) - Math.min(...quadrantRatios);
+  const quadrantMeans = quadrantLuminance.map((value, index) => value / Math.max(1, quadrantCount[index]!));
+  const shadowImbalance = Math.max(...quadrantMeans) - Math.min(...quadrantMeans);
   const megapixels = (sourceWidth * sourceHeight) / 1_000_000;
   const shortEdge = Math.min(sourceWidth, sourceHeight);
   const midtoneRatio = midtonePixels / totalPixels;
@@ -219,9 +227,13 @@ export function analyzeScanQuality(
     issues.push({ code: "glare", severity: "warning", message: "A bright glare spot may hide text. Change the camera angle or lighting if needed." });
   }
 
+  if (shadowImbalance > 72 && darkPixelRatio > 0.12) {
+    issues.push({ code: "shadows", severity: "warning", message: "Heavy or uneven shadows may hide text. Add more even light if possible." });
+  }
+
   return {
     issues,
-    metrics: { averageLuminance, darkPixelRatio, clippedBrightRatio, focusScore, edgeInkRatio, edgeDetailRatio, glareImbalance, megapixels },
+    metrics: { averageLuminance, darkPixelRatio, clippedBrightRatio, focusScore, edgeInkRatio, edgeDetailRatio, glareImbalance, shadowImbalance, megapixels },
     fingerprint: fingerprint(gray, sampleWidth, sampleHeight),
   };
 }

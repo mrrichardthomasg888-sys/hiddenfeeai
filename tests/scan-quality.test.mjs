@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { analyzeScanQuality, cameraFailureMessage, fingerprintDistance, MAX_SCAN_PAGES, moveListItem, replaceListItem, rotateClockwise, selectionAfterDelete } from "../client/src/lib/scanQuality.ts";
+import { defaultCropQuad, detectDocumentPage, moveCropCorner, quadMovement, smoothQuad } from "../client/src/lib/documentDetection.ts";
 
 function rgba(width, height, pixel) {
   const data = new Uint8ClampedArray(width * height * 4);
@@ -89,4 +90,69 @@ test("identical page fingerprints are recognized without discarding either page"
   const first = analyzeScanQuality(pixels, width, height, 1_500, 2_000);
   const second = analyzeScanQuality(pixels, width, height, 1_500, 2_000);
   assert.equal(fingerprintDistance(first.fingerprint, second.fingerprint), 0);
+});
+
+test("a high-contrast paper rectangle produces four supported page corners", () => {
+  const width = 160;
+  const height = 120;
+  const pixels = rgba(width, height, (x, y) => {
+    const onPage = x >= 20 && x <= 140 && y >= 10 && y <= 110;
+    const text = onPage && x >= 36 && x <= 124 && y % 13 < 2;
+    return text ? [45, 45, 45] : onPage ? [244, 244, 244] : [24, 24, 24];
+  });
+  const result = detectDocumentPage(pixels, width, height);
+  assert.ok(result.quad);
+  assert.ok(result.confidence >= 0.6);
+  assert.equal(result.warnings.find((warning) => warning.code === "missing_corners"), undefined);
+  assert.ok(result.quad.topLeft.x >= 15 && result.quad.topLeft.x <= 25);
+  assert.ok(result.quad.bottomRight.x >= 135 && result.quad.bottomRight.x <= 145);
+});
+
+test("low-contrast scenes fail safely to manual cropping", () => {
+  const width = 160;
+  const height = 120;
+  const pixels = rgba(width, height, (x, y) => x >= 18 && x <= 142 && y >= 8 && y <= 112 ? [238, 238, 238] : [229, 229, 229]);
+  const result = detectDocumentPage(pixels, width, height);
+  assert.equal(result.canAutoCapture, false);
+  assert.ok(!result.quad || result.confidence < 0.6 || result.warnings.length > 0);
+});
+
+test("pages touching the camera edge never auto-capture", () => {
+  const width = 160;
+  const height = 120;
+  const pixels = rgba(width, height, (x, y) => x <= 140 && y >= 8 && y <= 112 ? [242, 242, 242] : [20, 20, 20]);
+  const result = detectDocumentPage(pixels, width, height);
+  assert.equal(result.canAutoCapture, false);
+  assert.ok(result.warnings.some((warning) => warning.code === "outside_frame" || warning.code === "missing_corners"));
+});
+
+test("low light and heavy shadows suppress assisted auto-capture", () => {
+  const width = 160;
+  const height = 120;
+  const lowLight = detectDocumentPage(rgba(width, height, (x, y) => x >= 18 && x <= 142 && y >= 8 && y <= 112 ? [92, 92, 92] : [10, 10, 10]), width, height);
+  assert.equal(lowLight.canAutoCapture, false);
+  assert.ok(lowLight.warnings.some((warning) => warning.code === "low_light"));
+  const shadowed = detectDocumentPage(rgba(width, height, (x, y) => {
+    if (x < 18 || x > 142 || y < 8 || y > 112) return [22, 22, 22];
+    return x < 80 ? [132, 132, 132] : [242, 242, 242];
+  }), width, height);
+  assert.equal(shadowed.canAutoCapture, false);
+  assert.ok(shadowed.warnings.some((warning) => warning.code === "shadows"));
+});
+
+test("crop corners can be moved without crossing neighboring corners", () => {
+  const initial = defaultCropQuad(1_000, 1_400);
+  const moved = moveCropCorner(initial, "topLeft", { x: 250, y: 180 }, 1_000, 1_400);
+  assert.equal(moved.topLeft.x, 250);
+  assert.equal(moved.topLeft.y, 180);
+  const clamped = moveCropCorner(moved, "topLeft", { x: 990, y: 1_390 }, 1_000, 1_400);
+  assert.ok(clamped.topLeft.x < clamped.topRight.x);
+  assert.ok(clamped.topLeft.y < clamped.bottomLeft.y);
+});
+
+test("outline smoothing reduces live corner movement", () => {
+  const initial = defaultCropQuad(100, 140, 0.1);
+  const shifted = { ...initial, topLeft: { x: 20, y: 25 } };
+  const smoothed = smoothQuad(initial, shifted, 0.25);
+  assert.ok(quadMovement(initial, smoothed, 100, 140) < quadMovement(initial, shifted, 100, 140));
 });
