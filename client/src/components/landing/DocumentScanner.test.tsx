@@ -15,7 +15,7 @@ vi.mock("jspdf", () => ({
   },
 }));
 
-import { DocumentScanner } from "@/components/landing/DocumentScanner";
+import { applyModestCameraZoom, DocumentScanner } from "@/components/landing/DocumentScanner";
 import { UploadCard } from "@/components/landing/UploadCard";
 
 interface FakeTrack {
@@ -142,6 +142,17 @@ describe("DocumentScanner", () => {
     Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: undefined });
     render(<DocumentScanner maxFileSizeBytes={25 * 1024 * 1024} onCancel={vi.fn()} onConfirm={vi.fn()} />);
     expect(await screen.findByText(/Camera scanning is unavailable/i)).toBeTruthy();
+  });
+
+  it("uses a modest supported camera zoom and safely skips unsupported cameras", async () => {
+    const applyConstraints = vi.fn(async () => undefined);
+    await applyModestCameraZoom({
+      getCapabilities: () => ({ zoom: { min: 1, max: 5 } }),
+      applyConstraints,
+    } as unknown as MediaStreamTrack);
+    expect(applyConstraints).toHaveBeenCalledWith({ advanced: [{ zoom: 1.18 }] });
+    await expect(applyModestCameraZoom({ getCapabilities: () => ({}), applyConstraints } as unknown as MediaStreamTrack)).resolves.toBeUndefined();
+    expect(applyConstraints).toHaveBeenCalledTimes(1);
   });
 
   it("lets the user disable auto-capture without disabling manual capture", async () => {

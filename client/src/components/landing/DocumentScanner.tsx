@@ -202,6 +202,29 @@ function detectionLabel(detection: DocumentDetectionResult | null, stableProgres
   return "Page detected - hold still";
 }
 
+type ZoomCapableTrack = Omit<MediaStreamTrack, "getCapabilities" | "applyConstraints"> & {
+  getCapabilities?: () => { zoom?: { min?: number; max?: number } };
+  applyConstraints?: (constraints: { advanced: Array<{ zoom: number }> }) => Promise<void>;
+};
+
+/** Apply a small optical zoom only when the camera exposes a standard zoom range. */
+export async function applyModestCameraZoom(track: MediaStreamTrack): Promise<void> {
+  const zoomTrack = track as ZoomCapableTrack;
+  const zoom = zoomTrack.getCapabilities?.().zoom;
+  if (!zoom || typeof zoomTrack.applyConstraints !== "function") return;
+  const minimum = Number(zoom.min ?? 1);
+  const maximum = Number(zoom.max ?? minimum);
+  if (!Number.isFinite(minimum) || !Number.isFinite(maximum) || maximum <= minimum) return;
+  const target = Math.min(maximum, Math.max(minimum, minimum * 1.18));
+  if (target <= minimum + 0.01) return;
+  try {
+    await zoomTrack.applyConstraints({ advanced: [{ zoom: target }] });
+  } catch {
+    // Zoom is an enhancement; iPhone Safari and older Android browsers safely
+    // continue with the camera's default framing when it is unsupported.
+  }
+}
+
 function cloneQuad(quad: DocumentQuad): DocumentQuad {
   return {
     topLeft: { ...quad.topLeft },
@@ -306,6 +329,7 @@ export function DocumentScanner({ maxFileSizeBytes, onCancel, onConfirm }: Docum
       streamRef.current = stream;
       const track = stream.getVideoTracks()[0];
       if (track) {
+        await applyModestCameraZoom(track);
         track.addEventListener("ended", () => {
           if (streamRef.current === stream) {
             setCameraReady(false);
@@ -720,7 +744,6 @@ export function DocumentScanner({ maxFileSizeBytes, onCancel, onConfirm }: Docum
         <main className="min-h-0 flex-1 overflow-y-auto px-3 py-3 pb-[calc(18px+env(safe-area-inset-bottom))] sm:px-6 sm:py-5">
           <div className="mx-auto max-w-3xl">
             <div><h3 className="text-lg font-black sm:text-xl">Review the complete document</h3><p className="mt-0.5 text-xs font-semibold leading-5 text-[#c8d3df] sm:text-sm">Scan a page, review it, add another, then continue when every page is present.</p></div>
-            <Button variant="outline" className="mt-3 w-full border-[#4da3ff]/60 bg-[#4da3ff]/10 text-[#ddecff]" onClick={addPage} disabled={pages.length >= MAX_SCAN_PAGES}><Plus className="h-5 w-5" /> + Add Page</Button>
 
             {pages.length === 0 ? (
               <div className="mt-4 rounded-2xl border border-dashed border-white/20 p-6 text-center"><p className="font-bold">No accepted pages.</p><Button variant="outline" className="mt-3" onClick={addPage}><Camera className="h-4 w-4" /> Capture page 1</Button></div>
@@ -752,6 +775,7 @@ export function DocumentScanner({ maxFileSizeBytes, onCancel, onConfirm }: Docum
                 )}
 
                 {(blockingCount > 0 || pdfError) && <div className="mt-3 flex items-start gap-2 rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-xs font-bold text-red-100" role="alert"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span>{pdfError || `${blockingCount} unreadable page issue${blockingCount === 1 ? "" : "s"} must be retaken before analysis. No pages will be discarded.`}</span></div>}
+                <Button variant="outline" className="mt-3 w-full border-[#4da3ff]/60 bg-[#4da3ff]/10 text-[#ddecff]" onClick={addPage} disabled={pages.length >= MAX_SCAN_PAGES}><Plus className="h-5 w-5" /> + Add Page</Button>
                 <Button variant="violet" size="lg" className="mt-3 w-full" onClick={() => void continueToAnalysis()} disabled={!pages.length || blockingCount > 0}><FileCheck2 className="h-5 w-5" /> Continue to Analysis</Button>
                 <p className="mt-2 text-center text-[11px] font-semibold leading-4 text-[#9eacba]">Every accepted page is combined in the order shown and sent through the existing HiddenFeeAI upload flow.</p>
               </>
