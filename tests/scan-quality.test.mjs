@@ -105,7 +105,7 @@ test("a high-contrast paper rectangle produces four supported page corners", () 
   assert.ok(result.confidence >= 0.6);
   assert.equal(result.warnings.find((warning) => warning.code === "missing_corners"), undefined);
   assert.ok(result.quad.topLeft.x >= 15 && result.quad.topLeft.x <= 25);
-  assert.ok(result.quad.bottomRight.x >= 135 && result.quad.bottomRight.x <= 145);
+  assert.ok(result.quad.bottomRight.x >= 135 && result.quad.bottomRight.x <= 150);
 });
 
 test("edge detection outlines a darker page on a lighter surface", () => {
@@ -122,6 +122,22 @@ test("edge detection outlines a darker page on a lighter surface", () => {
   assert.ok(result.quad.topLeft.x >= 14 && result.quad.topLeft.x <= 27);
   assert.ok(result.quad.topLeft.y >= 5 && result.quad.topLeft.y <= 16);
   assert.ok(result.quad.bottomRight.x >= 133 && result.quad.bottomRight.x <= 146);
+});
+
+test("the crop follows the outer sheet instead of stronger text edges", () => {
+  const width = 180;
+  const height = 140;
+  const pixels = rgba(width, height, (x, y) => {
+    const onPage = x >= 22 && x <= 158 && y >= 10 && y <= 130;
+    const denseText = onPage && x >= 42 && x <= 138 && y >= 20 && y <= 120 && y % 6 < 2;
+    return denseText ? [28, 28, 28] : onPage ? [190, 190, 190] : [220, 220, 220];
+  });
+  const result = detectDocumentPage(pixels, width, height);
+  assert.ok(result.quad);
+  assert.ok(result.quad.topLeft.x <= 22, `left crop was too tight: ${result.quad.topLeft.x}`);
+  assert.ok(result.quad.topLeft.y <= 10, `top crop was too tight: ${result.quad.topLeft.y}`);
+  assert.ok(result.quad.bottomRight.x >= 158, `right crop was too tight: ${result.quad.bottomRight.x}`);
+  assert.ok(result.quad.bottomRight.y >= 130, `bottom crop was too tight: ${result.quad.bottomRight.y}`);
 });
 
 test("low-contrast scenes fail safely to manual cropping", () => {

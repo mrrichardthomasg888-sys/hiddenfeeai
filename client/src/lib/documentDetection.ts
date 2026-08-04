@@ -95,7 +95,7 @@ function polygonArea(quad: DocumentQuad): number {
   return Math.abs(area) / 2;
 }
 
-export function defaultCropQuad(width: number, height: number, insetRatio = 0.015): DocumentQuad {
+export function defaultCropQuad(width: number, height: number, insetRatio = 0.005): DocumentQuad {
   const insetX = width * insetRatio;
   const insetY = height * insetRatio;
   return {
@@ -199,6 +199,123 @@ function edgeSamples(gray: Uint8Array, width: number, height: number, minimumStr
   return { left, right, top, bottom };
 }
 
+function expandQuad(quad: DocumentQuad, width: number, height: number, marginRatio = 0.025): DocumentQuad {
+  const points = [quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft];
+  const center = points.reduce((value, point) => ({ x: value.x + point.x / 4, y: value.y + point.y / 4 }), { x: 0, y: 0 });
+  const margin = Math.min(width, height) * marginRatio;
+  const expand = (point: DocumentPoint): DocumentPoint => {
+    const x = point.x - center.x;
+    const y = point.y - center.y;
+    const length = Math.max(1, Math.hypot(x, y));
+    return {
+      x: clamp(point.x + (x / length) * margin, 0, width),
+      y: clamp(point.y + (y / length) * margin, 0, height),
+    };
+  };
+  return {
+    topLeft: expand(quad.topLeft),
+    topRight: expand(quad.topRight),
+    bottomRight: expand(quad.bottomRight),
+    bottomLeft: expand(quad.bottomLeft),
+  };
+}
+
+/**
+ * Finds the largest connected outer contour in the edge map. This prevents
+ * dense, high-contrast text inside the sheet from becoming the crop boundary.
+ */
+function contourEvidence(gray: Uint8Array, width: number, height: number, minimumStrength: number, contrastConfidence: number): QuadEvidence | null {
+  const size = width * height;
+  let edges = new Uint8Array(size);
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const horizontal = Math.abs(gray[y * width + x + 1]! - gray[y * width + x - 1]!);
+      const vertical = Math.abs(gray[(y + 1) * width + x]! - gray[(y - 1) * width + x]!);
+      if (Math.max(horizontal, vertical) >= minimumStrength) edges[y * width + x] = 1;
+    }
+  }
+
+  // Join small gaps caused by glare, shadows, folds, and low-contrast corners.
+  for (let pass = 0; pass < 2; pass += 1) {
+    const dilated = edges.slice();
+    for (let y = 1; y < height - 1; y += 1) {
+      for (let x = 1; x < width - 1; x += 1) {
+        const index = y * width + x;
+        if (!edges[index]) continue;
+        dilated[index - 1] = 1;
+        dilated[index + 1] = 1;
+        dilated[index - width] = 1;
+        dilated[index + width] = 1;
+      }
+    }
+    edges = dilated;
+  }
+
+  const visited = new Uint8Array(size);
+  const stack = new Int32Array(size);
+  let best: QuadEvidence | null = null;
+  let bestScore = 0;
+  for (let seed = 0; seed < size; seed += 1) {
+    if (!edges[seed] || visited[seed]) continue;
+    let head = 0;
+    let tail = 0;
+    stack[tail++] = seed;
+    visited[seed] = 1;
+    let count = 0;
+    let minimumX = width;
+    let maximumX = 0;
+    let minimumY = height;
+    let maximumY = 0;
+    let topLeft = { x: width, y: height };
+    let topRight = { x: 0, y: height };
+    let bottomRight = { x: 0, y: 0 };
+    let bottomLeft = { x: width, y: 0 };
+    while (head < tail) {
+      const index = stack[head++]!;
+      const x = index % width;
+      const y = Math.floor(index / width);
+      count += 1;
+      minimumX = Math.min(minimumX, x);
+      maximumX = Math.max(maximumX, x);
+      minimumY = Math.min(minimumY, y);
+      maximumY = Math.max(maximumY, y);
+      if (x + y < topLeft.x + topLeft.y) topLeft = { x, y };
+      if (x - y > topRight.x - topRight.y) topRight = { x, y };
+      if (x + y > bottomRight.x + bottomRight.y) bottomRight = { x, y };
+      if (x - y < bottomLeft.x - bottomLeft.y) bottomLeft = { x, y };
+      for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+        for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+          if (!offsetX && !offsetY) continue;
+          const nextX = x + offsetX;
+          const nextY = y + offsetY;
+          if (nextX < 0 || nextX >= width || nextY < 0 || nextY >= height) continue;
+          const next = nextY * width + nextX;
+          if (edges[next] && !visited[next]) {
+            visited[next] = 1;
+            stack[tail++] = next;
+          }
+        }
+      }
+    }
+    const boxWidth = maximumX - minimumX;
+    const boxHeight = maximumY - minimumY;
+    const boxAreaRatio = (boxWidth * boxHeight) / size;
+    if (boxWidth < width * 0.28 || boxHeight < height * 0.28 || boxAreaRatio < 0.13 || boxAreaRatio > 0.98) continue;
+    const rawQuad = { topLeft, topRight, bottomRight, bottomLeft };
+    const areaRatio = polygonArea(rawQuad) / size;
+    if (areaRatio < 0.12 || areaRatio > 0.98) continue;
+    const perimeter = Math.max(1, 2 * (boxWidth + boxHeight));
+    const support = clamp(count / (perimeter * 2.5), 0, 1);
+    const confidence = clamp(support * 0.5 + contrastConfidence * 0.15 + clamp(areaRatio / 0.5, 0, 1) * 0.35, 0, 1);
+    const score = areaRatio * 0.72 + support * 0.28;
+    if (score > bestScore) {
+      bestScore = score;
+      best = { quad: expandQuad(rawQuad, width, height), support, areaRatio, confidence };
+    }
+  }
+  return best;
+}
+
 export function scaleQuad(quad: DocumentQuad, scaleX: number, scaleY: number): DocumentQuad {
   return {
     topLeft: { x: quad.topLeft.x * scaleX, y: quad.topLeft.y * scaleY },
@@ -297,6 +414,7 @@ export function detectDocumentPage(data: Uint8ClampedArray, width: number, heigh
   const gradientMean = gradientSum / Math.max(1, gradientCount);
   const gradientDeviation = Math.sqrt(Math.max(0, gradientSquares / Math.max(1, gradientCount) - gradientMean * gradientMean));
   const edgeThreshold = Math.max(16, gradientMean + gradientDeviation * 0.75);
+  const contourThreshold = Math.max(12, Math.min(edgeThreshold, 8 + standardDeviation * 0.35));
 
   const leftSamples: Array<{ major: number; minor: number }> = [];
   const rightSamples: Array<{ major: number; minor: number }> = [];
@@ -336,13 +454,17 @@ export function detectDocumentPage(data: Uint8ClampedArray, width: number, heigh
   const brightEvidence = quadFromSamples(leftSamples, rightSamples, topSamples, bottomSamples, width, height, contrastConfidence);
   const edge = edgeSamples(gray, width, height, edgeThreshold);
   const edgeEvidence = quadFromSamples(edge.left, edge.right, edge.top, edge.bottom, width, height, contrastConfidence);
+  const contour = contourEvidence(gray, width, height, contourThreshold, contrastConfidence);
   const brightValid = brightEvidence.support > 0.52 && brightEvidence.areaRatio > 0.16 && brightEvidence.areaRatio < 0.94;
   const edgeValid = edgeEvidence.support > 0.42 && edgeEvidence.areaRatio > 0.13 && edgeEvidence.areaRatio < 0.94;
-  // Prefer real boundary evidence when it is comparable. Bright-region evidence
-  // remains valuable on a clean white page in dim light.
-  const selected = edgeValid && (!brightValid || edgeEvidence.confidence >= brightEvidence.confidence - 0.08)
-    ? edgeEvidence
-    : brightEvidence;
+  const contourValid = Boolean(contour && contour.support > 0.34 && contour.areaRatio > 0.13 && contour.areaRatio < 0.94);
+  // A connected outer contour is the safest crop seed. Fall back to scanline
+  // and bright-region evidence only when the page boundary is incomplete.
+  const selected = contourValid && contour
+    ? contour
+    : edgeValid && (!brightValid || edgeEvidence.confidence >= brightEvidence.confidence - 0.08)
+      ? edgeEvidence
+      : brightEvidence;
   const areaRatio = selected.areaRatio;
   const candidate = selected.quad;
   const minimumMargin = Math.min(
@@ -361,7 +483,7 @@ export function detectDocumentPage(data: Uint8ClampedArray, width: number, heigh
     / Math.max(1, Math.max(distance(candidate.topLeft, candidate.bottomLeft), distance(candidate.topRight, candidate.bottomRight)));
   const perspectiveRatio = Math.min(horizontalRatio, verticalRatio);
   const confidence = selected.confidence;
-  const validGeometry = selected === edgeEvidence ? edgeValid : brightValid;
+  const validGeometry = selected === contour ? contourValid : selected === edgeEvidence ? edgeValid : brightValid;
   const quad = validGeometry ? candidate : null;
 
   if (!quad) warnings.push({ code: "missing_corners", message: "All four page corners are not clearly visible." });
@@ -379,7 +501,7 @@ export function detectDocumentPage(data: Uint8ClampedArray, width: number, heigh
     // Drawing an outline is helpful even when the scene is difficult. Auto-
     // capture stays stricter: it requires long edge support in addition to a
     // warning-free frame, so text lines and background textures cannot fire it.
-    canAutoCapture: Boolean(quad) && confidence >= 0.66 && edgeEvidence.support >= 0.72 && warnings.length === 0,
+    canAutoCapture: Boolean(quad) && confidence >= 0.66 && (contour?.support ?? edgeEvidence.support) >= 0.72 && warnings.length === 0,
     warnings,
     frameWidth: width,
     frameHeight: height,
