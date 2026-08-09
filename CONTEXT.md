@@ -86,3 +86,12 @@ npm run build --workspace client && npx cap sync android
 npm run build --workspace client && npx cap sync android
 # Then open android/ in Android Studio
 ```
+
+### DetectHiddenFees attribution and verified-revenue handoff (Phase 8B - 2026-08-09)
+- DetectHiddenFees hands off allow-listed context through first-party query parameters: `dhf_landing`, `dhf_referrer`, `dhf_session`, `dhf_source`, `dhf_cta_id`, `dhf_cta_type`, and `utm_*` values. `dhf_cta_id` remains an opaque page/action/position label, not an identity token.
+- The client stores only this short-lived attribution context in first-party session storage, emits one document-free `hiddenfeeai_arrival` event, and appends the context to the upload request. The Worker validates and sanitizes every value before storing it on the temporary audit job.
+- Worker funnel events are stored in the existing `ANALYSIS_KV` namespace under `attribution:event:` with a 400-day TTL. Events are `hiddenfeeai_arrival`, `upload_started`, `upload_completed`, `analysis_started`, `analysis_completed`, `checkout_started`, `purchase_completed`, and `revenue_recorded`. No document contents, filenames, extracted text, analysis results, or card data are written to these events.
+- Stripe Checkout receives the opaque attribution fields in metadata. A browser return URL cannot mark an audit paid. Production payment confirmation requires a valid Stripe webhook signature, `checkout.session.completed`, `payment_status=paid`, a matching `auditId`, and a verified amount/currency/transaction identifier.
+- Purchase and revenue records use a deterministic transaction key, so duplicate webhook deliveries are idempotent. The private `GET /api/analytics/events` export is token-protected by optional `ANALYTICS_ADMIN_TOKEN`; it is never called by the browser.
+- Synthetic checks passed locally: client build, Worker dry-run, scanner tests, upload integration tests, seven-event KV funnel/idempotency test, and signed duplicate Stripe webhook test. Production deployment verification is the remaining handoff step; no real-money test purchase was made.
+- Do not add personal Gmail, alter pricing, change the existing Stripe secrets, redesign the product, change DetectHiddenFees Phase 4 pages, or modify `calculator-authority.css`. Next safe continuation point: deploy the verified Worker and matching client, verify `/api/health` and a document-free arrival event in production, then use a Stripe test-mode webhook/checkout if a full live test is needed.

@@ -93,16 +93,16 @@ export function AuditReport() {
           const verifyRes = await fetch(
             apiUrl(`/checkout/verify/${auditId}${sessionId ? `?session_id=${sessionId}` : ""}`)
           );
-          if (!verifyRes.ok) {
-            // A completed report can be visible before the payment-verification
-            // route sees the same KV record. Continue to the authoritative report
-            // status poll instead of blocking a paid customer on that race.
-            console.warn("Payment verification deferred; checking report status instead.");
+          const verification = await verifyRes.json().catch(() => ({})) as { paid?: boolean; error?: string };
+          if (!verifyRes.ok || verification.paid !== true) {
+            setErrorMessage(verification.error || "Payment is still being confirmed. Please refresh this report link shortly.");
+            setPageState("error");
+            return;
           }
         } catch {
-          // Network interruptions on the return URL are also recoverable: the
-          // report status endpoint will confirm the paid/completed job.
-          console.warn("Payment verification unavailable; checking report status instead.");
+          setErrorMessage("We could not confirm payment yet. Please refresh this report link shortly.");
+          setPageState("error");
+          return;
         }
 
         setPageState("analyzing");

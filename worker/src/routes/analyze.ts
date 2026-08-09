@@ -14,6 +14,7 @@ import { generateActionPlan } from "../intelligence/actionPlanEngine.js";
 import { estimateSavings } from "../intelligence/savingsEstimator.js";
 import { auditPreparedFile } from "../services/geminiDirectAudit.js";
 import { buildPremiumReport, normalizeConfidence } from "../services/premiumReport.js";
+import { recordFunnelEvent } from "../attribution.js";
 
 export const analyzeRoute = new Hono<{ Bindings: Env }>();
 
@@ -112,9 +113,11 @@ analyzeRoute.post("/:auditId/start", async (c) => {
   if (job.geminiFile) {
     const startedAt = Date.now();
     await updateJob(auditId, { status: "analyzing", progress: job.progress ? { ...job.progress, stage: "analyzing", geminiRequestStatus: "running", geminiResponseStatus: "not_started", complete: false } : undefined });
+    await recordFunnelEvent(c.env, { eventName: "analysis_started", eventId: `analysis:${auditId}`, auditId, attribution: job.attribution });
     try {
       const report = await auditPreparedFile(job.geminiFile, c.env, auditId);
       await updateJob(auditId, { status: "complete", report, geminiFile: undefined, resultState: report.findings.length ? "findings_found" : "no_findings_complete", progress: job.progress ? { ...job.progress, stage: "complete", geminiRequestStatus: "succeeded", geminiResponseStatus: "valid", complete: true } : undefined });
+      await recordFunnelEvent(c.env, { eventName: "analysis_completed", eventId: `analysis:${auditId}`, auditId, attribution: job.attribution });
       console.log(`[PIPELINE] auditId=${auditId} stage=report_displayed durationMs=${Date.now() - startedAt} findings=${report.findings.length}`);
       return c.json({ auditId, status: "complete" }, 200);
     } catch (error) {
@@ -140,6 +143,7 @@ analyzeRoute.post("/:auditId/start", async (c) => {
 
   // Update status to analyzing (atomic check in production KV store)
   await updateJob(auditId, { status: "analyzing", progress: job.progress ? { ...job.progress, stage: "analyzing", geminiRequestStatus: "running", complete: false } : undefined });
+  await recordFunnelEvent(c.env, { eventName: "analysis_started", eventId: `analysis:${auditId}`, auditId, attribution: job.attribution });
   console.log(`[JobLifecycle] ANALYSIS_STARTED auditId=${auditId} pipeline=${useNew ? "new" : "legacy"} pages=${job.documentContext?.pages ?? "unknown"}`);
 
   // Run audit asynchronously
@@ -192,6 +196,7 @@ analyzeRoute.post("/:auditId/start", async (c) => {
           extractedText: undefined,
           extractedDocument: undefined,
         });
+        await recordFunnelEvent(c.env, { eventName: "analysis_completed", eventId: `analysis:${auditId}`, auditId, attribution: job.attribution });
         console.log(`[JobLifecycle] ANALYSIS_COMPLETED auditId=${auditId} durationMs=${durationMs} findings=${report.findings.length} riskScore=${report.risk_score} hasReport=${!!report}`);
       } catch (auditError) {
         const durationMs = Date.now() - startTime;

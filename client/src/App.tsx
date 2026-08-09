@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Landing } from "@/pages/Landing";
 import { PageMetadata } from "@/components/seo/PageMetadata";
 import { MobileAuditBar } from "@/components/landing/MobileAuditBar";
+import { useEffect } from "react";
+import { recordArrival } from "@/lib/attribution";
 
 const AuditReport = lazy(() => import("@/pages/AuditReport").then((m) => ({ default: m.AuditReport })));
 const NotFound = lazy(() => import("@/pages/NotFound").then((m) => ({ default: m.NotFound })));
@@ -28,6 +30,8 @@ function RouteFallback() {
 }
 
 function App() {
+  useEffect(() => { void recordArrival(); }, []);
+
   return (
     <BrowserRouter>
       <PageMetadata />
