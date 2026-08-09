@@ -5,7 +5,6 @@ import type { Env } from "./types.js";
 import { uploadRoute } from "./routes/upload.js";
 import { analyzeRoute } from "./routes/analyze.js";
 import { checkoutRoute } from "./routes/checkout.js";
-import { analyticsRoute } from "./routes/analytics.js";
 import { rateLimiter, uploadRateLimiter, analyzeRateLimiter } from "./middleware/rateLimiter.js";
 import { requestTracker, getMetricsSnapshot } from "./middleware/observability.js";
 import { initJobStore } from "./jobStore.js";
@@ -127,7 +126,6 @@ app.get("/api/health/deep", async (c) => {
 app.route("/api/upload", uploadRoute);
 app.route("/api/analyze", analyzeRoute);
 app.route("/api/checkout", checkoutRoute);
-app.route("/api/analytics", analyticsRoute);
 
 // Apply stricter rate limits for upload/analyze routes
 app.use("/api/upload/*", uploadRateLimiter);

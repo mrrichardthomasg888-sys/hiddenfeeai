@@ -5,7 +5,6 @@ import { isAcceptedExtension } from "../router/documentRouter.js";
 import { prepareFileForAudit } from "../services/geminiDirectAudit.js";
 import * as errors from "../utils/errors.js";
 import { validateUpload } from "../middleware/inputValidation.js";
-import { attributionFromFormData, recordFunnelEvent } from "../attribution.js";
 
 export const uploadRoute = new Hono<{ Bindings: Env }>();
 
@@ -28,15 +27,11 @@ uploadRoute.post("/", async (c) => {
   console.log(`[PIPELINE] stage=file_validation_completed fileName="${validation.sanitizedFileName}" bytes=${file.size}`);
 
   const auditId = crypto.randomUUID();
-  const attribution = attributionFromFormData(formData);
   await createJob(auditId, validation.sanitizedFileName);
-  await updateJob(auditId, { attribution });
-  await recordFunnelEvent(c.env, { eventName: "upload_started", eventId: `upload:${auditId}`, auditId, attribution });
   await updateJob(auditId, { status: "extracting", progress: progress("analyzing", file, { geminiRequestStatus: "running" }) });
   try {
     const prepared = await prepareFileForAudit(file, c.env, auditId);
     await updateJob(auditId, { status: "extracted", geminiFile: prepared, progress: progress("preparing", file, { geminiRequestStatus: "succeeded", geminiResponseStatus: "not_started", complete: true }) });
-    await recordFunnelEvent(c.env, { eventName: "upload_completed", eventId: `upload:${auditId}`, auditId, attribution });
     return c.json({ auditId, status: "extracted", fileName: validation.sanitizedFileName, fileSize: file.size }, 201);
   } catch (error) {
     const internalMessage = error instanceof Error ? error.message : "Document preparation failed.";

@@ -1,5 +1,3 @@
-import { appendAttribution } from "@/lib/attribution";
-
 const UPLOAD_TIMEOUT_MS = 6 * 60_000;
 
 export class UploadError extends Error {
@@ -67,7 +65,6 @@ export async function uploadDocument(file: File, options: { signal?: AbortSignal
   const timeout = window.setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
   const formData = new FormData();
   formData.append("file", file, file.name);
-  appendAttribution(formData);
 
   try {
     const response = await fetch(apiUrl("/upload"), {

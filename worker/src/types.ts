@@ -226,22 +226,6 @@ export interface Job {
   resultState?: "findings_found" | "no_findings_complete" | "partial_analysis" | "unreadable";
   progress?: AnalysisProgress;
   geminiFile?: { uri: string; name: string; mimeType: string; originalFileName: string };
-  attribution?: AttributionContext;
-}
-
-/** Privacy-conscious acquisition context carried from DetectHiddenFees. */
-export interface AttributionContext {
-  dhf_landing?: string;
-  dhf_referrer?: string;
-  dhf_session?: string;
-  dhf_source?: string;
-  dhf_cta_id?: string;
-  dhf_cta_type?: string;
-  utm_source?: string;
-  utm_medium?: string;
-  utm_campaign?: string;
-  utm_content?: string;
-  utm_term?: string;
 }
 
 export interface AnalysisProgress {
@@ -291,7 +275,6 @@ export interface Env {
   GEMINI_MODEL?: string;
   GEMINI_PRO_MODEL?: string;
   ANALYSIS_KV?: KVNamespace;
-  ANALYTICS_ADMIN_TOKEN?: string;
   AI: {
     run: (model: string, inputs: Record<string, unknown>) => Promise<Record<string, unknown>>;
   };

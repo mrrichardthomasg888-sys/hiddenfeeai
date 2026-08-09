@@ -89,17 +89,20 @@ export function AuditReport() {
     const initialize = async () => {
       if (paidParam === "true" || sessionId) {
         setPageState("verifying_payment");
-        try {
-          const verifyRes = await fetch(
-            apiUrl(`/checkout/verify/${auditId}${sessionId ? `?session_id=${sessionId}` : ""}`)
-          );
-          const verification = await verifyRes.json().catch(() => ({})) as { paid?: boolean; error?: string };
-          if (!verifyRes.ok || verification.paid !== true) {
-            setErrorMessage(verification.error || "Payment is still being confirmed. Please refresh this report link shortly.");
-            setPageState("error");
-            return;
+        let paymentConfirmed = false;
+        for (let attempt = 0; attempt < 8 && !paymentConfirmed; attempt++) {
+          try {
+            const verifyRes = await fetch(
+              apiUrl(`/checkout/verify/${auditId}${sessionId ? `?session_id=${sessionId}` : ""}`)
+            );
+            const verification = await verifyRes.json().catch(() => ({})) as { paid?: boolean };
+            paymentConfirmed = verifyRes.ok && verification.paid === true;
+          } catch {
+            // Keep the customer in the safe verification state during a transient network failure.
           }
-        } catch {
+          if (!paymentConfirmed && attempt < 7) await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
+        if (!paymentConfirmed) {
           setErrorMessage("We could not confirm payment yet. Please refresh this report link shortly.");
           setPageState("error");
           return;
