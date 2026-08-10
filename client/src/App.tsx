@@ -22,6 +22,7 @@ const Accuracy = lazy(() => import("@/pages/Accuracy").then((m) => ({ default: m
 const Changelog = lazy(() => import("@/pages/Changelog").then((m) => ({ default: m.Changelog })));
 const HtmlSitemap = lazy(() => import("@/pages/HtmlSitemap").then((m) => ({ default: m.HtmlSitemap })));
 const Search = lazy(() => import("@/pages/Search").then((m) => ({ default: m.Search })));
+const BeforeYouSign = lazy(() => import("@/pages/BeforeYouSign").then((m) => ({ default: m.BeforeYouSign })));
 
 function RouteFallback() {
   return <div className="min-h-screen bg-midnight-950" aria-label="Loading page" />;
@@ -33,6 +34,7 @@ function App() {
       <PageMetadata />
       <Suspense fallback={<RouteFallback />}><Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/before-you-sign" element={<BeforeYouSign />} />
         <Route path="/report/:auditId" element={<AuditReport />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
