@@ -11,8 +11,7 @@ import {
 import { Nav } from "@/components/layout/Nav";
 import { Footer } from "@/components/layout/Footer";
 import { Container } from "@/components/layout/Container";
-
-const uploadHref = "/#upload";
+import { UploadCard } from "@/components/landing/UploadCard";
 
 const reviewItems = [
   { icon: BadgeDollarSign, title: "Fees and charges", text: "See fee-related findings and questionable charges that appear in the document." },
@@ -22,6 +21,11 @@ const reviewItems = [
 ];
 
 export function BeforeYouSign() {
+  const openUpload = () => {
+    document.getElementById("upload")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => document.getElementById("file-upload-input")?.click(), 450);
+  };
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#050911]">
       <Nav />
@@ -41,13 +45,25 @@ export function BeforeYouSign() {
               </p>
               <p className="mt-7 text-sm font-black uppercase tracking-[0.16em] text-[#f8d96e]">$15 one-time review · No subscription</p>
               <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-                <a href={uploadHref} className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border border-[#f4c542]/70 bg-[#f4c542] px-7 text-base font-extrabold text-[#111827] shadow-[0_8px_28px_rgba(244,197,66,.18)] transition hover:bg-[#ffda60] hover:shadow-[0_10px_34px_rgba(244,197,66,.28)] sm:w-auto">
+                <button type="button" onClick={openUpload} className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border border-[#f4c542]/70 bg-[#f4c542] px-7 text-base font-extrabold text-[#111827] shadow-[0_8px_28px_rgba(244,197,66,.18)] transition hover:bg-[#ffda60] hover:shadow-[0_10px_34px_rgba(244,197,66,.28)] sm:w-auto">
                   Upload My Contract <ArrowRight className="h-5 w-5" />
-                </a>
+                </button>
               </div>
               <p className="mx-auto mt-5 max-w-xl text-xs leading-relaxed text-[#aebdcb]">
                 AI-assisted document analysis for educational and informational purposes. It is not legal advice and does not replace a qualified professional.
               </p>
+            </div>
+          </Container>
+        </section>
+
+        <section className="border-b border-white/[0.09] py-14 sm:py-16">
+          <Container>
+            <div className="mx-auto max-w-5xl">
+              <div className="mb-7 text-center">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#7cc4ff]">Start your review</p>
+                <h2 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">Upload or scan your contract.</h2>
+              </div>
+              <UploadCard />
             </div>
           </Container>
         </section>
@@ -88,9 +104,9 @@ export function BeforeYouSign() {
                     {["Upload your document", "Review organized findings", "Know what to clarify"].map((step) => <div key={step} className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-savings-400" /> {step}</div>)}
                   </div>
                 </div>
-                <a href={uploadHref} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl border border-[#f4c542]/70 bg-[#f4c542] px-7 text-base font-extrabold text-[#111827] shadow-[0_8px_28px_rgba(244,197,66,.18)] transition hover:bg-[#ffda60] hover:shadow-[0_10px_34px_rgba(244,197,66,.28)]">
+                <button type="button" onClick={openUpload} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl border border-[#f4c542]/70 bg-[#f4c542] px-7 text-base font-extrabold text-[#111827] shadow-[0_8px_28px_rgba(244,197,66,.18)] transition hover:bg-[#ffda60] hover:shadow-[0_10px_34px_rgba(244,197,66,.28)]">
                   Upload My Contract <ArrowRight className="h-5 w-5" />
-                </a>
+                </button>
               </div>
             </div>
           </Container>
