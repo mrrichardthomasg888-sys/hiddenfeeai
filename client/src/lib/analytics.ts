@@ -20,18 +20,26 @@ function clean(value: unknown, max = 160): string {
   return String(value ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, max);
 }
 
-function readStorage(storage: Storage, key: string): string | null {
+function getStorage(kind: "local" | "session"): Storage | null {
+  try { return kind === "local" ? window.localStorage : window.sessionStorage; } catch { return null; }
+}
+
+function readStorage(storage: Storage | null, key: string): string | null {
+  if (!storage) return null;
   try { return storage.getItem(key); } catch { return null; }
 }
 
-function writeStorage(storage: Storage, key: string, value: string): void {
+function writeStorage(storage: Storage | null, key: string, value: string): void {
+  if (!storage) return;
   try { storage.setItem(key, value); } catch { /* restricted storage */ }
 }
 
 function captureAttribution(): void {
   if (typeof window === "undefined") return;
   const params = new URLSearchParams(window.location.search);
-  const raw = readStorage(window.localStorage, ATTRIBUTION_KEY);
+  const local = getStorage("local");
+  const sessionStorage = getStorage("session");
+  const raw = readStorage(local, ATTRIBUTION_KEY);
   let previous: Record<string, unknown> = {};
   if (raw) {
     try {
@@ -40,7 +48,7 @@ function captureAttribution(): void {
     } catch { previous = {}; }
   }
   const session = clean(params.get("dhf_session") || readStorage(window.sessionStorage, SESSION_KEY), 64);
-  if (session) writeStorage(window.sessionStorage, SESSION_KEY, session);
+  if (session) writeStorage(sessionStorage, SESSION_KEY, session);
   const firstTouch = previous.first_touch && typeof previous.first_touch === "object"
     ? previous.first_touch as Record<string, unknown>
     : { landing_page: window.location.pathname, referrer: "" };
@@ -58,13 +66,13 @@ function captureAttribution(): void {
     const value = clean(params.get(key));
     if (value) current[key] = value;
   });
-  writeStorage(window.localStorage, ATTRIBUTION_KEY, JSON.stringify(current));
+  writeStorage(local, ATTRIBUTION_KEY, JSON.stringify(current));
 }
 
 function attributionParams(): AnalyticsParams {
   if (typeof window === "undefined") return {};
   let stored: Record<string, unknown> = {};
-  const raw = readStorage(window.localStorage, ATTRIBUTION_KEY);
+  const raw = readStorage(getStorage("local"), ATTRIBUTION_KEY);
   if (raw) {
     try {
       const parsed = JSON.parse(raw);
@@ -77,7 +85,7 @@ function attributionParams(): AnalyticsParams {
     dhf_landing: clean(stored.landing_page || window.location.pathname),
     dhf_cta_id: clean(stored.dhf_cta_id),
     dhf_cta_type: clean(stored.dhf_cta_type),
-    dhf_session: clean(stored.session_id || readStorage(window.sessionStorage, SESSION_KEY), 64),
+    dhf_session: clean(stored.session_id || readStorage(getStorage("session"), SESSION_KEY), 64),
     ...Object.fromEntries(UTM_KEYS.map((key) => [key, clean(utm[key])]).filter(([, value]) => value)),
   };
 }
@@ -126,8 +134,9 @@ export function track(name: string, params: AnalyticsParams = {}): void {
 export function trackPurchase(sessionId: string | null, auditId: string): void {
   if (typeof window === "undefined") return;
   const dedupeKey = `${PURCHASE_PREFIX}${clean(sessionId || auditId)}`;
-  if (readStorage(window.localStorage, dedupeKey) === "sent") return;
-  writeStorage(window.localStorage, dedupeKey, "sent");
+  const local = getStorage("local");
+  if (readStorage(local, dedupeKey) === "sent") return;
+  writeStorage(local, dedupeKey, "sent");
   track("purchase", {
     ...(sessionId ? { transaction_id: clean(sessionId) } : {}),
     value: 15.00,
