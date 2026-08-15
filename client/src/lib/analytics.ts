@@ -11,6 +11,7 @@ declare global {
   interface Window {
     dataLayer: unknown[];
     gtag: (...args: unknown[]) => void;
+    __dhfGa4Initialized?: boolean;
   }
 }
 
@@ -105,6 +106,9 @@ export function initAnalytics(): void {
   if (!Array.isArray(window.dataLayer)) window.dataLayer = [];
   if (typeof window.gtag !== "function") window.gtag = (...args: unknown[]) => window.dataLayer.push(args);
   if (!initialized) {
+    initialized = window.__dhfGa4Initialized === true;
+  }
+  if (!initialized) {
     window.gtag("js", new Date());
     window.gtag("config", MEASUREMENT_ID, {
       send_page_view: false,
@@ -113,6 +117,7 @@ export function initAnalytics(): void {
       linker: { domains: ["detecthiddenfees.com", "hiddenfeeai.com"] },
     });
     initialized = true;
+    window.__dhfGa4Initialized = true;
     loadGoogleTag();
   }
 }

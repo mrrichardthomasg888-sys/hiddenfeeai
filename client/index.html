@@ -7,6 +7,38 @@
     <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
     <meta name="author" content="HiddenFeeAI" />
     <meta name="theme-color" content="#050911" />
+    <script>
+      (function () {
+        var id = "G-KDGZ83RRHL";
+        var clean = function (value, max) { return String(value || "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, max || 160); };
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
+        if (!window.__dhfGa4Initialized) {
+          window.gtag("js", new Date());
+          window.gtag("config", id, { send_page_view: false, allow_google_signals: false, allow_ad_personalization_signals: false, linker: { domains: ["detecthiddenfees.com", "hiddenfeeai.com"] } });
+          window.__dhfGa4Initialized = true;
+        }
+        var params = new URLSearchParams(window.location.search);
+        if (window.location.pathname === "/before-you-sign") {
+          window.gtag("event", "before_you_sign_view", {
+            page_path: window.location.pathname,
+            funnel_route: "before_you_sign",
+            dhf_source: clean(params.get("dhf_source")),
+            dhf_landing: clean(params.get("dhf_landing")),
+            dhf_cta_id: clean(params.get("dhf_cta_id")),
+            dhf_cta_type: clean(params.get("dhf_cta_type")),
+            dhf_session: clean(params.get("dhf_session"), 64)
+          });
+        }
+        if (!document.querySelector('script[data-dhf-ga4="' + id + '"]')) {
+          var script = document.createElement("script");
+          script.async = true;
+          script.src = "https://www.googletagmanager.com/gtag/js?id=" + id;
+          script.setAttribute("data-dhf-ga4", id);
+          document.head.appendChild(script);
+        }
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
     <link rel="canonical" href="https://hiddenfeeai.com/" />
