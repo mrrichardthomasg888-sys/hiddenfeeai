@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { prepareUploadFile, uploadDocument } from "@/lib/upload";
 import { DocumentScanner, type ScanPdfMetadata } from "@/components/landing/DocumentScanner";
 import { UploadProgressPanel, type UploadFileSummary, type UploadStage } from "@/components/landing/UploadProgressPanel";
+import { track } from "@/lib/analytics";
 
 const ACCEPTED_EXTENSIONS = [
   // PDF
@@ -135,7 +136,10 @@ export function UploadCard() {
 
   useEffect(() => {
     const openScanner = () => {
-      if (window.matchMedia("(max-width: 1023px)").matches) setScannerOpen(true);
+      if (window.matchMedia("(max-width: 1023px)").matches) {
+        track("scan_started", { scan_entry: "sticky" });
+        setScannerOpen(true);
+      }
     };
     window.addEventListener("hiddenfee:open-scanner", openScanner);
     return () => window.removeEventListener("hiddenfee:open-scanner", openScanner);
@@ -168,6 +172,7 @@ export function UploadCard() {
     }
 
     processingLockRef.current = true;
+    track("upload_started", { upload_mode: "file" });
     processingScrolledRef.current = false;
     errorScrolledRef.current = false;
     setFile(selected);
@@ -192,6 +197,7 @@ export function UploadCard() {
   }, []);
 
   const startUpload = async (fileToUpload: File, scanMetadata?: ScanPdfMetadata) => {
+    if (scanMetadata) track("upload_started", { upload_mode: "scan" });
     const uploadController = new AbortController();
     uploadControllerRef.current = uploadController;
     setScanUpload(scanMetadata ?? null);
@@ -305,6 +311,7 @@ export function UploadCard() {
       }
       const data = await res.json();
       if (data.url) {
+        track("checkout_started", { value: 15.00, currency: "USD", payment_provider: "stripe" });
         // Redirect to Stripe Checkout — pay with test card 4242 4242 4242 4242
         window.location.href = data.url;
       }
@@ -398,7 +405,7 @@ export function UploadCard() {
 
               <button
                 type="button"
-                onClick={() => setScannerOpen(true)}
+                onClick={() => { track("scan_started", { scan_entry: "upload_card" }); setScannerOpen(true); }}
                 className="flex min-h-[220px] w-full flex-col items-center justify-center gap-4 rounded-[22px] border border-[#f4c542]/35 bg-[#f4c542]/[0.055] px-5 py-8 text-center transition-all duration-300 hover:border-[#f4c542]/65 hover:bg-[#f4c542]/[0.09] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f4c542] lg:hidden"
               >
                 <div className="relative flex h-16 w-16 items-center justify-center rounded-[20px] border border-[#f4c542]/30 bg-[#f4c542]/10">

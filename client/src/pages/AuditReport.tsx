@@ -6,6 +6,7 @@ import { Container } from "@/components/layout/Container";
 import { ReportActions } from "@/components/report/ReportActions";
 import { Button } from "@/components/ui/button";
 import type { AuditReport, JobStatus } from "@/types/audit";
+import { trackPurchase } from "@/lib/analytics";
 
 // ── Premium report components ──
 import { ReportStickySummary } from "@/components/report/ReportStickySummary";
@@ -107,6 +108,8 @@ export function AuditReport() {
           setPageState("error");
           return;
         }
+
+        trackPurchase(sessionId, auditId);
 
         setPageState("analyzing");
         analysisStarted = await startAnalysisOnce(auditId);

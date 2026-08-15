@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   ArrowRight,
   BadgeDollarSign,
@@ -12,6 +13,7 @@ import { Nav } from "@/components/layout/Nav";
 import { Footer } from "@/components/layout/Footer";
 import { Container } from "@/components/layout/Container";
 import { UploadCard } from "@/components/landing/UploadCard";
+import { track } from "@/lib/analytics";
 
 const reviewItems = [
   { icon: BadgeDollarSign, title: "Fees and charges", text: "See fee-related findings and questionable charges that appear in the document." },
@@ -21,6 +23,10 @@ const reviewItems = [
 ];
 
 export function BeforeYouSign() {
+  useEffect(() => {
+    track("before_you_sign_view", { funnel_route: "before_you_sign" });
+  }, []);
+
   const openUpload = () => {
     document.getElementById("upload")?.scrollIntoView({ behavior: "smooth", block: "center" });
     window.setTimeout(() => document.getElementById("file-upload-input")?.click(), 450);

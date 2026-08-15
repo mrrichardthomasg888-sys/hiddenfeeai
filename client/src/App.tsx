@@ -1,8 +1,9 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Landing } from "@/pages/Landing";
 import { PageMetadata } from "@/components/seo/PageMetadata";
 import { MobileAuditBar } from "@/components/landing/MobileAuditBar";
+import { initAnalytics, track } from "@/lib/analytics";
 
 const AuditReport = lazy(() => import("@/pages/AuditReport").then((m) => ({ default: m.AuditReport })));
 const NotFound = lazy(() => import("@/pages/NotFound").then((m) => ({ default: m.NotFound })));
@@ -29,6 +30,11 @@ function RouteFallback() {
 }
 
 function App() {
+  useEffect(() => {
+    initAnalytics();
+    track("page_view");
+  }, []);
+
   return (
     <BrowserRouter>
       <PageMetadata />
